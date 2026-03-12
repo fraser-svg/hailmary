@@ -1,0 +1,19 @@
+{
+  "name": "company-intelligence-engine",
+  "version": "0.1.0",
+  "description": "Company Intelligence Engine — structured dossier generation for downstream AI",
+  "type": "module",
+  "scripts": {
+    "validate": "tsx src/validate.ts",
+    "generate-empty": "tsx src/utils/empty-dossier.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

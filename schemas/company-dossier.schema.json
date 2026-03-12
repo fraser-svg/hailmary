@@ -1,0 +1,473 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "company-dossier.schema.json",
+  "title": "Company Dossier",
+  "description": "Canonical machine-readable company intelligence dossier — Spec 002 + V1 evidence extension",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "company_input",
+    "run_metadata",
+    "company_profile",
+    "product_and_offer",
+    "gtm_model",
+    "customer_and_personas",
+    "competitors",
+    "market_and_macro",
+    "signals",
+    "narrative_intelligence",
+    "strategic_risks",
+    "confidence_and_gaps",
+    "sources",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "company_input": {
+      "type": "object",
+      "required": ["company_name", "primary_domain", "resolved_company_name", "resolved_domain", "aliases"],
+      "additionalProperties": false,
+      "properties": {
+        "company_name": { "type": "string" },
+        "primary_domain": { "type": "string" },
+        "resolved_company_name": { "type": "string" },
+        "resolved_domain": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "run_metadata": {
+      "type": "object",
+      "required": ["run_id", "pipeline_version", "collection_started_at", "collection_finished_at", "source_count", "evidence_record_count", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": { "type": "string" },
+        "pipeline_version": { "type": "string" },
+        "collection_started_at": { "type": "string" },
+        "collection_finished_at": { "type": "string" },
+        "source_count": { "type": "integer", "minimum": 0 },
+        "evidence_record_count": { "type": "integer", "minimum": 0 },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "company_profile": {
+      "type": "object",
+      "required": ["plain_language_description", "category", "subcategories", "founded_year", "company_stage", "headquarters", "geographic_presence", "leadership", "ownership_or_structure_notes", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "plain_language_description": { "type": "string" },
+        "category": { "type": "string" },
+        "subcategories": { "type": "array", "items": { "type": "string" } },
+        "founded_year": { "type": ["integer", "null"] },
+        "company_stage": { "$ref": "#/$defs/inferred_value" },
+        "headquarters": { "type": "string" },
+        "geographic_presence": { "type": "array", "items": { "type": "string" } },
+        "leadership": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "title", "evidence_ids"],
+            "properties": {
+              "name": { "type": "string" },
+              "title": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "ownership_or_structure_notes": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "product_and_offer": {
+      "type": "object",
+      "required": ["core_offer_summary", "products_or_services", "pricing_model", "pricing_signals", "delivery_model", "implementation_complexity", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "core_offer_summary": { "type": "string" },
+        "products_or_services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type", "description", "target_user", "evidence_ids"],
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "description": { "type": "string" },
+              "target_user": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "pricing_model": {
+          "type": "object",
+          "required": ["value", "details", "is_public", "is_inferred", "evidence_ids"],
+          "properties": {
+            "value": { "type": "string" },
+            "details": { "type": "string" },
+            "is_public": { "type": "boolean" },
+            "is_inferred": { "type": "boolean" },
+            "evidence_ids": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "pricing_signals": { "type": "array", "items": { "type": "string" } },
+        "delivery_model": { "type": "array", "items": { "type": "string" } },
+        "implementation_complexity": { "$ref": "#/$defs/inferred_value" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "gtm_model": {
+      "type": "object",
+      "required": ["sales_motion", "acquisition_channels", "buyer_journey_notes", "distribution_model", "territory_or_market_focus", "growth_signals", "hiring_signals", "content_and_positioning_hooks", "gtm_observations", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "sales_motion": { "$ref": "#/$defs/inferred_value" },
+        "acquisition_channels": { "type": "array", "items": { "type": "string" } },
+        "buyer_journey_notes": { "type": "array", "items": { "type": "string" } },
+        "distribution_model": { "type": "array", "items": { "type": "string" } },
+        "territory_or_market_focus": { "type": "array", "items": { "type": "string" } },
+        "growth_signals": { "type": "array", "items": { "type": "string" } },
+        "hiring_signals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role_title", "department", "signal", "evidence_ids"],
+            "properties": {
+              "role_title": { "type": "string" },
+              "department": { "type": "string" },
+              "signal": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "content_and_positioning_hooks": { "type": "array", "items": { "type": "string" } },
+        "gtm_observations": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "customer_and_personas": {
+      "type": "object",
+      "required": ["ideal_customer_profile", "buyer_personas", "end_user_personas", "customer_pain_themes", "customer_outcome_themes", "case_study_signals", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "ideal_customer_profile": {
+          "type": "object",
+          "required": ["company_size", "industries", "geographies", "traits", "is_inferred", "evidence_ids"],
+          "properties": {
+            "company_size": { "type": "array", "items": { "type": "string" } },
+            "industries": { "type": "array", "items": { "type": "string" } },
+            "geographies": { "type": "array", "items": { "type": "string" } },
+            "traits": { "type": "array", "items": { "type": "string" } },
+            "is_inferred": { "type": "boolean" },
+            "evidence_ids": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "buyer_personas": { "type": "array", "items": { "$ref": "#/$defs/buyer_persona" } },
+        "end_user_personas": { "type": "array", "items": { "$ref": "#/$defs/buyer_persona" } },
+        "customer_pain_themes": { "type": "array", "items": { "type": "string" } },
+        "customer_outcome_themes": { "type": "array", "items": { "type": "string" } },
+        "case_study_signals": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "competitors": {
+      "type": "object",
+      "required": ["direct_competitors", "adjacent_competitors", "substitutes", "claimed_differentiators", "positioning_overlaps", "competitive_gaps", "competitive_observations", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "direct_competitors": { "type": "array", "items": { "$ref": "#/$defs/competitor_entry" } },
+        "adjacent_competitors": { "type": "array", "items": { "$ref": "#/$defs/competitor_entry" } },
+        "substitutes": { "type": "array", "items": { "$ref": "#/$defs/competitor_entry" } },
+        "claimed_differentiators": { "type": "array", "items": { "type": "string" } },
+        "positioning_overlaps": { "type": "array", "items": { "type": "string" } },
+        "competitive_gaps": { "type": "array", "items": { "type": "string" } },
+        "competitive_observations": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "market_and_macro": {
+      "type": "object",
+      "required": ["market_category", "market_dynamics", "industry_trends", "economic_sensitivity", "regulatory_exposure", "political_or_geopolitical_exposure", "technology_shift_risks", "ecosystem_dependencies", "macro_observations", "evidence_ids", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "market_category": { "type": "string" },
+        "market_dynamics": { "type": "array", "items": { "type": "string" } },
+        "industry_trends": { "type": "array", "items": { "type": "string" } },
+        "economic_sensitivity": { "type": "array", "items": { "type": "string" } },
+        "regulatory_exposure": { "type": "array", "items": { "type": "string" } },
+        "political_or_geopolitical_exposure": { "type": "array", "items": { "type": "string" } },
+        "technology_shift_risks": { "type": "array", "items": { "type": "string" } },
+        "ecosystem_dependencies": { "type": "array", "items": { "type": "string" } },
+        "macro_observations": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "signals": {
+      "type": "object",
+      "required": ["funding", "product_launches", "leadership_changes", "press_and_content", "notable_hiring", "signal_summary", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "funding": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "amount", "round", "investors", "evidence_ids"],
+            "properties": {
+              "date": { "type": "string" },
+              "amount": { "type": "string" },
+              "round": { "type": "string" },
+              "investors": { "type": "array", "items": { "type": "string" } },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "product_launches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "title", "summary", "evidence_ids"],
+            "properties": {
+              "date": { "type": "string" },
+              "title": { "type": "string" },
+              "summary": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "leadership_changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "person", "role", "change_type", "evidence_ids"],
+            "properties": {
+              "date": { "type": "string" },
+              "person": { "type": "string" },
+              "role": { "type": "string" },
+              "change_type": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "press_and_content": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "type", "title", "summary", "evidence_ids"],
+            "properties": {
+              "date": { "type": "string" },
+              "type": { "type": "string" },
+              "title": { "type": "string" },
+              "summary": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "notable_hiring": { "type": "array", "items": { "type": "string" } },
+        "signal_summary": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "narrative_intelligence": {
+      "type": "object",
+      "required": ["company_claimed_value", "customer_expressed_value", "customer_language_patterns", "narrative_gaps", "hidden_differentiators", "messaging_opportunities", "narrative_summary", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "company_claimed_value": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["theme", "description", "language_examples", "evidence_ids"],
+            "properties": {
+              "theme": { "type": "string" },
+              "description": { "type": "string" },
+              "language_examples": { "type": "array", "items": { "type": "string" } },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "customer_expressed_value": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["theme", "description", "language_examples", "source_types", "evidence_ids"],
+            "properties": {
+              "theme": { "type": "string" },
+              "description": { "type": "string" },
+              "language_examples": { "type": "array", "items": { "type": "string" } },
+              "source_types": { "type": "array", "items": { "type": "string" } },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "customer_language_patterns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["pattern", "interpretation", "evidence_ids"],
+            "properties": {
+              "pattern": { "type": "string" },
+              "interpretation": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "narrative_gaps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["gap_name", "company_language", "customer_language", "gap_description", "likely_business_impact", "suggested_repositioning_direction", "evidence_ids", "confidence"],
+            "properties": {
+              "gap_name": { "type": "string" },
+              "company_language": { "type": "array", "items": { "type": "string" } },
+              "customer_language": { "type": "array", "items": { "type": "string" } },
+              "gap_description": { "type": "string" },
+              "likely_business_impact": { "type": "array", "items": { "type": "string" } },
+              "suggested_repositioning_direction": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } },
+              "confidence": { "$ref": "#/$defs/confidence" }
+            }
+          }
+        },
+        "hidden_differentiators": { "type": "array", "items": { "type": "string" } },
+        "messaging_opportunities": { "type": "array", "items": { "type": "string" } },
+        "narrative_summary": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "strategic_risks": {
+      "type": "object",
+      "required": ["positioning_risks", "gtm_risks", "competitive_risks", "market_risks", "dependency_risks", "risk_observations", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "positioning_risks": { "type": "array", "items": { "type": "string" } },
+        "gtm_risks": { "type": "array", "items": { "type": "string" } },
+        "competitive_risks": { "type": "array", "items": { "type": "string" } },
+        "market_risks": { "type": "array", "items": { "type": "string" } },
+        "dependency_risks": { "type": "array", "items": { "type": "string" } },
+        "risk_observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["risk", "description", "severity", "is_inferred", "evidence_ids"],
+            "properties": {
+              "risk": { "type": "string" },
+              "description": { "type": "string" },
+              "severity": { "$ref": "#/$defs/confidence" },
+              "is_inferred": { "type": "boolean" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "confidence_and_gaps": {
+      "type": "object",
+      "required": ["high_confidence_findings", "medium_confidence_findings", "low_confidence_findings", "missing_data", "conflicting_evidence", "sections_with_weak_support", "overall_confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "high_confidence_findings": { "type": "array", "items": { "type": "string" } },
+        "medium_confidence_findings": { "type": "array", "items": { "type": "string" } },
+        "low_confidence_findings": { "type": "array", "items": { "type": "string" } },
+        "missing_data": { "type": "array", "items": { "type": "string" } },
+        "conflicting_evidence": { "type": "array", "items": { "type": "string" } },
+        "sections_with_weak_support": { "type": "array", "items": { "type": "string" } },
+        "overall_confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source_record" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_record" }
+    }
+  },
+  "$defs": {
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "inferred_value": {
+      "type": "object",
+      "required": ["value", "is_inferred", "confidence"],
+      "properties": {
+        "value": { "type": "string" },
+        "is_inferred": { "type": "boolean" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "buyer_persona": {
+      "type": "object",
+      "required": ["title", "department", "seniority", "role_in_purchase", "pain_points", "desired_outcomes", "evidence_ids", "is_inferred"],
+      "properties": {
+        "title": { "type": "string" },
+        "department": { "type": "string" },
+        "seniority": { "type": "string" },
+        "role_in_purchase": { "type": "string" },
+        "pain_points": { "type": "array", "items": { "type": "string" } },
+        "desired_outcomes": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "is_inferred": { "type": "boolean" }
+      }
+    },
+    "competitor_entry": {
+      "type": "object",
+      "required": ["name", "domain", "why_included", "positioning_summary", "comparison_notes", "evidence_ids"],
+      "properties": {
+        "name": { "type": "string" },
+        "domain": { "type": "string" },
+        "why_included": { "type": "string" },
+        "positioning_summary": { "type": "string" },
+        "comparison_notes": { "type": "array", "items": { "type": "string" } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source_record": {
+      "type": "object",
+      "required": ["source_id", "url", "source_type", "title", "publisher_or_owner", "captured_at", "relevance_notes"],
+      "properties": {
+        "source_id": { "type": "string", "pattern": "^src_\\d{3,}$" },
+        "url": { "type": "string" },
+        "source_type": { "type": "string" },
+        "title": { "type": "string" },
+        "publisher_or_owner": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "relevance_notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence_record": {
+      "type": "object",
+      "required": ["evidence_id", "source_id", "evidence_type", "captured_at", "excerpt", "summary", "normalized_fields", "source_quality", "confidence", "is_inferred", "supports_claims", "tags"],
+      "properties": {
+        "evidence_id": { "type": "string", "pattern": "^ev_\\d{3,}$" },
+        "source_id": { "type": "string", "pattern": "^src_\\d{3,}$" },
+        "evidence_type": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "summary": { "type": "string" },
+        "normalized_fields": { "type": "object" },
+        "source_quality": { "$ref": "#/$defs/confidence" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "is_inferred": { "type": "boolean" },
+        "supports_claims": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
