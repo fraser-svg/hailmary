@@ -1,17 +1,34 @@
 # Company Intelligence Engine
 
-A system that accepts a company name and domain, conducts structured public research, and produces a machine-readable JSON dossier for downstream AI consumption.
+A system that accepts a company name and domain, conducts structured public research, and produces a machine-readable JSON dossier — then transforms that dossier into strategic narrative reports.
 
 **Core thesis:** most businesses do not know what they are actually selling. This system surfaces the gap between company messaging and customer-perceived value.
 
 ## How It Works
+
+### Dossier Generation
 
 1. You provide a company name and domain
 2. The engine researches public sources (website, reviews, press, job postings, competitor pages)
 3. It produces a structured `dossier.json` with 16 sections, every claim linked to evidence, every evidence record linked to a source
 4. A validator checks schema compliance, evidence integrity, and confidence scoring
 
-The output is not a human report. It is a canonical intelligence object designed for downstream AI reasoning.
+The dossier is not a human report. It is a canonical intelligence object designed for downstream AI reasoning.
+
+### Report Engine
+
+The report engine transforms a validated dossier into a strategic narrative through an 8-stage analysis pipeline:
+
+1. **Extract Signals** — pull raw signals from dossier evidence
+2. **Detect Tensions** — identify contradictions between company claims and customer reality
+3. **Detect Patterns** — find recurring themes across signal clusters
+4. **Generate Hypotheses** — form strategic hypotheses from tensions and patterns
+5. **Stress-Test Hypotheses** — challenge each hypothesis with counter-evidence
+6. **Generate Implications** — derive actionable implications from surviving hypotheses
+7. **Plan Report** — structure the narrative arc and section outline
+8. **Write Report** — produce the final strategic narrative
+
+Each stage is deterministic TypeScript with an eval harness measuring output quality. The pipeline supports batch analysis across ICP company lists.
 
 ## Dossier Sections
 
@@ -44,37 +61,46 @@ npx tsx src/validate.ts runs/acme/dossier.json
 
 # Generate an empty dossier skeleton (for testing)
 npx tsx src/utils/empty-dossier.ts acme
+
+# Run the report pipeline on a dossier
+npx tsx src/report/pipeline/<stage>.ts runs/acme/dossier.json
+
+# Batch analyse ICP companies
+npx tsx src/report/runner/batch-analyse.ts
 ```
 
 ## Project Structure
 
 ```
 .
-├── docs/specs/           # 8 specification documents (source of truth)
-│   ├── 001-product-thesis.md
-│   ├── 002-dossier-schema.md
-│   ├── 003-evidence-model.md
-│   ├── 004-source-priority-and-inference-rules.md
-│   ├── 005-agent-contracts.md
-│   ├── 006-skill-contracts.md
-│   ├── 007-evaluation-and-acceptance-criteria.md
-│   └── 008-repository-structure-and-implementation-plan.md
+├── docs/specs/
+│   ├── Intelligence-engine-specs/   # 8 dossier specs (source of truth)
+│   └── report-specs/                # 9 report engine specs
 ├── schemas/
-│   └── company-dossier.schema.json   # JSON Schema for validation
+│   ├── company-dossier.schema.json  # JSON Schema for dossier validation
+│   └── report/                      # Report pipeline schemas
 ├── src/
-│   ├── types/            # TypeScript types (Dossier, Evidence, Source)
-│   ├── utils/            # ID generators, empty dossier, enums
-│   └── validate.ts       # CLI validator: schema + evidence links
-├── runs/                 # Per-company output (gitignored)
-└── .claude/skills/       # Claude Code skill for dossier generation
+│   ├── types/              # TypeScript types (Dossier, Evidence, Source)
+│   ├── utils/              # ID generators, empty dossier, enums
+│   ├── validate.ts         # CLI validator: schema + evidence links
+│   ├── validate-core.ts    # Core validation logic (testable, no I/O)
+│   └── report/
+│       ├── pipeline/       # 8-stage analysis pipeline
+│       ├── evals/          # Eval harness with scored fixtures
+│       ├── writer/         # LLM-powered report writer + skill mode
+│       └── runner/         # Batch analysis runner
+├── runs/                   # Per-company output (gitignored)
+└── .claude/skills/         # Claude Code skill for dossier generation
 ```
 
 ## Architecture
 
 - **Claude Code** is the orchestrator via the `/build-company-dossier` skill
-- **Research** uses WebSearch and WebFetch only -- no API keys, no external tools
-- **TypeScript** handles deterministic work: validation, types, ID generation
-- **Output** is a single `dossier.json` per run with embedded evidence and source arrays
+- **Research** uses WebSearch and WebFetch only — no API keys, no external tools
+- **TypeScript** handles deterministic work: validation, types, pipeline stages
+- **LLM Writer** generates narrative reports from pipeline output via Claude
+- **Eval Harness** scores pipeline output against fixture-based expectations
+- **Output** is a `dossier.json` per company + optional strategic report
 
 ## Non-Negotiable Rules
 
@@ -103,6 +129,7 @@ The validator (`src/validate.ts`) checks:
 - Every evidence record's `source_id` resolves to an actual source
 - Confidence values are valid (`low` | `medium` | `high`)
 - Evidence types match the controlled vocabulary
+- Source tier assignments are valid (1-5)
 - Inferred records have supporting evidence
 - Narrative gaps meet minimum evidence requirements
 
