@@ -196,7 +196,10 @@ title: string
 publisher_or_owner: string
 captured_at: ISO 8601 string
 relevance_notes: string[]
+source_tier: integer (1-5, required)
 ```
+
+Tier values: 1=company-controlled, 2=authoritative external, 3=customer/market, 4=secondary synthesis, 5=noisy. See `references/source-tier-assignment.md` for assignment rules.
 
 ## Evidence Record Shape
 

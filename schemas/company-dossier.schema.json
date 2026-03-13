@@ -440,7 +440,7 @@
     },
     "source_record": {
       "type": "object",
-      "required": ["source_id", "url", "source_type", "title", "publisher_or_owner", "captured_at", "relevance_notes"],
+      "required": ["source_id", "url", "source_type", "title", "publisher_or_owner", "captured_at", "relevance_notes", "source_tier"],
       "properties": {
         "source_id": { "type": "string", "pattern": "^src_\\d{3,}$" },
         "url": { "type": "string" },
@@ -448,7 +448,8 @@
         "title": { "type": "string" },
         "publisher_or_owner": { "type": "string" },
         "captured_at": { "type": "string" },
-        "relevance_notes": { "type": "array", "items": { "type": "string" } }
+        "relevance_notes": { "type": "array", "items": { "type": "string" } },
+        "source_tier": { "type": "integer", "minimum": 1, "maximum": 5 }
       }
     },
     "evidence_record": {

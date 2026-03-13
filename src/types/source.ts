@@ -10,4 +10,5 @@ export interface SourceRecord {
   publisher_or_owner: string;
   captured_at: string; // ISO 8601
   relevance_notes: string[];
+  source_tier: 1 | 2 | 3 | 4 | 5;
 }

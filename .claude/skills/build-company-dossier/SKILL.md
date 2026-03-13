@@ -32,6 +32,7 @@ The slug is the company name lowercased, with non-alphanumeric characters replac
 5. **Narrative gaps need evidence.** For medium/high confidence: >=1 company-side claim + >=2 customer-side signals. If you can't find enough customer evidence, say so honestly with low confidence.
 6. **All 16 sections required.** Even empty sections must exist with proper shape and `"confidence": "low"`.
 7. **Confidence values: only `low`, `medium`, `high`.**
+8. **WebFetch failures must not be silent.** When WebFetch returns 403, blocked, or empty content: search for cached snippets or alternative sources covering the same information, use archived versions only if clearly relevant and recent enough, note the block in `run_metadata.notes`, and add the missing source to `missing_data`. Never silently skip a blocked source.
 
 ## Source Trust Hierarchy
 
@@ -40,6 +41,8 @@ The slug is the company name lowercased, with non-alphanumeric characters replac
 - **Tier 3** (customer/market): testimonials, reviews, case studies with customer voice — strongest for customer truth
 - **Tier 4** (secondary): directories, analyst blogs — weak, for discovery only
 - **Tier 5** (noisy): scraped fragments, unattributed — hypothesis generation only
+
+Every source record must include `source_tier` (integer 1-5). See `references/source-tier-assignment.md` for assignment rules. Tier 4-5 sources cannot be the sole support for medium/high confidence claims — the validator will warn.
 
 ## Research Steps
 
@@ -65,7 +68,8 @@ Create source records for each page visited:
   "title": "...",
   "publisher_or_owner": "<company_name>",
   "captured_at": "<ISO timestamp>",
-  "relevance_notes": ["Primary source for company description and positioning"]
+  "relevance_notes": ["Primary source for company description and positioning"],
+  "source_tier": 1
 }
 ```
 
@@ -123,6 +127,23 @@ Create evidence records:
 
 **Important:** Extract actual customer language, not company summaries of customer language. Note the speaker's role and company if available.
 
+Tag evidence with signal type: `["love"]`, `["friction"]`, `["buyer_language"]`, `["user_language"]`, `["manager_language"]`. Tags can be combined. See `references/customer-voice-segmentation.md` for segmentation guidance.
+
+### Step 4b: Negative Signal Research
+
+**Goal:** Deliberately search for complaints, friction, and churn signals. Do not skip this step.
+
+WebSearch queries (run 1-2 targeted searches unless evidence is thin):
+- `"<company_name>" complaints OR frustrations OR problems`
+- `"<company_name>" reddit OR trustpilot negative`
+- `"<company_name>" cancellation OR churn OR "switched to"`
+
+Create evidence records using `review_record`, `pain_point_record`, or `customer_language_record` with tags like `["negative", "friction"]` or `["negative", "churn"]`.
+
+If no negative signals are found, that is a valid result. Note "No significant negative signals found in public sources" in `missing_data`. Do not fabricate negative evidence.
+
+See `references/negative-signal-research.md` for research targets and tagging guidance.
+
 ### Step 5: Competitors
 
 **Goal:** Identify direct competitors, adjacent alternatives, and positioning overlaps.
@@ -137,6 +158,8 @@ Create evidence records:
 - `comparison_record` for head-to-head comparisons found
 - `positioning_record` for how the company positions against competition
 - `differentiation_record` for claimed differentiators
+
+Go beyond listing competitors. Identify messaging overlap, undifferentiated positioning, narrative winners, and accidental differentiation. See `references/competitor-depth.md` for the analysis framework.
 
 ### Step 6: Company Claims (for Narrative Intelligence)
 

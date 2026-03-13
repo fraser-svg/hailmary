@@ -1,0 +1,591 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-13T00:00:00Z",
+  "company_input": {
+    "company_name": "AutoFlow AI",
+    "primary_domain": "autoflow.ai",
+    "resolved_company_name": "AutoFlow AI Inc.",
+    "resolved_domain": "autoflow.ai",
+    "aliases": ["AutoFlow", "AFAI"]
+  },
+  "run_metadata": {
+    "run_id": "eval-fixture-001",
+    "pipeline_version": "0.1.0",
+    "collection_started_at": "2026-03-13T00:00:00Z",
+    "collection_finished_at": "2026-03-13T00:00:00Z",
+    "source_count": 8,
+    "evidence_record_count": 10,
+    "notes": ["Evaluation fixture — fictional company for reasoning pipeline testing"]
+  },
+  "company_profile": {
+    "plain_language_description": "AutoFlow AI sells an AI-powered sales automation platform that claims to automate outbound prospecting, lead qualification, and follow-up sequences. The company positions itself as replacing manual sales development work with intelligent automation.",
+    "category": "Sales Technology",
+    "subcategories": ["AI Automation", "Sales Engagement", "Lead Generation"],
+    "founded_year": 2021,
+    "company_stage": {
+      "value": "growth",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_009", "ev_007"]
+    },
+    "headquarters": "San Francisco, CA",
+    "geographic_presence": ["United States", "United Kingdom"],
+    "leadership": [
+      {
+        "name": "Maya Chen",
+        "title": "CEO & Co-Founder",
+        "evidence_ids": ["ev_009"]
+      }
+    ],
+    "ownership_or_structure_notes": ["VC-backed, Series A stage"],
+    "evidence_ids": ["ev_001", "ev_002", "ev_009", "ev_010"],
+    "confidence": "medium"
+  },
+  "product_and_offer": {
+    "core_offer_summary": "AI-driven sales automation platform that promises to replace manual outbound prospecting with intelligent, self-optimizing sequences.",
+    "products_or_services": [
+      {
+        "name": "AutoFlow Platform",
+        "type": "SaaS Platform",
+        "description": "AI-powered outbound sales automation including lead scoring, sequence generation, and follow-up optimization.",
+        "target_user": "Sales development representatives and revenue operations teams",
+        "evidence_ids": ["ev_001", "ev_002"]
+      },
+      {
+        "name": "AutoFlow Onboarding Program",
+        "type": "Professional Service",
+        "description": "Dedicated implementation program including data migration, sequence configuration, and training. Referenced repeatedly in customer feedback.",
+        "target_user": "New enterprise customers",
+        "evidence_ids": ["ev_003", "ev_004", "ev_006"]
+      }
+    ],
+    "pricing_model": {
+      "value": "tiered subscription with implementation fee",
+      "details": "Three tiers: Starter ($499/mo), Growth ($1,499/mo), Enterprise (custom). All tiers above Starter include mandatory onboarding fee ranging from $5,000 to $25,000.",
+      "is_public": true,
+      "is_inferred": false,
+      "evidence_ids": ["ev_007"]
+    },
+    "pricing_signals": [
+      "Mandatory onboarding fee on Growth and Enterprise tiers suggests significant setup complexity",
+      "Implementation fee ranges from $5,000 to $25,000 — high for a self-serve AI product"
+    ],
+    "delivery_model": ["SaaS", "Professional Services"],
+    "implementation_complexity": {
+      "value": "high",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_003", "ev_004", "ev_007"]
+    },
+    "evidence_ids": ["ev_001", "ev_002", "ev_003", "ev_004", "ev_006", "ev_007"],
+    "confidence": "medium"
+  },
+  "gtm_model": {
+    "sales_motion": {
+      "value": "sales-led with high-touch onboarding",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_005", "ev_006", "ev_007"]
+    },
+    "acquisition_channels": ["Outbound sales", "Content marketing", "Conference sponsorships"],
+    "buyer_journey_notes": [
+      "Multiple customer reviews describe extended onboarding periods of 4-8 weeks",
+      "Case study references 12-week implementation engagement"
+    ],
+    "distribution_model": ["Direct sales"],
+    "territory_or_market_focus": ["Mid-market B2B SaaS", "Enterprise technology"],
+    "growth_signals": [
+      "Series A funding of $18M",
+      "Headcount growth from 40 to 110 in 18 months"
+    ],
+    "hiring_signals": [
+      {
+        "role_title": "Implementation Specialist",
+        "department": "Customer Success",
+        "signal": "6 open roles for implementation specialists — suggests high manual onboarding load",
+        "evidence_ids": ["ev_005"]
+      },
+      {
+        "role_title": "Onboarding Consultant",
+        "department": "Professional Services",
+        "signal": "New professional services department being built around onboarding",
+        "evidence_ids": ["ev_008"]
+      },
+      {
+        "role_title": "Solutions Engineer",
+        "department": "Sales Engineering",
+        "signal": "4 open solutions engineer roles — pre-sales technical support suggesting product complexity",
+        "evidence_ids": ["ev_008"]
+      }
+    ],
+    "content_and_positioning_hooks": [
+      "Zero-touch AI automation",
+      "Replace your SDR team with AI",
+      "Intelligent sequences that write themselves"
+    ],
+    "gtm_observations": [
+      "Marketing language emphasizes automation and AI replacement of human effort",
+      "GTM motion appears sales-led despite product-led messaging",
+      "Professional services team growing faster than engineering team"
+    ],
+    "evidence_ids": ["ev_005", "ev_006", "ev_007", "ev_008"],
+    "confidence": "medium"
+  },
+  "customer_and_personas": {
+    "ideal_customer_profile": {
+      "company_size": ["50-500 employees"],
+      "industries": ["B2B SaaS", "Technology", "Financial Services"],
+      "geographies": ["North America"],
+      "traits": ["Existing outbound sales motion", "SDR team of 5+"],
+      "is_inferred": true,
+      "evidence_ids": ["ev_003", "ev_004", "ev_006"]
+    },
+    "buyer_personas": [
+      {
+        "title": "VP of Sales",
+        "department": "Sales",
+        "seniority": "VP",
+        "role_in_purchase": "Economic buyer",
+        "pain_points": ["SDR team cost", "Inconsistent outbound quality"],
+        "desired_outcomes": ["Reduce SDR headcount", "Increase meeting volume"],
+        "evidence_ids": ["ev_006"],
+        "is_inferred": true
+      }
+    ],
+    "end_user_personas": [],
+    "customer_pain_themes": [
+      "High cost of SDR teams",
+      "Inconsistent outbound messaging quality"
+    ],
+    "customer_outcome_themes": [
+      "Onboarding team built our sequences for us",
+      "Support was very hands-on during setup",
+      "Took 6 weeks to get fully running"
+    ],
+    "case_study_signals": [
+      "Case study highlights 12-week consulting engagement before go-live",
+      "ROI calculation includes implementation specialist hours"
+    ],
+    "evidence_ids": ["ev_003", "ev_004", "ev_006"],
+    "confidence": "medium"
+  },
+  "competitors": {
+    "direct_competitors": [],
+    "adjacent_competitors": [],
+    "substitutes": [],
+    "claimed_differentiators": ["Fully autonomous AI sequences", "No manual configuration required"],
+    "positioning_overlaps": [],
+    "competitive_gaps": [],
+    "competitive_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "market_and_macro": {
+    "market_category": "AI Sales Automation",
+    "market_dynamics": [],
+    "industry_trends": ["AI hype cycle driving inflated automation claims across sales tech"],
+    "economic_sensitivity": [],
+    "regulatory_exposure": [],
+    "political_or_geopolitical_exposure": [],
+    "technology_shift_risks": [],
+    "ecosystem_dependencies": [],
+    "macro_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "signals": {
+    "funding": [
+      {
+        "date": "2024-06",
+        "amount": "$18M",
+        "round": "Series A",
+        "investors": ["Gradient Ventures", "First Round Capital"],
+        "evidence_ids": ["ev_009"]
+      }
+    ],
+    "product_launches": [],
+    "leadership_changes": [],
+    "press_and_content": [
+      {
+        "date": "2024-07",
+        "type": "press_coverage",
+        "title": "AutoFlow AI raises $18M to automate sales outreach",
+        "summary": "TechCrunch coverage positions AutoFlow as an AI-first automation platform aiming to replace manual SDR work entirely.",
+        "evidence_ids": ["ev_009"]
+      }
+    ],
+    "notable_hiring": [
+      "6 Implementation Specialist roles posted simultaneously",
+      "Professional Services department created Q1 2025",
+      "4 Solutions Engineer roles — unusual volume for a 110-person company"
+    ],
+    "signal_summary": [
+      "Hiring pattern skews heavily toward services and implementation roles rather than product engineering"
+    ],
+    "confidence": "medium"
+  },
+  "narrative_intelligence": {
+    "company_claimed_value": [
+      {
+        "theme": "Full automation",
+        "description": "Company claims its AI fully automates outbound sales, eliminating need for manual SDR work.",
+        "language_examples": [
+          "Zero-touch AI automation",
+          "Replace your SDR team with AI",
+          "Sequences that write themselves"
+        ],
+        "evidence_ids": ["ev_001", "ev_002"]
+      }
+    ],
+    "customer_expressed_value": [
+      {
+        "theme": "Hands-on support",
+        "description": "Customers consistently highlight the quality of human support during onboarding rather than autonomous AI capability.",
+        "language_examples": [
+          "Their team built everything for us",
+          "The onboarding specialists were incredible",
+          "Took weeks of working with their consultants to get it right"
+        ],
+        "source_types": ["review_record", "case_study_record"],
+        "evidence_ids": ["ev_003", "ev_004", "ev_006"]
+      }
+    ],
+    "customer_language_patterns": [
+      {
+        "pattern": "Customers credit human support rather than AI for outcomes",
+        "interpretation": "Value realization appears to come from service delivery, not autonomous product capability",
+        "evidence_ids": ["ev_003", "ev_004"]
+      }
+    ],
+    "narrative_gaps": [
+      {
+        "gap_name": "Automation promise vs service-dependent delivery",
+        "company_language": ["Zero-touch automation", "AI replaces SDRs"],
+        "customer_language": ["Their team configured everything", "Onboarding took 6 weeks"],
+        "gap_description": "Company markets autonomous AI automation, but customer experience centers on human-delivered implementation services.",
+        "likely_business_impact": [
+          "Scaling requires proportional growth in services headcount",
+          "Gross margins may be lower than pure SaaS positioning implies",
+          "Customer retention risk if service quality varies"
+        ],
+        "suggested_repositioning_direction": "Position as AI-augmented sales consulting platform rather than autonomous automation",
+        "evidence_ids": ["ev_001", "ev_003", "ev_004", "ev_006"],
+        "confidence": "medium"
+      }
+    ],
+    "hidden_differentiators": [
+      "Implementation team quality may be the actual competitive advantage"
+    ],
+    "messaging_opportunities": [],
+    "narrative_summary": "AutoFlow markets itself as a fully autonomous AI sales platform, but available evidence — customer reviews, case studies, hiring patterns, and pricing — consistently indicates that human services are a critical component of the value delivery.",
+    "confidence": "medium"
+  },
+  "strategic_risks": {
+    "positioning_risks": [
+      "Automation narrative may erode trust if customers discover service dependency"
+    ],
+    "gtm_risks": [
+      "Sales-led motion with high onboarding cost may limit scalability"
+    ],
+    "competitive_risks": [],
+    "market_risks": [],
+    "dependency_risks": [
+      "Revenue growth may be constrained by ability to hire implementation specialists"
+    ],
+    "risk_observations": [
+      {
+        "risk": "Service scalability bottleneck",
+        "description": "If delivery depends on human implementation, revenue growth requires proportional services hiring",
+        "severity": "medium",
+        "is_inferred": true,
+        "evidence_ids": ["ev_005", "ev_008", "ev_007"]
+      }
+    ],
+    "confidence": "medium"
+  },
+  "confidence_and_gaps": {
+    "high_confidence_findings": [
+      "Company markets itself as an AI automation platform"
+    ],
+    "medium_confidence_findings": [
+      "Customer experience is service-heavy during onboarding",
+      "Hiring patterns skew toward implementation roles"
+    ],
+    "low_confidence_findings": [
+      "Post-onboarding product may be more automated than onboarding suggests"
+    ],
+    "missing_data": [
+      "No direct product usage data available",
+      "No competitor comparison evidence collected",
+      "No post-onboarding customer feedback"
+    ],
+    "conflicting_evidence": [
+      "Company claims full automation but pricing includes mandatory implementation fees"
+    ],
+    "sections_with_weak_support": ["competitors", "market_and_macro"],
+    "overall_confidence": "medium"
+  },
+  "sources": [
+    {
+      "source_id": "src_001",
+      "url": "https://autoflow.ai",
+      "source_type": "company_website",
+      "title": "AutoFlow AI — Homepage",
+      "publisher_or_owner": "AutoFlow AI Inc.",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "relevance_notes": ["Primary source for company narrative and product claims"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_002",
+      "url": "https://autoflow.ai/pricing",
+      "source_type": "company_website",
+      "title": "AutoFlow AI — Pricing",
+      "publisher_or_owner": "AutoFlow AI Inc.",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "relevance_notes": ["Pricing structure reveals service component"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_003",
+      "url": "https://g2.com/products/autoflow-ai/reviews",
+      "source_type": "review_platform",
+      "title": "AutoFlow AI Reviews — G2",
+      "publisher_or_owner": "G2.com",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "relevance_notes": ["Customer reviews revealing onboarding experience"],
+      "source_tier": 3
+    },
+    {
+      "source_id": "src_004",
+      "url": "https://capterra.com/p/autoflow-ai/reviews",
+      "source_type": "review_platform",
+      "title": "AutoFlow AI Reviews — Capterra",
+      "publisher_or_owner": "Capterra",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "relevance_notes": ["Additional customer voice data on implementation experience"],
+      "source_tier": 3
+    },
+    {
+      "source_id": "src_005",
+      "url": "https://linkedin.com/company/autoflow-ai/jobs",
+      "source_type": "job_board",
+      "title": "AutoFlow AI — LinkedIn Job Postings",
+      "publisher_or_owner": "AutoFlow AI Inc.",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "relevance_notes": ["Hiring signals for implementation and services roles"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_006",
+      "url": "https://autoflow.ai/customers/techcorp-case-study",
+      "source_type": "case_study",
+      "title": "How TechCorp Transformed Outbound Sales with AutoFlow",
+      "publisher_or_owner": "AutoFlow AI Inc.",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "relevance_notes": ["Case study revealing consulting-heavy engagement model"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_007",
+      "url": "https://techcrunch.com/2024/07/autoflow-ai-series-a",
+      "source_type": "press_article",
+      "title": "AutoFlow AI raises $18M to automate sales outreach",
+      "publisher_or_owner": "TechCrunch",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "relevance_notes": ["External press framing of company narrative"],
+      "source_tier": 2
+    },
+    {
+      "source_id": "src_008",
+      "url": "https://glassdoor.com/autoflow-ai/reviews",
+      "source_type": "employer_review",
+      "title": "AutoFlow AI Employee Reviews — Glassdoor",
+      "publisher_or_owner": "Glassdoor",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "relevance_notes": ["Internal culture signals about services orientation"],
+      "source_tier": 3
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_001",
+      "source_id": "src_001",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "excerpt": "AutoFlow's AI engine automates your entire outbound sales process. Zero manual effort. Zero guesswork. Just meetings on your calendar.",
+      "summary": "Homepage headline claims full automation of outbound sales with no manual effort required.",
+      "normalized_fields": {
+        "claim_category": "product_capability",
+        "claim_strength": "absolute"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Full AI automation of outbound sales"],
+      "tags": ["automation_narrative", "positioning"]
+    },
+    {
+      "evidence_id": "ev_002",
+      "source_id": "src_001",
+      "evidence_type": "product_record",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "excerpt": "Our proprietary AI models analyze prospect behavior, craft personalized sequences, and optimize send times — all without human intervention.",
+      "summary": "Product page reinforces autonomous AI capability with explicit 'no human intervention' claim.",
+      "normalized_fields": {
+        "product_name": "AutoFlow Platform",
+        "claimed_capability": "autonomous sequence generation and optimization"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["AI operates without human intervention"],
+      "tags": ["automation_narrative", "product_claim"]
+    },
+    {
+      "evidence_id": "ev_003",
+      "source_id": "src_003",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "excerpt": "The product is decent but honestly our onboarding specialist did most of the heavy lifting. She built all our sequences, configured the integrations, and trained our team over 6 weeks. Not sure we could have set it up ourselves.",
+      "summary": "G2 reviewer credits human onboarding specialist, not AI, for setup and configuration. Describes 6-week onboarding period with heavy manual involvement.",
+      "normalized_fields": {
+        "sentiment": "mixed",
+        "onboarding_duration": "6 weeks",
+        "human_involvement": "high"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Onboarding is human-intensive", "Setup requires specialist support"],
+      "tags": ["customer_voice", "onboarding", "service_dependency"]
+    },
+    {
+      "evidence_id": "ev_004",
+      "source_id": "src_004",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "excerpt": "Best part of AutoFlow is their support team. When we signed up they assigned us a dedicated consultant who basically ran our outbound for the first two months. The AI suggestions are okay but the real value was having experts configure everything.",
+      "summary": "Capterra reviewer explicitly values human consulting over AI capability. Describes 2-month hands-on support period with a dedicated consultant.",
+      "normalized_fields": {
+        "sentiment": "positive",
+        "value_attribution": "human_support",
+        "onboarding_duration": "2 months"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customer value comes from human consulting", "AI is secondary to service delivery"],
+      "tags": ["customer_voice", "service_dependency", "buyer_language"]
+    },
+    {
+      "evidence_id": "ev_005",
+      "source_id": "src_005",
+      "evidence_type": "job_posting_record",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "excerpt": "Implementation Specialist (6 openings) — Join our growing Customer Success team. You'll be responsible for configuring AutoFlow for new enterprise customers, building custom sequences, migrating data, and providing hands-on training during the onboarding period.",
+      "summary": "Six simultaneous openings for implementation specialists. Job description emphasizes manual configuration, custom sequence building, and hands-on training — functions that the product marketing claims are automated.",
+      "normalized_fields": {
+        "role_count": 6,
+        "department": "Customer Success",
+        "key_responsibilities": ["manual configuration", "custom sequence building", "data migration", "hands-on training"]
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Company is scaling manual implementation capacity", "Product requires human configuration"],
+      "tags": ["hiring_signal", "service_dependency", "operations"]
+    },
+    {
+      "evidence_id": "ev_006",
+      "source_id": "src_006",
+      "evidence_type": "case_study_record",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "excerpt": "Over a 12-week engagement, the AutoFlow implementation team worked alongside TechCorp's sales leadership to redesign their outbound strategy, configure 47 custom sequences, and train 15 SDRs on the platform. The AutoFlow consulting team provided weekly strategy sessions throughout.",
+      "summary": "Company-published case study describes a 12-week consulting engagement with weekly strategy sessions. The narrative emphasizes human-led implementation rather than AI automation.",
+      "normalized_fields": {
+        "engagement_duration": "12 weeks",
+        "custom_sequences": 47,
+        "staff_trained": 15,
+        "service_model": "consulting engagement"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Delivery model is consulting-heavy", "Implementation involves weeks of human work"],
+      "tags": ["service_model", "consulting", "implementation_evidence"]
+    },
+    {
+      "evidence_id": "ev_007",
+      "source_id": "src_002",
+      "evidence_type": "pricing_record",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "excerpt": "Growth Plan: $1,499/mo + $10,000 onboarding fee. Enterprise Plan: Custom pricing + $25,000 implementation package. All plans above Starter include dedicated implementation specialist.",
+      "summary": "Pricing page shows mandatory onboarding fees of $10,000-$25,000 and dedicated implementation specialist. Onboarding fees are substantial relative to subscription — suggesting service is a core revenue component, not incidental.",
+      "normalized_fields": {
+        "onboarding_fee_range": "$5,000-$25,000",
+        "includes_dedicated_specialist": true,
+        "service_revenue_signal": "strong"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Pricing includes significant service component", "Implementation is monetized separately"],
+      "tags": ["pricing", "service_revenue", "implementation_evidence"]
+    },
+    {
+      "evidence_id": "ev_008",
+      "source_id": "src_005",
+      "evidence_type": "hiring_signal_record",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "excerpt": "Onboarding Consultant (3 openings) — Professional Services department. Solutions Engineer (4 openings) — Pre-sales technical support for enterprise prospects.",
+      "summary": "Additional services-oriented hiring: 3 onboarding consultants and 4 solutions engineers. Combined with 6 implementation specialists (ev_005), this represents 13 open services roles at a 110-person company — roughly 12% headcount growth in services alone.",
+      "normalized_fields": {
+        "total_services_openings": 13,
+        "company_headcount": 110,
+        "services_hiring_ratio": "12%"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Services team is growing disproportionately", "Company is investing heavily in human delivery capacity"],
+      "tags": ["hiring_signal", "service_scaling", "operations"]
+    },
+    {
+      "evidence_id": "ev_009",
+      "source_id": "src_007",
+      "evidence_type": "press_record",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "excerpt": "AutoFlow AI has raised $18M in Series A funding led by Gradient Ventures to scale its AI-powered sales automation platform. CEO Maya Chen told TechCrunch the funds will be used to 'double our AI engineering team and expand our automation capabilities.'",
+      "summary": "TechCrunch coverage frames AutoFlow as an AI-first platform. CEO's stated use of funds emphasizes AI engineering, contrasting with actual hiring patterns that prioritize implementation and services roles.",
+      "normalized_fields": {
+        "funding_amount": "$18M",
+        "round": "Series A",
+        "stated_use_of_funds": "AI engineering expansion"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Company narrative emphasizes AI investment", "Public positioning is technology-led"],
+      "tags": ["funding", "positioning", "narrative"]
+    },
+    {
+      "evidence_id": "ev_010",
+      "source_id": "src_008",
+      "evidence_type": "customer_language_record",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "excerpt": "Current employee review: 'We're basically a consulting company that happens to have a software product. Most of our customer success is driven by the implementation team, not the AI. Leadership keeps pushing the AI narrative externally but internally everyone knows the services team carries the load.'",
+      "summary": "Glassdoor employee review describes the company as a 'consulting company with a software product.' Claims the services team drives customer success while leadership promotes an AI-first external narrative.",
+      "normalized_fields": {
+        "internal_perception": "services company",
+        "external_narrative": "AI platform",
+        "narrative_gap_signal": "strong"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Internal culture recognizes service dependency", "External narrative diverges from internal reality"],
+      "tags": ["employee_voice", "narrative_gap", "culture_signal"]
+    }
+  ]
+}
