@@ -1,6 +1,7 @@
 node_modules/
 dist/
 runs/
+reports/
 src/report/evals/results/
 *.tsbuildinfo
 .DS_Store

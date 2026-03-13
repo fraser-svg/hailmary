@@ -7,7 +7,8 @@
     "validate": "tsx src/validate.ts",
     "generate-empty": "tsx src/utils/empty-dossier.ts",
     "test": "vitest run",
-    "eval": "tsx src/report/evals/runner/run-fixture.ts"
+    "eval": "tsx src/report/evals/runner/run-fixture.ts",
+    "analyse-batch": "tsx src/report/runner/batch-analyse.ts"
   },
   "dependencies": {
     "ajv": "^8.17.1",

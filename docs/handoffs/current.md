@@ -14,6 +14,7 @@ Company name + domain
   -> runs/<slug>/dossier.json (16 required top-level fields, evidence inline)
   -> TypeScript validator (schema + evidence-link checking)
   -> Report Engine pipeline (8 stages: 7 deterministic + 1 hybrid writer)
+  -> Batch analysis runner (orchestrates pipeline across ICP companies)
 ```
 
 Report Engine pipeline (complete):
@@ -36,7 +37,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **MK3 (complete, Phase 7 + 7b):** Strategic hypotheses in dossier schema. SKILL.md refined for hypothesis quality (specificity, falsifiability, counter-signals).
 
-**Report Engine (complete, Phases 5-18):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system.
+**Report Engine (complete, Phases 5-19):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system + batch analysis runner.
 
 # Phase Status
 
@@ -64,6 +65,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | 16 (RE) | Writer layer refactor | Extracted writer into `src/report/writer/` (types, template, LLM, prompt-builder, adapter) |
 | 17 (RE) | Skill writer mode | `skill` mode: bundle export, response import, validation, assembly |
 | 18 (RE) | Skill prompt system | Master prompt module with 5-layer architecture for report prose |
+| 19 (RE) | Batch analysis runner | ICP company orchestration, per-company output, insight summaries |
 
 106 tests across 4 test files via vitest. 0 regressions.
 
@@ -115,6 +117,10 @@ src/report/writer/                      # Writer layer (3 modes)
   skill-prompts.ts                      # Master prompt system (5-layer architecture)
   prompt-builder.ts                     # LLM prompt builder
   writer-adapter.ts                     # Factory + sanitisation wrapper
+src/report/runner/                      # Batch analysis runner
+  batch-analyse.ts                      # CLI entry: orchestrates full pipeline per company
+  company-list.ts                       # 8 ICP companies (UK B2B SaaS, messy growth stage)
+  output-manager.ts                     # Slugify, directory creation, JSON/markdown writers
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
   fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
@@ -128,39 +134,33 @@ docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
 docs/handoffs/current.md               # This file
 .claude/skills/build-company-dossier/   # SKILL.md + 7 reference docs
-runs/                                   # Per-company output (gitignored)
+runs/                                   # Per-company dossier output (gitignored)
+reports/                                # Per-company analysis output (gitignored)
 ```
 
 # Current Phase
 
-Report Engine Phases 17-18 complete. Writer layer fully operational with three modes.
+Report Engine Phase 19 complete. Batch analysis runner operational.
 
-**Phase 17 (skill writer mode):**
-- `SkillSectionRequest` / `SkillSectionResponse` / `SkillWriterBundle` contracts in `types.ts`
-- `skill-writer.ts`: bundle builder (`buildSkillBundle`), response validator (`validateSkillResponses`), writer factory (`createSkillWriter`)
-- Two paths: (A) export bundle for Claude Code, (B) assemble report from skill responses
-- `writer-adapter.ts` routes `'skill'` mode; `write-report.ts` exposes `exportSkillBundle()`
-- Skill mode verified end-to-end with fixture 001 (0 errors, all validation checks pass)
-
-**Phase 18 (skill prompt system):**
-- `skill-prompts.ts`: master prompt module with 5-layer architecture
-  1. Role definition (analyst persona)
-  2. Writing mechanics (language, sentence 12-20w, paragraph 2-4s, tone)
-  3. Section craft (intent, structure, emphasis, pitfalls per section)
-  4. Analytical context (structured object rendering)
-  5. Output contract (constraints, format)
-- `buildSkillPrompt(request)` and `buildSummaryPrompt(bundle)` exported
-- Prompt sizes: 7.6k-11.8k chars per section, 143-196 lines
-
-Template mode unchanged. All eval fixtures pass.
+**Phase 19 (batch analysis runner):**
+- `company-list.ts`: 8 ICP companies matching target profile (UK B2B SaaS, seed-to-Series B, messy growth stage)
+- `output-manager.ts`: slugify, directory creation, JSON and markdown file writers
+- `batch-analyse.ts`: CLI orchestrator that runs the full deterministic pipeline per company
+- Per-company output: dossier, signals, tensions, patterns, hypotheses, implications, report plan, template report, skill bundle, insight summary
+- Insight summary: 4-line quick-scan (core tension, dominant pattern, most plausible hypothesis, highest-impact implication)
+- Error isolation: one company failure does not stop the batch
+- Accepts arbitrary slugs for dossiers outside the ICP list
+- `npm run analyse-batch` script added
+- Verified against Stripe and Notion dossiers, all 106 tests pass
 
 # Next Step
 
 Possible next directions:
+- Build dossiers for ICP companies (run /build-company-dossier for each)
 - End-to-end skill workflow integration (Claude Code writes sections from bundle)
 - Report quality scoring in eval harness
-- End-to-end CLI command for report generation from dossier
 - Report export formats (PDF, HTML)
+- Cross-company comparison / portfolio analysis
 
 # Known Constraints
 
@@ -177,15 +177,14 @@ Possible next directions:
 - Single skill architecture. No multi-agent refactor.
 - WebSearch + WebFetch only. No external tools (Exa, Firecrawl, Puppeteer).
 - Skill mode: TypeScript controls section assembly, lineage, validation. Claude controls prose only.
+- Batch runner only orchestrates existing pipeline. No new LLM calls, no reasoning modifications.
 
 # Files Modified Recently
 
-**Report Engine Phases 17-18 (this session):**
-- `src/report/writer/types.ts` -- added `'skill'` mode, `SkillSectionRequest`, `SkillSectionResponse`, `SkillWriterBundle` contracts
-- `src/report/writer/skill-writer.ts` -- new: bundle builder, response validator, skill writer factory, prompt helper
-- `src/report/writer/skill-prompts.ts` -- new: master prompt system (5-layer architecture)
-- `src/report/writer/writer-adapter.ts` -- extended to route `'skill'` mode
-- `src/report/pipeline/write-report.ts` -- added `exportSkillBundle()`, skill response assembly path
-- `src/report/evals/stubs/stages.ts` -- exposed `exportSkillBundle`, `WriterOptions` passthrough
-- `src/report/evals/runner/run-skill-mode.ts` -- new: end-to-end skill mode verification
-- `docs/handoffs/current.md` -- updated with Phases 17-18
+**Report Engine Phase 19 (this session):**
+- `src/report/runner/batch-analyse.ts` -- new: CLI batch orchestrator for ICP company analysis
+- `src/report/runner/company-list.ts` -- new: 8 ICP companies with name + domain
+- `src/report/runner/output-manager.ts` -- new: slugify, ensureDir, writeJson, writeMarkdown
+- `package.json` -- added `analyse-batch` script
+- `.gitignore` -- added `reports/` directory
+- `docs/handoffs/current.md` -- updated with Phase 19
