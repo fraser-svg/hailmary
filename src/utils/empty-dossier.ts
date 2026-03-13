@@ -136,6 +136,8 @@ export function createEmptyDossier(
       customer_expressed_value: [],
       customer_language_patterns: [],
       narrative_gaps: [],
+      negative_signals: [],
+      value_alignment_summary: [],
       hidden_differentiators: [],
       messaging_opportunities: [],
       narrative_summary: '',

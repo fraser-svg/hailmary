@@ -844,4 +844,212 @@ describe('validate', () => {
       });
     });
   });
+
+  // --- Phase 5 (MK2B): Narrative intelligence expansion ---
+
+  describe('negative_signals schema', () => {
+    function makeDossierWithNegativeSignals(signals: unknown[]) {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const src = makeSource('src_001');
+      const ev = makeEvidence('ev_001', 'src_001', 'review_record');
+      (dossier as Record<string, unknown>).sources = [src];
+      (dossier as Record<string, unknown>).evidence = [ev];
+      (dossier.narrative_intelligence as Record<string, unknown>).negative_signals = signals;
+      return dossier;
+    }
+
+    it('accepts a valid negative_signal entry', () => {
+      const dossier = makeDossierWithNegativeSignals([
+        {
+          signal: 'Frequent billing disputes reported in reviews',
+          category: 'billing',
+          severity: 'medium',
+          frequency: 'recurring',
+          evidence_ids: ['ev_001'],
+        },
+      ]);
+      const path = writeDossier('neg-signal-valid', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+      expect(report.valid).toBe(true);
+    });
+
+    it('rejects invalid category enum', () => {
+      const dossier = makeDossierWithNegativeSignals([
+        {
+          signal: 'Pricing complaints',
+          category: 'pricing',
+          severity: 'medium',
+          frequency: 'recurring',
+          evidence_ids: ['ev_001'],
+        },
+      ]);
+      const path = writeDossier('neg-signal-bad-category', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects invalid frequency enum', () => {
+      const dossier = makeDossierWithNegativeSignals([
+        {
+          signal: 'Slow support response',
+          category: 'support',
+          severity: 'low',
+          frequency: 'sometimes',
+          evidence_ids: ['ev_001'],
+        },
+      ]);
+      const path = writeDossier('neg-signal-bad-freq', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('accepts negative_signal with optional related_narrative_gap', () => {
+      const dossier = makeDossierWithNegativeSignals([
+        {
+          signal: 'Migration pain from legacy systems',
+          category: 'migration',
+          severity: 'high',
+          frequency: 'pervasive',
+          related_narrative_gap: 'onboarding gap',
+          evidence_ids: ['ev_001'],
+        },
+      ]);
+      const path = writeDossier('neg-signal-with-gap', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+    });
+
+    it('accepts negative_signal without related_narrative_gap', () => {
+      const dossier = makeDossierWithNegativeSignals([
+        {
+          signal: 'Trust concerns around data handling',
+          category: 'trust',
+          severity: 'medium',
+          frequency: 'isolated',
+          evidence_ids: ['ev_001'],
+        },
+      ]);
+      const path = writeDossier('neg-signal-no-gap', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+    });
+
+    it('fails schema when negative_signals is missing from narrative_intelligence', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const ni = { ...(dossier.narrative_intelligence as Record<string, unknown>) };
+      delete ni.negative_signals;
+      (dossier as Record<string, unknown>).narrative_intelligence = ni;
+      const path = writeDossier('neg-signal-missing', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+  });
+
+  describe('value_alignment_summary schema', () => {
+    function makeDossierWithAlignmentEntries(entries: unknown[]) {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const src = makeSource('src_001');
+      const ev = makeEvidence('ev_001', 'src_001', 'company_claim_record');
+      const ev2 = makeEvidence('ev_002', 'src_001', 'testimonial_record');
+      (dossier as Record<string, unknown>).sources = [src];
+      (dossier as Record<string, unknown>).evidence = [ev, ev2];
+      (dossier.narrative_intelligence as Record<string, unknown>).value_alignment_summary = entries;
+      return dossier;
+    }
+
+    it('accepts a valid value_alignment_entry', () => {
+      const dossier = makeDossierWithAlignmentEntries([
+        {
+          theme: 'Developer experience',
+          alignment: 'aligned',
+          company_language: ['developer-first platform'],
+          customer_language: ['great DX', 'easy API'],
+          business_implication: 'Strong product-market fit in developer segment',
+          evidence_ids: ['ev_001', 'ev_002'],
+          confidence: 'high',
+        },
+      ]);
+      const path = writeDossier('alignment-valid', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+      expect(report.valid).toBe(true);
+    });
+
+    it('rejects invalid alignment enum', () => {
+      const dossier = makeDossierWithAlignmentEntries([
+        {
+          theme: 'Pricing',
+          alignment: 'partial',
+          company_language: ['affordable'],
+          customer_language: ['expensive'],
+          business_implication: 'Price sensitivity',
+          evidence_ids: ['ev_001'],
+          confidence: 'medium',
+        },
+      ]);
+      const path = writeDossier('alignment-bad-enum', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('fails schema when value_alignment_summary is missing from narrative_intelligence', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const ni = { ...(dossier.narrative_intelligence as Record<string, unknown>) };
+      delete ni.value_alignment_summary;
+      (dossier as Record<string, unknown>).narrative_intelligence = ni;
+      const path = writeDossier('alignment-missing', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+  });
+
+  describe('Phase 5 evidence_ids resolution', () => {
+    it('errors when negative_signal references non-existent evidence', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      (dossier.narrative_intelligence as Record<string, unknown>).negative_signals = [
+        {
+          signal: 'Billing issues',
+          category: 'billing',
+          severity: 'medium',
+          frequency: 'recurring',
+          evidence_ids: ['ev_999'],
+        },
+      ];
+      const path = writeDossier('neg-signal-broken-ev', dossier);
+      const report = validate(path);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.some((e) => e.includes('ev_999'))).toBe(true);
+    });
+
+    it('errors when value_alignment_entry references non-existent evidence', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      (dossier.narrative_intelligence as Record<string, unknown>).value_alignment_summary = [
+        {
+          theme: 'Speed',
+          alignment: 'divergent',
+          company_language: ['fast'],
+          customer_language: ['slow'],
+          business_implication: 'Messaging disconnect',
+          evidence_ids: ['ev_888'],
+          confidence: 'medium',
+        },
+      ];
+      const path = writeDossier('alignment-broken-ev', dossier);
+      const report = validate(path);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.some((e) => e.includes('ev_888'))).toBe(true);
+    });
+  });
 });

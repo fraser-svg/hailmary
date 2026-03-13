@@ -87,6 +87,17 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
   - Hiring reveals strategy: **weak** (medium -> low confidence, 2/3 assumptions ungrounded)
   - Widening gap hypothesis: **weak** (low confidence -- speculative despite broad coverage)
 
+**MK2B Phase 5 -- Narrative Intelligence Expansion (complete)**
+- Added `negative_signals` array to `narrative_intelligence` section
+  - Fields: signal, category (7 enums), severity, frequency (3 enums), related_narrative_gap (optional), evidence_ids
+  - `additionalProperties: false` on item schema
+- Added `value_alignment_summary` array to `narrative_intelligence` section
+  - Per-theme entries: theme, alignment (aligned/divergent/company_only/customer_only), company_language[], customer_language[], business_implication, evidence_ids, confidence
+  - `additionalProperties: false` on item schema
+- Schema, types, and empty dossier updated in lockstep
+- 11 new tests (86 total across 4 files), 0 regressions
+- No validator logic changes needed -- existing `collectValues` traversal picks up new evidence_ids automatically
+
 # Validator Architecture
 
 **validate-core.ts** (~430 lines): Pure validation logic. 21 numbered checks. Importable, no CLI dependencies.
@@ -94,7 +105,7 @@ Exports: `validate()`, `collectValues()`, `isSectionPopulated()`, `ValidationRep
 
 **validate.ts** (~60 lines): Thin CLI wrapper. Handles argv, file I/O, console output, exit codes. Writes `validation-report.json` alongside dossier.
 
-**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 75 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
+**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 86 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
 
 # Source Tier System
 
@@ -116,7 +127,7 @@ src/types/                              # SourceRecord, EvidenceRecord, Dossier 
 src/utils/                              # ID generators, empty dossier, enums
 src/validate-core.ts                    # 21-check validation logic
 src/validate.ts                         # CLI wrapper
-src/__tests__/                          # 55 validator tests
+src/__tests__/                          # 66 validator tests
 src/utils/__tests__/                    # 20 utility tests
 src/report/pipeline/                    # Stage implementations
   extract-signals.ts                    # Stage 1: dossier -> Signal[]
@@ -140,9 +151,9 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Phase 8 complete. First 5 report engine pipeline stages implemented and passing all eval checks.
+MK2B Phase 5 (Narrative Intelligence Expansion) complete. Dossier schema expanded with `negative_signals` and `value_alignment_summary` inside `narrative_intelligence`. 86 tests passing, 0 regressions.
 
-Current eval results for fixture 001-ai-services:
+Report Engine eval results for fixture 001-ai-services:
 ```
 Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
 Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
@@ -153,16 +164,17 @@ Implications: 0/4 must-detect (stub)
 
 # Next Step
 
-**Phase 9 -- Report Engine: generate-implications**
+Two parallel tracks available:
 
-Implement the implications generation stage. Takes stress-tested hypotheses (status: survives only) and produces strategic implications for the report.
+**MK2B Phase 6+ -- Further schema expansion** (if planned)
 
-Key constraints from spec (docs/specs/report-specs/007-generate-implications.md):
-- Only surviving hypotheses feed implications
-- Implications must be actionable and evidence-grounded
-- Must not introduce new hypotheses or revisit discarded ones
-
-Expected fixture targets: 4 must-detect implications, 2 nice-to-detect.
+**Report Engine Phase 9 -- generate-implications**
+- Takes stress-tested hypotheses (status: survives only) and produces strategic implications
+- Key constraints from spec (docs/specs/report-specs/007-generate-implications.md):
+  - Only surviving hypotheses feed implications
+  - Implications must be actionable and evidence-grounded
+  - Must not introduce new hypotheses or revisit discarded ones
+- Expected fixture targets: 4 must-detect implications, 2 nice-to-detect
 
 # Known Constraints
 
@@ -179,10 +191,19 @@ Expected fixture targets: 4 must-detect implications, 2 nice-to-detect.
 - Do not build fixture 002 until harness is fully working against fixture 001.
 - Eval results directory should be gitignored (transient outputs).
 
+# Dossier Schema Key Fields
+
+Sections that require exact schema field names (common errors when generating manually):
+- `narrative_intelligence` requires: `company_claimed_value`, `customer_expressed_value`, `customer_language_patterns`, `narrative_gaps`, `negative_signals`, `value_alignment_summary`, `hidden_differentiators`, `messaging_opportunities`, `narrative_summary`
+- `negative_signals` items require: `signal`, `category`, `severity`, `frequency`, `evidence_ids` (optional: `related_narrative_gap`)
+- `value_alignment_summary` items require: `theme`, `alignment`, `company_language`, `customer_language`, `business_implication`, `evidence_ids`, `confidence`
+- `narrative_gaps` items require: `gap_name`, `company_language`, `customer_language`, `gap_description`, `likely_business_impact`, `suggested_repositioning_direction`, `evidence_ids`, `confidence`
+
 # Files Modified Recently
 
-**Phase 7+8 -- generate-hypotheses + stress-test-hypotheses (this session):**
-- `src/report/pipeline/generate-hypotheses.ts` -- new: 5 hypothesis templates, Hypothesis type with stress-test fields
-- `src/report/pipeline/stress-test-hypotheses.ts` -- new: 5 deterministic checks, status assignment, dedup
-- `src/report/evals/stubs/stages.ts` -- updated: wired generate-hypotheses + stress-test-hypotheses
-- `docs/handoffs/current.md` -- updated with Phase 7+8 completion
+**MK2B Phase 5 -- Narrative Intelligence Expansion (this session):**
+- `schemas/company-dossier.schema.json` -- added negative_signals + value_alignment_summary to narrative_intelligence
+- `src/types/dossier.ts` -- added NegativeSignal + ValueAlignmentEntry interfaces, updated NarrativeIntelligence
+- `src/utils/empty-dossier.ts` -- added empty arrays for new fields
+- `src/__tests__/validate.test.ts` -- 11 new tests for Phase 5 schema + evidence resolution
+- `docs/handoffs/current.md` -- updated with MK2B Phase 5 completion

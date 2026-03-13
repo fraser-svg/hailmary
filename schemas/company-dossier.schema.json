@@ -282,7 +282,7 @@
     },
     "narrative_intelligence": {
       "type": "object",
-      "required": ["company_claimed_value", "customer_expressed_value", "customer_language_patterns", "narrative_gaps", "hidden_differentiators", "messaging_opportunities", "narrative_summary", "confidence"],
+      "required": ["company_claimed_value", "customer_expressed_value", "customer_language_patterns", "narrative_gaps", "negative_signals", "value_alignment_summary", "hidden_differentiators", "messaging_opportunities", "narrative_summary", "confidence"],
       "additionalProperties": false,
       "properties": {
         "company_claimed_value": {
@@ -336,6 +336,48 @@
               "gap_description": { "type": "string" },
               "likely_business_impact": { "type": "array", "items": { "type": "string" } },
               "suggested_repositioning_direction": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } },
+              "confidence": { "$ref": "#/$defs/confidence" }
+            }
+          }
+        },
+        "negative_signals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["signal", "category", "severity", "frequency", "evidence_ids"],
+            "additionalProperties": false,
+            "properties": {
+              "signal": { "type": "string" },
+              "category": {
+                "type": "string",
+                "enum": ["billing", "support", "reliability", "migration", "trust", "usability", "other"]
+              },
+              "severity": { "$ref": "#/$defs/confidence" },
+              "frequency": {
+                "type": "string",
+                "enum": ["isolated", "recurring", "pervasive"]
+              },
+              "related_narrative_gap": { "type": "string" },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "value_alignment_summary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["theme", "alignment", "company_language", "customer_language", "business_implication", "evidence_ids", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "theme": { "type": "string" },
+              "alignment": {
+                "type": "string",
+                "enum": ["aligned", "divergent", "company_only", "customer_only"]
+              },
+              "company_language": { "type": "array", "items": { "type": "string" } },
+              "customer_language": { "type": "array", "items": { "type": "string" } },
+              "business_implication": { "type": "string" },
               "evidence_ids": { "type": "array", "items": { "type": "string" } },
               "confidence": { "$ref": "#/$defs/confidence" }
             }

@@ -136,6 +136,25 @@ export interface NarrativeGap {
   confidence: Confidence;
 }
 
+export interface NegativeSignal {
+  signal: string;
+  category: 'billing' | 'support' | 'reliability' | 'migration' | 'trust' | 'usability' | 'other';
+  severity: Confidence;
+  frequency: 'isolated' | 'recurring' | 'pervasive';
+  related_narrative_gap?: string;
+  evidence_ids: string[];
+}
+
+export interface ValueAlignmentEntry {
+  theme: string;
+  alignment: 'aligned' | 'divergent' | 'company_only' | 'customer_only';
+  company_language: string[];
+  customer_language: string[];
+  business_implication: string;
+  evidence_ids: string[];
+  confidence: Confidence;
+}
+
 export interface RiskObservation {
   risk: string;
   description: string;
@@ -255,6 +274,8 @@ export interface NarrativeIntelligence {
   customer_expressed_value: CustomerExpressedValue[];
   customer_language_patterns: CustomerLanguagePattern[];
   narrative_gaps: NarrativeGap[];
+  negative_signals: NegativeSignal[];
+  value_alignment_summary: ValueAlignmentEntry[];
   hidden_differentiators: string[];
   messaging_opportunities: string[];
   narrative_summary: string;
