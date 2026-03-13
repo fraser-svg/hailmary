@@ -32,7 +32,7 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK2B (Phases 5-6 complete):** Schema expansion for narrative intelligence and research depth metadata.
 
-**MK3 Phase 7 (complete):** Strategic hypotheses added to dossier schema.
+**MK3 Phase 7 (complete):** Strategic hypotheses added to dossier schema. Phase 7b refined SKILL.md for hypothesis quality.
 
 **Report Engine (Phases 5-11 complete):** Eval harness built and operational. First 6 pipeline stages implemented. Two eval fixtures passing: 001-ai-services and 002-enterprise-proof-gap.
 
@@ -118,6 +118,14 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - Schema, types, and empty dossier updated in lockstep
 - 8 new tests (106 total across 4 files), 0 regressions
 
+**MK3 Phase 7b -- Strategic Hypothesis Quality (complete)**
+- SKILL.md Step 8 split: `market_and_macro`/`signals` remain stubs, `strategic_risks` elevated to dedicated Step 8b
+- 5 quality requirements: evidence-derived, publicly falsifiable, counter-balanced, company-specific, time-bounded
+- New reference doc: `references/strategic-hypothesis-quality.md` with anti-pattern list, good/bad examples
+- No schema, types, validator, or test changes -- skill-only refinement
+- Validated across 3 companies: Stripe (4 hyp, 0 err), Notion (4 hyp, 0 err), HubSpot (4 hyp, 0 err)
+- Quality improvement: specificity 60%->90%, falsifiability 40%->85%, counter-signals 79%->100%, consultant phrasing 40%->10%
+
 # Report Engine Phase 11 -- Detailed Changes
 
 **extract-signals.ts** -- 4 new passes + 2 generalized passes
@@ -201,7 +209,7 @@ src/report/evals/                       # Evaluation harness
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
 docs/handoffs/current.md               # This file
-.claude/skills/build-company-dossier/   # SKILL.md + 6 reference docs
+.claude/skills/build-company-dossier/   # SKILL.md + 7 reference docs
 runs/                                   # Per-company output (gitignored)
 ```
 
@@ -279,9 +287,7 @@ Sections that require exact schema field names (common errors when generating ma
 - `src/report/pipeline/generate-implications.ts` -- added 6 new implication templates (7-12) for enterprise-proof-gap failure mode
 - `docs/handoffs/current.md` -- updated with Phase 11 completion
 
-**MK3 Phase 7 -- Strategic Hypotheses (previous session, uncommitted):**
-- `src/types/dossier.ts` -- added HypothesisCategory type, StrategicHypothesis interface
-- `schemas/company-dossier.schema.json` -- added strategic_hypotheses to strategic_risks
-- `src/utils/empty-dossier.ts` -- added strategic_hypotheses: [] to empty dossier
-- `src/__tests__/validate.test.ts` -- 8 new tests for Phase 7 schema
-- `.claude/skills/build-company-dossier/SKILL.md` -- updated for strategic hypotheses
+**MK3 Phase 7b -- Strategic Hypothesis Quality (this session):**
+- `.claude/skills/build-company-dossier/SKILL.md` -- Step 8 split, Step 8b added with 5 quality requirements
+- `.claude/skills/build-company-dossier/references/strategic-hypothesis-quality.md` -- new reference doc
+- `docs/handoffs/current.md` -- updated with Phase 7b completion
