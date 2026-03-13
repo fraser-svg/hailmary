@@ -797,6 +797,253 @@ function implyInvestorPerceptionEvolution(
 }
 
 // ---------------------------------------------------------------------------
+// Broader implication templates (Phase 8: match tension-driven hypotheses)
+// ---------------------------------------------------------------------------
+
+/**
+ * Template 18: Narrative-reality alignment risk
+ *
+ * Fires for hypotheses about delivery gaps, positioning mismatches, or
+ * narrative-reality divergence — broader than the automation-specific templates.
+ */
+function implyNarrativeRealityRisk(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, ['narrative', 'positioning'])) return null;
+  if (!textContains(text, [
+    'human involvement',
+    'not yet match',
+    'different market segment',
+    'aspirational rather than fully',
+    'transitional phase',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Narrative-reality alignment may require attention as visibility increases',
+    statement:
+      'If the gap between external narrative and observable reality persists, ' +
+      'increasing market visibility may expose the misalignment. Customers, partners, ' +
+      'and investors conducting due diligence may discover discrepancies between ' +
+      'positioning and operational evidence. Proactively aligning narrative with ' +
+      'reality — or accelerating reality toward narrative — may reduce this risk.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'How would sophisticated buyers describe the gap between marketing and experience?',
+      'Does the company monitor for narrative-reality divergence in customer feedback?',
+      'Is there a plan to close the gap — by adjusting narrative or accelerating capability?',
+    ],
+  });
+}
+
+/**
+ * Template 19: Growth stage scaling constraints
+ *
+ * Fires for hypotheses about organizational depth, founder concentration,
+ * or capacity constraints.
+ */
+function implyGrowthScalingConstraints(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'organizational depth',
+    'growth capacity',
+    'scaling constraint',
+    'growth transition',
+    'concentrated in the founder',
+    'next growth stage',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Current operating model may face capacity constraints at the next growth stage',
+    statement:
+      'If the company\'s operating model depends on concentrated individual effort ' +
+      'or lean organizational structure, growth beyond current scale may require ' +
+      'deliberate investment in team depth, process formalization, or leadership ' +
+      'expansion. The transition from founder-led to team-scaled operations is a ' +
+      'common inflection point for growth-stage companies.',
+    implication_type: 'constraint',
+    audience: 'founder',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'At what customer volume does the current operating model reach capacity limits?',
+      'Which functions currently depend on individual effort that could be systematized?',
+      'What leadership or operational investments would unlock the next growth phase?',
+    ],
+  });
+}
+
+/**
+ * Template 20: Buyer due diligence vulnerability
+ *
+ * Fires for hypotheses about aspirational positioning or evidence gaps.
+ */
+function implyBuyerDueDiligenceRisk(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'traction',
+    'ambitions',
+    'aspirational',
+    'observable evidence',
+  ])) return null;
+
+  if (!textContains(text, [
+    'not yet match',
+    'reflective of current',
+    'exceed what can be verified',
+    'limited relative to',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Sophisticated buyers may probe for evidence behind positioning claims',
+    statement:
+      'If the company\'s external positioning exceeds what observable evidence supports, ' +
+      'sophisticated buyers — enterprise procurement, strategic partners, or investors — ' +
+      'may request proof points that are difficult to provide. Reference customers, case ' +
+      'studies, and independently verifiable metrics become increasingly important as the ' +
+      'company targets more demanding stakeholders.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'high',
+    impact: 'high',
+    key_questions: [
+      'What proof points can the company offer to validate its positioning claims?',
+      'How many reference customers exist at the scale implied by positioning?',
+      'What evidence would a skeptical buyer need to see before committing?',
+    ],
+  });
+}
+
+/**
+ * Template 21: Strategic clarity opportunity
+ *
+ * Fires for hypotheses about structural transitions or multiple tensions.
+ */
+function implyStrategicClarityOpportunity(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'multiple structural tensions',
+    'growth transition',
+    'transitional phase',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Clarifying strategic priorities may accelerate growth through the transition',
+    statement:
+      'If the company is navigating a structural growth transition, explicitly ' +
+      'prioritizing which tensions to resolve first — and which to tolerate — may ' +
+      'accelerate progress. Companies that acknowledge and address transition ' +
+      'challenges directly tend to move through them faster than those that let ' +
+      'tensions accumulate without strategic response.',
+    implication_type: 'opportunity',
+    audience: 'founder',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'medium',
+    key_questions: [
+      'Which tension — delivery, positioning, or organizational — is most urgent to resolve?',
+      'Does leadership have a shared view of the company\'s current growth transition?',
+      'What strategic choices would most directly accelerate the transition?',
+    ],
+  });
+}
+
+/**
+ * Template 22: Segment-aligned positioning opportunity
+ *
+ * Fires for hypotheses about actual customer segment being a strength.
+ */
+function implySegmentAlignmentOpportunity(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'stronger market position',
+    'genuine product-market fit',
+    'demonstrated strength',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Aligning positioning with actual customer strength could accelerate growth',
+    statement:
+      'If the current customer base represents genuine product-market fit, ' +
+      'adjusting positioning to reflect this strength — rather than an aspirational ' +
+      'segment — could improve conversion rates, reduce sales cycle length, and ' +
+      'build more authentic case studies and references.',
+    implication_type: 'opportunity',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'What would positioning look like if it reflected the current customer base?',
+      'How do conversion rates compare between the current segment and the aspirational one?',
+      'Would segment-aligned positioning enable faster growth than aspirational positioning?',
+    ],
+  });
+}
+
+/**
+ * Template 23: Customer language intelligence opportunity
+ *
+ * Fires for hypotheses about customer value perception divergence.
+ */
+function implyCustomerLanguageIntelligence(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'customer perception of value',
+    'positioning language',
+    'value may differ',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Customer language analysis could reveal untapped positioning opportunities',
+    statement:
+      'If customers describe the product\'s value differently than the company does, ' +
+      'systematically analyzing customer language — in reviews, support tickets, and ' +
+      'sales conversations — could reveal positioning angles that resonate more ' +
+      'authentically with buyers. Companies that adopt customer language in their ' +
+      'positioning tend to convert more effectively.',
+    implication_type: 'opportunity',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'medium',
+    key_questions: [
+      'How do customers describe the product in their own words?',
+      'What problem do customers say the product solves vs what marketing says?',
+      'Has the company tested positioning that mirrors customer language?',
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
 
@@ -835,7 +1082,7 @@ export function generateImplications(
 ): Implication[] {
   _counter = 0;
 
-  // Only surviving hypotheses generate implications
+  // Top-ranked hypotheses (status = 'survives') generate implications
   const surviving = hypotheses.filter(h => h.status === 'survives');
   if (surviving.length === 0) return [];
 
@@ -859,6 +1106,12 @@ export function generateImplications(
     implyLeadershipDepthImportance,
     implyFounderBandwidthConstraint,
     implyInvestorPerceptionEvolution,
+    implyNarrativeRealityRisk,
+    implyGrowthScalingConstraints,
+    implyBuyerDueDiligenceRisk,
+    implyStrategicClarityOpportunity,
+    implySegmentAlignmentOpportunity,
+    implyCustomerLanguageIntelligence,
   ];
 
   // Apply each template to each surviving hypothesis

@@ -23,6 +23,14 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
   -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report
 ```
 
+Phase 8 changed the reasoning pipeline from a filtering pipeline to a scoring pipeline:
+```
+BEFORE: signals -> tensions -> patterns (gate) -> hypotheses -> stress-test (binary) -> implications
+AFTER:  signals -> tensions -> hypotheses (from tensions directly) -> scoring + ranking -> implications
+```
+
+Patterns are now confidence multipliers, not gates. Hypotheses are ranked by score; top 3 survive.
+
 Writer modes: `template` (deterministic, default) | `skill` (Claude Code prose) | `llm` (runtime API, placeholder)
 
 Errors = structural integrity (fail validation). Warnings = trust/quality (never fail).
@@ -37,7 +45,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **MK3 (complete, Phase 7 + 7b):** Strategic hypotheses in dossier schema. SKILL.md refined for hypothesis quality (specificity, falsifiability, counter-signals).
 
-**Report Engine (complete, Phases 5-19):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system + batch analysis runner.
+**Report Engine (complete, Phases 5-19 + Phase 8 Reasoning):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system + batch analysis runner + reasoning engine improvement.
 
 # Phase Status
 
@@ -62,10 +70,11 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | 13 (RE) | Pipeline Generalization for Fixture 003 | 6 stages generalized, all 3 fixtures pass |
 | 14 (RE) | plan-report | Deterministic report planning: thesis, findings, section structure |
 | 15 (RE) | write-report | Hybrid deterministic + writer adapter: template + LLM modes |
-| 16 (RE) | Writer layer refactor | Extracted writer into `src/report/writer/` (types, template, LLM, prompt-builder, adapter) |
-| 17 (RE) | Skill writer mode | `skill` mode: bundle export, response import, validation, assembly |
-| 18 (RE) | Skill prompt system | Master prompt module with 5-layer architecture for report prose |
-| 19 (RE) | Batch analysis runner | ICP company orchestration, per-company output, insight summaries |
+| 16 (RE) | Writer layer refactor | Extracted writer into `src/report/writer/` |
+| 17 (RE) | Skill writer mode | Skill bundle export, response import, validation, assembly |
+| 18 (RE) | Skill prompt system | Master prompt module with 5-layer architecture |
+| 19 (RE) | Batch analysis runner | ICP company orchestration, per-company output |
+| **8 (Reasoning)** | **Reasoning Engine Improvement** | **Scoring pipeline, tension-driven hypotheses, 10/10 report completion** |
 
 106 tests across 4 test files via vitest. 0 regressions.
 
@@ -104,32 +113,17 @@ src/report/pipeline/                    # Stage implementations (8 stages)
   extract-signals.ts                    # Stage 1: dossier -> Signal[]
   detect-tensions.ts                    # Stage 2: Signal[] -> Tension[]
   detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
-  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[]
-  stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
-  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[]
+  generate-hypotheses.ts                # Stage 4: Tension[] + Pattern[] + Signal[] -> Hypothesis[]
+  stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (scored + ranked)
+  generate-implications.ts              # Stage 6: Hypothesis[] (top-ranked) -> Implication[]
   plan-report.ts                        # Stage 7: upstream objects -> ReportPlan
   write-report.ts                       # Stage 8: ReportPlan + upstream -> Report + markdown
 src/report/writer/                      # Writer layer (3 modes)
-  types.ts                              # WriterMode, SectionWriter, Skill* contracts
-  template-writer.ts                    # Deterministic template prose
-  llm-writer.ts                         # LLM-backed prose (placeholder)
-  skill-writer.ts                       # Skill bundle builder, response assembler
-  skill-prompts.ts                      # Master prompt system (5-layer architecture)
-  prompt-builder.ts                     # LLM prompt builder
-  writer-adapter.ts                     # Factory + sanitisation wrapper
 src/report/runner/                      # Batch analysis runner
   batch-analyse.ts                      # CLI entry: orchestrates full pipeline per company
   company-list.ts                       # 8 ICP companies (UK B2B SaaS, messy growth stage)
   output-manager.ts                     # Slugify, directory creation, JSON/markdown writers
 src/report/evals/                       # Evaluation harness
-  fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
-  fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
-  fixtures/003-founder-credibility-gap/ # Fixture 3: founder-anchored credibility vs institutional depth
-  runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
-  runner/run-skill-mode.ts              # Skill mode verification: bundle, mock, assemble
-  scoring/                              # Per-stage scorers + keyword-overlap matcher
-  stubs/stages.ts                       # Adapter: 8 real impls + skill bundle export
-  types/                                # Fixture and eval result types
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
 docs/handoffs/current.md               # This file
@@ -140,27 +134,37 @@ reports/                                # Per-company analysis output (gitignore
 
 # Current Phase
 
-Report Engine Phase 19 complete. Batch analysis runner operational.
+Phase 8 (Reasoning Engine Improvement) complete.
 
-**Phase 19 (batch analysis runner):**
-- `company-list.ts`: 8 ICP companies matching target profile (UK B2B SaaS, seed-to-Series B, messy growth stage)
-- `output-manager.ts`: slugify, directory creation, JSON and markdown file writers
-- `batch-analyse.ts`: CLI orchestrator that runs the full deterministic pipeline per company
-- Per-company output: dossier, signals, tensions, patterns, hypotheses, implications, report plan, template report, skill bundle, insight summary
-- Insight summary: 4-line quick-scan (core tension, dominant pattern, most plausible hypothesis, highest-impact implication)
-- Error isolation: one company failure does not stop the batch
-- Accepts arbitrary slugs for dossiers outside the ICP list
-- `npm run analyse-batch` script added
-- Verified against Stripe and Notion dossiers, all 106 tests pass
+**Problem:** The reasoning pipeline was overly strict. Patterns acted as gates for hypothesis generation, and stress-test survival required ALL of 5 criteria. Result: only 1/10 companies produced implications.
+
+**Solution:** Converted from a filtering pipeline to a scoring pipeline:
+
+1. **Tension-driven hypothesis generation:** 8 new templates (T1-T8) fire directly from tension types without requiring patterns. Patterns boost confidence when present. Hypothesis types cover: delivery reality, positioning aspiration, ambition-evidence gap, founder concentration, organizational scaling, structural transition, segment strength, customer value divergence.
+
+2. **Scoring-based stress testing:** Binary survive/discard replaced with numeric scoring. Score = tension_support + signal_diversity + pattern_bonus + confidence - counter_penalties - assumption_fragility. Top 3 hypotheses by score receive 'survives' status.
+
+3. **Broader implication templates:** 6 new templates (18-23) match tension-driven hypothesis language. Added opportunity types (segment alignment, customer language intelligence) alongside risk, constraint, watchpoint types.
+
+**Results:**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Companies with implications | 1/10 | 10/10 |
+| Total hypotheses (surviving) | 9 (1) | 30 (28) |
+| Total implications | 3 | 71 |
+| Avg hypotheses/company | 0.9 | 3.0 |
+| Avg implications/company | 0.3 | 7.1 |
+| Implication types | risk only | risk, opportunity, watchpoint, constraint |
 
 # Next Step
 
 Possible next directions:
-- Build dossiers for ICP companies (run /build-company-dossier for each)
-- End-to-end skill workflow integration (Claude Code writes sections from bundle)
+- Hypothesis template diversification (reduce template reuse across similar companies)
+- Signal extraction expansion (more extraction passes for broader tension variety)
 - Report quality scoring in eval harness
-- Report export formats (PDF, HTML)
 - Cross-company comparison / portfolio analysis
+- Report export formats (PDF, HTML)
 
 # Known Constraints
 
@@ -169,7 +173,7 @@ Possible next directions:
 - `$defs` (source_record, evidence_record) do NOT have `additionalProperties: false`.
 - Report engine must not perform fresh research -- operates only on dossier-derived data.
 - Pipeline stages downstream of extract-signals must not inspect dossier directly (signals-only).
-- Stress-test survival: high-importance pattern + medium+ confidence + 3+ tensions + 2+ signal kind diversity + 0 counter-signals.
+- Stress-test scoring: top 3 by score survive (MIN_SURVIVE_SCORE = 2.0, DISCARD_SCORE = 1.0).
 - Hypotheses need sufficient unique tension IDs to avoid >70% overlap deduplication.
 - SKILL.md must stay under ~400 lines. Reference docs handle depth.
 - All 16 dossier sections must exist even when empty.
@@ -181,10 +185,8 @@ Possible next directions:
 
 # Files Modified Recently
 
-**Report Engine Phase 19 (this session):**
-- `src/report/runner/batch-analyse.ts` -- new: CLI batch orchestrator for ICP company analysis
-- `src/report/runner/company-list.ts` -- new: 8 ICP companies with name + domain
-- `src/report/runner/output-manager.ts` -- new: slugify, ensureDir, writeJson, writeMarkdown
-- `package.json` -- added `analyse-batch` script
-- `.gitignore` -- added `reports/` directory
-- `docs/handoffs/current.md` -- updated with Phase 19
+**Phase 8 Reasoning Engine Improvement (this session):**
+- `src/report/pipeline/generate-hypotheses.ts` -- added 8 tension-driven templates (T1-T8), removed pattern-as-gate requirement, enhanced deduplication with tension-only overlap check
+- `src/report/pipeline/stress-test-hypotheses.ts` -- replaced binary survive/discard with numeric scoring + ranking (computeHypothesisScore, MAX_SURVIVING=3)
+- `src/report/pipeline/generate-implications.ts` -- added 6 broader implication templates (18-23) for tension-driven hypotheses, including opportunity types
+- `docs/handoffs/current.md` -- updated with Phase 8

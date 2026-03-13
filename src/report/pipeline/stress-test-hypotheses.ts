@@ -217,47 +217,56 @@ function checkCounterSignals(
 }
 
 // ---------------------------------------------------------------------------
-// Status determination
+// Hypothesis scoring (Phase 8: replaces binary survive/discard with ranking)
 // ---------------------------------------------------------------------------
 
-function determineStatus(
+/**
+ * Compute a numeric score for a hypothesis based on its support structure.
+ *
+ * Patterns act as confidence multipliers (bonus) not gates.
+ * Counter-signals reduce score but don't auto-discard.
+ *
+ * Score components:
+ *   + tension support (core driver)
+ *   + signal diversity
+ *   + pattern quality bonus
+ *   + initial confidence
+ *   - counter-signal penalty
+ *   - alternative explanation pressure
+ *   - assumption fragility
+ */
+function computeHypothesisScore(
   support: SupportResult,
-  alternativePenalty: number,
+  altPenalty: number,
   assumptionPenalty: number,
   counterCount: number,
   initialConfidence: Confidence,
-): { status: HypothesisStatus; confidence: Confidence } {
-  // Survives requires ALL of:
-  //   - at least one high-importance referenced pattern
-  //   - initial confidence >= medium
-  //   - 3+ referenced tensions (multi-tension support)
-  //   - 2+ signal kind diversity
-  //   - no strong counter-evidence
-  const survives =
-    support.hasHighImportancePattern &&
-    CONFIDENCE_RANK[initialConfidence] >= 2 &&
-    support.tensionCount >= 3 &&
-    support.signalKindDiversity >= 2 &&
-    counterCount === 0;
+): number {
+  let score = 0;
 
-  if (survives) {
-    return { status: 'survives', confidence: initialConfidence };
-  }
+  // Tension support (core driver — each tension adds credibility)
+  score += support.tensionCount * 2.0;
 
-  // Discarded: zero support or overwhelming counter-evidence
-  if (
-    support.tensionCount === 0 ||
-    support.patternQuality === 0 ||
-    counterCount >= 3
-  ) {
-    return { status: 'discarded', confidence: 'low' };
-  }
+  // Signal diversity (broader evidence base = more credible)
+  score += support.signalKindDiversity * 1.5;
 
-  // Everything else is weak — downgrade confidence
-  return {
-    status: 'weak',
-    confidence: downgradeConfidence(initialConfidence),
-  };
+  // Pattern quality bonus (multiplier, not gate)
+  score += support.patternQuality * 1.0;
+  if (support.hasHighImportancePattern) score += 3.0;
+
+  // Initial confidence
+  score += CONFIDENCE_RANK[initialConfidence] * 1.5;
+
+  // Counter-signal penalty (preserved)
+  score -= counterCount * 2.0;
+
+  // Alternative explanation pressure
+  score -= altPenalty * 0.5;
+
+  // Assumption fragility
+  score -= assumptionPenalty * 1.0;
+
+  return score;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +335,15 @@ function deduplicateStressTested(hypotheses: Hypothesis[]): Hypothesis[] {
 // Main entry
 // ---------------------------------------------------------------------------
 
+/** Maximum hypotheses that can receive 'survives' status. */
+const MAX_SURVIVING = 3;
+
+/** Minimum score to be eligible for 'survives'. */
+const MIN_SURVIVE_SCORE = 2.0;
+
+/** Below this score → 'discarded'. */
+const DISCARD_SCORE = 1.0;
+
 export function stressTestHypotheses(
   hypotheses: Hypothesis[],
   patterns: Pattern[],
@@ -334,18 +352,17 @@ export function stressTestHypotheses(
 ): Hypothesis[] {
   if (hypotheses.length === 0) return [];
 
-  const tested = hypotheses.map(hyp => {
+  // Phase 1: Run all 5 checks and compute score for each hypothesis
+  const scored = hypotheses.map(hyp => {
     const initialConfidence = hyp.confidence;
 
-    // Run all 5 checks
     const support = checkSupportStrength(hyp, patterns, tensions, signals);
     const altPressure = checkAlternativePressure(hyp);
     const assumption = checkAssumptionFragility(hyp, signals);
     const coverage = checkStructuralCoverage(hyp, patterns);
     const counter = checkCounterSignals(hyp, signals);
 
-    // Determine status and updated confidence
-    const { status, confidence } = determineStatus(
+    const score = computeHypothesisScore(
       support,
       altPressure.penalty,
       assumption.penalty,
@@ -353,7 +370,6 @@ export function stressTestHypotheses(
       initialConfidence,
     );
 
-    // Aggregate objections from all checks
     const allObjections = [
       ...altPressure.objections,
       ...assumption.objections,
@@ -361,7 +377,47 @@ export function stressTestHypotheses(
       ...counter.objections,
     ];
 
-    const result: Hypothesis = {
+    return {
+      hyp,
+      score,
+      support,
+      allObjections,
+      initialConfidence,
+      counterCount: counter.count,
+    };
+  });
+
+  // Phase 2: Rank by score (descending) and assign status
+  scored.sort((a, b) => b.score - a.score);
+  let survivingCount = 0;
+
+  const tested = scored.map(({
+    hyp, score, support, allObjections, initialConfidence, counterCount,
+  }) => {
+    let status: HypothesisStatus;
+    let confidence: Confidence;
+
+    if (
+      survivingCount < MAX_SURVIVING &&
+      score >= MIN_SURVIVE_SCORE &&
+      support.tensionCount > 0
+    ) {
+      status = 'survives';
+      confidence = initialConfidence;
+      survivingCount++;
+    } else if (
+      score < DISCARD_SCORE ||
+      counterCount >= 3 ||
+      support.tensionCount === 0
+    ) {
+      status = 'discarded';
+      confidence = 'low';
+    } else {
+      status = 'weak';
+      confidence = downgradeConfidence(initialConfidence);
+    }
+
+    return {
       ...hyp,
       status,
       confidence,
@@ -371,9 +427,7 @@ export function stressTestHypotheses(
         ? allObjections
         : ['No significant objections identified — hypothesis withstands available challenges'],
       residual_uncertainty: buildResidualUncertainty(hyp, status),
-    };
-
-    return result;
+    } as Hypothesis;
   });
 
   return deduplicateStressTested(tested);
