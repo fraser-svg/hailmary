@@ -1,0 +1,662 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-13T00:00:00Z",
+  "company_input": {
+    "company_name": "StratusFlow",
+    "primary_domain": "stratusflow.io",
+    "resolved_company_name": "StratusFlow Inc.",
+    "resolved_domain": "stratusflow.io",
+    "aliases": ["Stratus", "SF"]
+  },
+  "run_metadata": {
+    "run_id": "eval-fixture-002",
+    "pipeline_version": "0.1.0",
+    "collection_started_at": "2026-03-13T00:00:00Z",
+    "collection_finished_at": "2026-03-13T00:00:00Z",
+    "source_count": 8,
+    "evidence_record_count": 11,
+    "notes": ["Evaluation fixture — fictional company for reasoning pipeline testing"],
+    "evidence_summary": {
+      "total_sources": 8,
+      "total_evidence": 11,
+      "by_source_tier": {
+        "tier_1": 5,
+        "tier_2": 1,
+        "tier_3": 2,
+        "tier_4": 0,
+        "tier_5": 0
+      },
+      "by_evidence_category": {
+        "company_basics": 0,
+        "product_and_offer": 2,
+        "gtm": 2,
+        "customer": 4,
+        "competitors": 0,
+        "signals": 1,
+        "market_and_macro": 0,
+        "positioning_and_narrative": 1,
+        "risk": 0
+      },
+      "inferred_count": 0,
+      "direct_count": 11,
+      "customer_voice_depth": "moderate",
+      "negative_signal_depth": "none"
+    }
+  },
+  "company_profile": {
+    "plain_language_description": "StratusFlow sells a workflow automation platform that positions itself as enterprise-grade. The company emphasizes security certifications, role-based access control, and scalability in its marketing. However, observable customer references, case studies, and pricing suggest a primarily SMB and mid-market customer base.",
+    "category": "Workflow Automation",
+    "subcategories": ["Enterprise Software", "Business Process Automation", "Collaboration"],
+    "founded_year": 2022,
+    "company_stage": {
+      "value": "early growth",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_010"]
+    },
+    "headquarters": "Austin, TX",
+    "geographic_presence": ["United States"],
+    "leadership": [
+      {
+        "name": "Jordan Reeves",
+        "title": "CEO & Co-Founder",
+        "evidence_ids": ["ev_010"]
+      }
+    ],
+    "ownership_or_structure_notes": ["VC-backed, Series A stage"],
+    "evidence_ids": ["ev_001", "ev_002", "ev_010"],
+    "confidence": "medium"
+  },
+  "product_and_offer": {
+    "core_offer_summary": "Workflow automation platform with enterprise positioning. Features include visual workflow builder, integrations, role-based access, audit logging, and SSO. Marketed as built for enterprise scale and compliance requirements.",
+    "products_or_services": [
+      {
+        "name": "StratusFlow Platform",
+        "type": "SaaS Platform",
+        "description": "Visual workflow automation platform with drag-and-drop builder, 200+ integrations, SSO, RBAC, and audit logging. Positioned as enterprise-grade with SOC 2 Type II compliance.",
+        "target_user": "Operations teams and business process owners",
+        "evidence_ids": ["ev_001", "ev_002"]
+      },
+      {
+        "name": "StratusFlow Onboarding",
+        "type": "Support Service",
+        "description": "Dedicated onboarding support included on all paid plans. Described in reviews as hands-on, with support staff helping configure initial workflows.",
+        "target_user": "New customers",
+        "evidence_ids": ["ev_006", "ev_007"]
+      }
+    ],
+    "pricing_model": {
+      "value": "per-user tiered subscription",
+      "details": "Three tiers: Starter ($49/user/mo, up to 10 users), Pro ($99/user/mo, up to 50 users), Enterprise ($199/user/mo, unlimited users, SSO, dedicated support). Annual billing available with 20% discount.",
+      "is_public": true,
+      "is_inferred": false,
+      "evidence_ids": ["ev_003"]
+    },
+    "pricing_signals": [
+      "Starter tier caps at 10 users — designed for small teams",
+      "Pro tier caps at 50 users — mid-market ceiling",
+      "Enterprise tier starts at $199/user — competitive with SMB/mid-market tools, not enterprise platforms",
+      "Per-user pricing with low entry point suggests self-serve adoption, not enterprise procurement"
+    ],
+    "delivery_model": ["SaaS"],
+    "implementation_complexity": {
+      "value": "low",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_006", "ev_007"]
+    },
+    "evidence_ids": ["ev_001", "ev_002", "ev_003", "ev_006", "ev_007"],
+    "confidence": "medium"
+  },
+  "gtm_model": {
+    "sales_motion": {
+      "value": "product-led with SMB sales assist",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_008", "ev_009", "ev_003"]
+    },
+    "acquisition_channels": ["Product-led growth", "Content marketing", "SMB outbound sales"],
+    "buyer_journey_notes": [
+      "Multiple reviews describe signing up for a free trial and converting within days",
+      "Case studies describe small-team adoptions without formal procurement processes"
+    ],
+    "distribution_model": ["Direct sales", "Self-serve"],
+    "territory_or_market_focus": ["SMB and mid-market in North America"],
+    "growth_signals": [
+      "Series A funding of $12M",
+      "Headcount grew from 25 to 60 in 12 months"
+    ],
+    "hiring_signals": [
+      {
+        "role_title": "SMB Account Executive",
+        "department": "Sales",
+        "signal": "4 open roles for SMB Account Executives — job descriptions reference deals of $5K-$25K ARR and sales cycles of 2-4 weeks",
+        "evidence_ids": ["ev_008"]
+      },
+      {
+        "role_title": "SMB Customer Success Manager",
+        "department": "Customer Success",
+        "signal": "3 open roles for SMB Customer Success Managers — each managing 80-120 accounts, typical of high-volume SMB portfolios",
+        "evidence_ids": ["ev_009"]
+      }
+    ],
+    "content_and_positioning_hooks": [
+      "The enterprise workflow automation platform for modern organizations",
+      "Enterprise-grade security and compliance, built for scale",
+      "Trusted by innovative teams at the world's leading companies",
+      "SOC 2 Type II certified. RBAC. SSO. Built for enterprise."
+    ],
+    "gtm_observations": [
+      "Marketing language consistently uses 'enterprise' as a positioning qualifier",
+      "Sales hiring targets SMB deal sizes and velocity-based sales cycles",
+      "Customer success portfolio sizes (80-120 accounts) indicate SMB, not enterprise, customer profile"
+    ],
+    "evidence_ids": ["ev_003", "ev_008", "ev_009"],
+    "confidence": "medium"
+  },
+  "customer_and_personas": {
+    "ideal_customer_profile": {
+      "company_size": ["5-50 employees"],
+      "industries": ["Marketing Agencies", "Startups", "Professional Services"],
+      "geographies": ["North America"],
+      "traits": ["Small operations teams", "Looking to automate manual processes", "Budget-conscious"],
+      "is_inferred": true,
+      "evidence_ids": ["ev_004", "ev_005", "ev_006", "ev_011"]
+    },
+    "buyer_personas": [
+      {
+        "title": "Head of Operations",
+        "department": "Operations",
+        "seniority": "Director",
+        "role_in_purchase": "Economic buyer and champion",
+        "pain_points": ["Manual workflows consuming team time", "Lack of process visibility"],
+        "desired_outcomes": ["Automate repetitive tasks", "Free up team capacity"],
+        "evidence_ids": ["ev_004", "ev_006"],
+        "is_inferred": true
+      }
+    ],
+    "end_user_personas": [],
+    "customer_pain_themes": [
+      "Manual workflow overhead for small teams",
+      "Need for automation without engineering resources"
+    ],
+    "customer_outcome_themes": [
+      "Quick setup and immediate time savings",
+      "Easy onboarding with helpful support",
+      "Perfect for small teams that need simple automation"
+    ],
+    "case_study_signals": [
+      "Case study highlights a 12-person digital agency streamlining client onboarding",
+      "Case study features an 8-person startup automating internal approvals",
+      "Neither case study involves companies with more than 20 employees"
+    ],
+    "evidence_ids": ["ev_004", "ev_005", "ev_006", "ev_007", "ev_011"],
+    "confidence": "medium"
+  },
+  "competitors": {
+    "direct_competitors": [],
+    "adjacent_competitors": [],
+    "substitutes": [],
+    "claimed_differentiators": ["Enterprise-grade security", "SOC 2 Type II certified", "Built for scale"],
+    "positioning_overlaps": [],
+    "competitive_gaps": [],
+    "competitive_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "market_and_macro": {
+    "market_category": "Workflow Automation",
+    "market_dynamics": [],
+    "industry_trends": ["SMB adoption of workflow automation tools accelerating as no-code platforms lower barriers"],
+    "economic_sensitivity": [],
+    "regulatory_exposure": [],
+    "political_or_geopolitical_exposure": [],
+    "technology_shift_risks": [],
+    "ecosystem_dependencies": [],
+    "macro_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "signals": {
+    "funding": [
+      {
+        "date": "2025-03",
+        "amount": "$12M",
+        "round": "Series A",
+        "investors": ["Accel", "Craft Ventures"],
+        "evidence_ids": ["ev_010"]
+      }
+    ],
+    "product_launches": [],
+    "leadership_changes": [],
+    "press_and_content": [
+      {
+        "date": "2025-04",
+        "type": "press_coverage",
+        "title": "StratusFlow raises $12M to bring enterprise workflow automation to modern teams",
+        "summary": "TechCrunch coverage positions StratusFlow as an enterprise workflow platform. CEO states ambition to compete with legacy enterprise tools by offering a modern, developer-friendly alternative.",
+        "evidence_ids": ["ev_010"]
+      }
+    ],
+    "notable_hiring": [
+      "4 SMB Account Executive roles posted — all specifying deal sizes under $25K ARR",
+      "3 SMB Customer Success Manager roles — each managing 80-120 accounts",
+      "No enterprise sales or strategic account roles observed"
+    ],
+    "signal_summary": [
+      "Hiring pattern targets SMB sales motion despite enterprise positioning in marketing"
+    ],
+    "confidence": "medium"
+  },
+  "narrative_intelligence": {
+    "company_claimed_value": [
+      {
+        "theme": "Enterprise-grade platform",
+        "description": "Company consistently positions itself as an enterprise workflow automation platform, emphasizing security certifications, compliance, and scalability.",
+        "language_examples": [
+          "The enterprise workflow automation platform for modern organizations",
+          "Enterprise-grade security and compliance, built for scale",
+          "SOC 2 Type II certified. RBAC. SSO. Built for enterprise."
+        ],
+        "evidence_ids": ["ev_001", "ev_002"]
+      }
+    ],
+    "customer_expressed_value": [
+      {
+        "theme": "Small-team simplicity",
+        "description": "Customers consistently describe StratusFlow as a tool suited for small teams, praising its simplicity and quick setup rather than enterprise capabilities.",
+        "language_examples": [
+          "Perfect for our small team of 5",
+          "We set it up in a day — no IT department needed",
+          "Exactly what a startup needs to get organized"
+        ],
+        "source_types": ["review_record", "case_study_record", "testimonial_record"],
+        "evidence_ids": ["ev_004", "ev_005", "ev_006", "ev_007", "ev_011"]
+      }
+    ],
+    "customer_language_patterns": [
+      {
+        "pattern": "Customers frame StratusFlow as a small-team tool, not an enterprise platform",
+        "interpretation": "Customer perception aligns with SMB product-market fit, diverging from the company's enterprise positioning",
+        "evidence_ids": ["ev_006", "ev_007", "ev_011"]
+      }
+    ],
+    "narrative_gaps": [
+      {
+        "gap_name": "Enterprise positioning vs SMB customer reality",
+        "company_language": ["Enterprise-grade", "Built for scale", "Trusted by leading companies"],
+        "customer_language": ["Perfect for small teams", "No IT department needed", "Great for startups"],
+        "gap_description": "Company markets itself as an enterprise platform, but customer evidence consistently describes small-team adoption with no observable enterprise deployments.",
+        "likely_business_impact": [
+          "Enterprise buyers may scrutinize the lack of enterprise references",
+          "Positioning may create expectations the product does not yet meet",
+          "Sales cycle friction if enterprise prospects expect capabilities not demonstrated"
+        ],
+        "suggested_repositioning_direction": "Position as the workflow platform that grows with teams — from startup to mid-market — rather than leading with enterprise claims",
+        "evidence_ids": ["ev_001", "ev_004", "ev_005", "ev_006", "ev_011"],
+        "confidence": "medium"
+      }
+    ],
+    "negative_signals": [],
+    "value_alignment_summary": [
+      {
+        "theme": "Platform scale",
+        "alignment": "divergent",
+        "company_language": ["Enterprise-grade", "Built for scale", "Unlimited users"],
+        "customer_language": ["Small team", "5 people", "Startup"],
+        "business_implication": "Enterprise positioning may not resonate with actual customer base and could deter SMBs who feel the product is not built for them",
+        "evidence_ids": ["ev_001", "ev_006", "ev_011"],
+        "confidence": "medium"
+      }
+    ],
+    "hidden_differentiators": [
+      "Hands-on onboarding support and quick time-to-value for small teams may be the actual competitive advantage"
+    ],
+    "messaging_opportunities": [],
+    "narrative_summary": "StratusFlow positions itself as an enterprise workflow automation platform, but available evidence — customer reviews, case studies, pricing, and hiring patterns — consistently indicates the product serves small and mid-market organizations. No enterprise-scale deployments or references are observable.",
+    "confidence": "medium"
+  },
+  "strategic_risks": {
+    "positioning_risks": [
+      "Enterprise positioning without enterprise proof may undermine credibility with sophisticated buyers"
+    ],
+    "gtm_risks": [
+      "SMB sales motion may conflict with enterprise positioning if the company attempts to move upmarket"
+    ],
+    "competitive_risks": [],
+    "market_risks": [],
+    "dependency_risks": [],
+    "risk_observations": [
+      {
+        "risk": "Enterprise credibility gap",
+        "description": "If the company pursues enterprise deals, the absence of enterprise case studies, references, and large-scale deployment evidence may stall sales cycles",
+        "severity": "medium",
+        "is_inferred": true,
+        "evidence_ids": ["ev_004", "ev_005", "ev_008"]
+      }
+    ],
+    "confidence": "medium"
+  },
+  "confidence_and_gaps": {
+    "high_confidence_findings": [
+      "Company positions itself as an enterprise workflow automation platform"
+    ],
+    "medium_confidence_findings": [
+      "Customer base appears primarily composed of small organizations",
+      "Pricing tiers align with SMB and mid-market adoption patterns",
+      "Hiring signals target SMB sales motion"
+    ],
+    "low_confidence_findings": [
+      "Enterprise adoption may exist but is not observable in available evidence"
+    ],
+    "missing_data": [
+      "No enterprise customer references or logos identified",
+      "No large-scale deployment case studies available",
+      "No competitor comparison evidence collected",
+      "No post-Series A enterprise GTM strategy signals"
+    ],
+    "conflicting_evidence": [
+      "Company claims enterprise-grade capabilities but all observable customers are small organizations"
+    ],
+    "sections_with_weak_support": ["competitors", "market_and_macro"],
+    "overall_confidence": "medium"
+  },
+  "sources": [
+    {
+      "source_id": "src_001",
+      "url": "https://stratusflow.io",
+      "source_type": "company_website",
+      "title": "StratusFlow — Homepage",
+      "publisher_or_owner": "StratusFlow Inc.",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "relevance_notes": ["Primary source for company positioning and enterprise narrative"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_002",
+      "url": "https://stratusflow.io/pricing",
+      "source_type": "company_website",
+      "title": "StratusFlow — Pricing",
+      "publisher_or_owner": "StratusFlow Inc.",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "relevance_notes": ["Pricing structure reveals SMB-oriented tiers"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_003",
+      "url": "https://stratusflow.io/customers/brightpath",
+      "source_type": "case_study",
+      "title": "How BrightPath Agency Streamlined Client Onboarding",
+      "publisher_or_owner": "StratusFlow Inc.",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "relevance_notes": ["Case study featuring a 12-person agency — small organization reference"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_004",
+      "url": "https://stratusflow.io/customers/launchpad",
+      "source_type": "case_study",
+      "title": "LaunchPad's Journey to Automated Approvals",
+      "publisher_or_owner": "StratusFlow Inc.",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "relevance_notes": ["Case study featuring an 8-person startup — small organization reference"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_005",
+      "url": "https://g2.com/products/stratusflow/reviews",
+      "source_type": "review_platform",
+      "title": "StratusFlow Reviews — G2",
+      "publisher_or_owner": "G2.com",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "relevance_notes": ["Customer reviews revealing small-team adoption patterns"],
+      "source_tier": 3
+    },
+    {
+      "source_id": "src_006",
+      "url": "https://linkedin.com/company/stratusflow/jobs",
+      "source_type": "job_board",
+      "title": "StratusFlow — LinkedIn Job Postings",
+      "publisher_or_owner": "StratusFlow Inc.",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "relevance_notes": ["Hiring signals revealing SMB-focused sales and CS motion"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_007",
+      "url": "https://techcrunch.com/2025/04/stratusflow-series-a",
+      "source_type": "press_article",
+      "title": "StratusFlow raises $12M to bring enterprise workflow automation to modern teams",
+      "publisher_or_owner": "TechCrunch",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "relevance_notes": ["External press reinforcing enterprise positioning narrative"],
+      "source_tier": 2
+    },
+    {
+      "source_id": "src_008",
+      "url": "https://trustpilot.com/review/stratusflow.io",
+      "source_type": "review_platform",
+      "title": "StratusFlow Reviews — Trustpilot",
+      "publisher_or_owner": "Trustpilot",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "relevance_notes": ["Customer reviews from startup founders describing small-team use"],
+      "source_tier": 3
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_001",
+      "source_id": "src_001",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "excerpt": "StratusFlow is the enterprise workflow automation platform for modern organizations. Enterprise-grade security and compliance, built for scale. Trusted by innovative teams at the world's leading companies.",
+      "summary": "Homepage headline positions StratusFlow as an enterprise platform with enterprise-grade security, compliance, and scale. Claims trust from 'the world's leading companies' without naming any.",
+      "normalized_fields": {
+        "claim_category": "positioning",
+        "claim_strength": "strong",
+        "enterprise_keyword_count": 3
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Enterprise platform positioning", "Enterprise-grade security and compliance"],
+      "tags": ["enterprise_narrative", "positioning"]
+    },
+    {
+      "evidence_id": "ev_002",
+      "source_id": "src_001",
+      "evidence_type": "product_record",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "excerpt": "SOC 2 Type II certified. Role-based access control. Single sign-on. Audit logging. 99.9% uptime SLA. Built for teams that demand enterprise reliability.",
+      "summary": "Product features page emphasizes enterprise security and compliance features. These features are real but commonly available in modern SaaS tools regardless of target market segment.",
+      "normalized_fields": {
+        "product_name": "StratusFlow Platform",
+        "enterprise_features": ["SOC 2 Type II", "RBAC", "SSO", "Audit logging", "99.9% SLA"]
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Product has enterprise security features", "Platform includes SOC 2, SSO, RBAC"],
+      "tags": ["enterprise_narrative", "product_capability"]
+    },
+    {
+      "evidence_id": "ev_003",
+      "source_id": "src_002",
+      "evidence_type": "pricing_record",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "excerpt": "Starter: $49/user/mo (up to 10 users). Pro: $99/user/mo (up to 50 users). Enterprise: $199/user/mo (unlimited users, SSO, dedicated support, custom integrations). All plans include free onboarding support.",
+      "summary": "Pricing tiers start at $49/user with a 10-user cap on Starter. The 'Enterprise' tier at $199/user is priced competitively with mid-market tools, not enterprise platforms which typically involve custom contracts at $50K+ ARR. User caps on lower tiers suggest the product is designed for small teams.",
+      "normalized_fields": {
+        "starter_price": "$49/user/mo",
+        "starter_user_cap": 10,
+        "pro_price": "$99/user/mo",
+        "pro_user_cap": 50,
+        "enterprise_price": "$199/user/mo",
+        "free_onboarding": true
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Pricing aligns with SMB/mid-market segment", "User caps suggest small-team design"],
+      "tags": ["pricing", "smb_signal", "market_segment"]
+    },
+    {
+      "evidence_id": "ev_004",
+      "source_id": "src_003",
+      "evidence_type": "case_study_record",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "excerpt": "BrightPath, a 12-person digital marketing agency, used StratusFlow to automate their client onboarding process. 'Before StratusFlow, our ops manager was spending 10 hours a week on manual intake forms and follow-ups. Now it's all automated,' says Sarah Lin, Head of Operations at BrightPath.",
+      "summary": "Company-published case study features a 12-person digital agency. The use case — automating client intake forms — is a small-team operations problem. The reference contact is a Head of Operations at a micro-agency, not an enterprise leader.",
+      "normalized_fields": {
+        "customer_company": "BrightPath",
+        "customer_size": 12,
+        "customer_type": "digital marketing agency",
+        "use_case": "client onboarding automation",
+        "contact_title": "Head of Operations"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Published case study features a 12-person company", "Customer reference is an SMB"],
+      "tags": ["customer_reference", "smb_signal", "case_study"]
+    },
+    {
+      "evidence_id": "ev_005",
+      "source_id": "src_004",
+      "evidence_type": "case_study_record",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "excerpt": "LaunchPad, an 8-person B2B startup, needed a way to route internal approvals without building custom tooling. 'StratusFlow let us set up an approval workflow in under an hour. It's exactly what a lean startup needs,' says Marcus Webb, Co-Founder of LaunchPad.",
+      "summary": "Company-published case study features an 8-person startup. The use case — internal approval routing — is a basic workflow problem. The reference emphasizes speed of setup and lean team fit, not enterprise capability.",
+      "normalized_fields": {
+        "customer_company": "LaunchPad",
+        "customer_size": 8,
+        "customer_type": "B2B startup",
+        "use_case": "internal approval workflow",
+        "contact_title": "Co-Founder"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Published case study features an 8-person startup", "Customer reference is a micro-company"],
+      "tags": ["customer_reference", "smb_signal", "case_study"]
+    },
+    {
+      "evidence_id": "ev_006",
+      "source_id": "src_005",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "excerpt": "Perfect for our small team of 5. We tried Zapier and Make but StratusFlow's visual builder is way more intuitive. Setup took about a day. The support team even hopped on a call to help us configure our first workflow. Would recommend to any small agency looking to automate basic processes.",
+      "summary": "G2 reviewer describes a 5-person team adoption. Compares StratusFlow to SMB automation tools (Zapier, Make), not enterprise platforms. Highlights quick setup and hands-on support — hallmarks of SMB product experience.",
+      "normalized_fields": {
+        "reviewer_team_size": 5,
+        "sentiment": "positive",
+        "compared_to": ["Zapier", "Make"],
+        "setup_duration": "about a day",
+        "support_interaction": true
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customers are small teams", "Product is compared to SMB tools, not enterprise platforms"],
+      "tags": ["customer_voice", "smb_signal", "competitive_context"]
+    },
+    {
+      "evidence_id": "ev_007",
+      "source_id": "src_005",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "excerpt": "We're a 15-person consulting firm and StratusFlow handles all our project intake and client communication workflows. The onboarding was super smooth — their team walked us through everything in two calls. Only downside is the reporting could be more robust for larger teams.",
+      "summary": "G2 reviewer from a 15-person consulting firm. Notes that reporting is limited for 'larger teams' — suggesting the product may hit capability limits at scale. Onboarding described as high-touch but brief.",
+      "normalized_fields": {
+        "reviewer_team_size": 15,
+        "sentiment": "mostly positive",
+        "limitation_noted": "reporting for larger teams",
+        "onboarding_model": "guided calls"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customers are small organizations", "Product has limitations for larger teams"],
+      "tags": ["customer_voice", "smb_signal", "scale_limitation"]
+    },
+    {
+      "evidence_id": "ev_008",
+      "source_id": "src_006",
+      "evidence_type": "job_posting_record",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "excerpt": "SMB Account Executive (4 openings) — Join our growing sales team. You'll own the full sales cycle for deals between $5K-$25K ARR. Ideal candidates have 2-3 years of SMB SaaS sales experience and thrive in a high-velocity environment with 2-4 week sales cycles.",
+      "summary": "Four simultaneous openings for SMB Account Executives. Job description explicitly specifies SMB deal sizes ($5K-$25K ARR), high-velocity sales cycles (2-4 weeks), and SMB SaaS experience. No enterprise AE or strategic account roles observed.",
+      "normalized_fields": {
+        "role_count": 4,
+        "department": "Sales",
+        "deal_size_range": "$5K-$25K ARR",
+        "sales_cycle": "2-4 weeks",
+        "segment_label": "SMB"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Sales team targets SMB segment explicitly", "Deal sizes are $5K-$25K — well below enterprise thresholds"],
+      "tags": ["hiring_signal", "smb_signal", "sales_motion"]
+    },
+    {
+      "evidence_id": "ev_009",
+      "source_id": "src_006",
+      "evidence_type": "hiring_signal_record",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "excerpt": "SMB Customer Success Manager (3 openings) — Manage a portfolio of 80-120 SMB accounts. You'll drive adoption, reduce churn, and identify expansion opportunities within small and mid-market organizations. Experience with high-volume, low-touch CS preferred.",
+      "summary": "Three CSM openings explicitly labeled 'SMB' with portfolios of 80-120 accounts each. High-volume, low-touch model is characteristic of SMB customer success — enterprise CSMs typically manage 5-15 strategic accounts.",
+      "normalized_fields": {
+        "role_count": 3,
+        "department": "Customer Success",
+        "portfolio_size": "80-120 accounts",
+        "segment_label": "SMB",
+        "cs_model": "high-volume, low-touch"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["CS team structured for SMB, not enterprise", "Account portfolio sizes confirm high-volume SMB model"],
+      "tags": ["hiring_signal", "smb_signal", "customer_success"]
+    },
+    {
+      "evidence_id": "ev_010",
+      "source_id": "src_007",
+      "evidence_type": "press_record",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "excerpt": "StratusFlow has raised $12M in Series A funding led by Accel to scale its enterprise workflow automation platform. CEO Jordan Reeves told TechCrunch: 'Legacy enterprise tools are bloated and expensive. We're building the modern alternative — enterprise-grade workflows at a fraction of the cost and complexity.'",
+      "summary": "TechCrunch coverage uses 'enterprise' framing consistent with the company's positioning. CEO's quote positions against legacy enterprise tools but emphasizes lower cost and complexity — language that resonates with SMB/mid-market buyers, not enterprise procurement.",
+      "normalized_fields": {
+        "funding_amount": "$12M",
+        "round": "Series A",
+        "ceo_quote_emphasis": "lower cost and complexity vs legacy enterprise",
+        "positioning_frame": "enterprise alternative"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Press reinforces enterprise positioning", "CEO's language positions against enterprise incumbents with SMB-friendly value prop"],
+      "tags": ["funding", "positioning", "narrative"]
+    },
+    {
+      "evidence_id": "ev_011",
+      "source_id": "src_008",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "excerpt": "I'm the founder of a 10-person SaaS startup and StratusFlow has been a game-changer for us. We automated our customer onboarding, internal approvals, and bug triage workflows in a single weekend. No need for a dedicated ops person — which is exactly what a startup needs. Enterprise tools like ServiceNow would have been total overkill for us.",
+      "summary": "Trustpilot reviewer is a startup founder (10-person company) who explicitly contrasts StratusFlow with enterprise tools as 'overkill.' The review frames StratusFlow as a startup-appropriate alternative to enterprise software — the opposite of the company's own positioning.",
+      "normalized_fields": {
+        "reviewer_company_size": 10,
+        "reviewer_role": "Founder",
+        "sentiment": "very positive",
+        "enterprise_contrast": "ServiceNow described as overkill",
+        "setup_duration": "a single weekend"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customers see StratusFlow as a startup tool", "Customers explicitly contrast it with enterprise software as lighter-weight"],
+      "tags": ["customer_voice", "smb_signal", "competitive_context", "positioning_gap"]
+    }
+  ]
+}

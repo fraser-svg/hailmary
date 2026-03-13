@@ -30,7 +30,7 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK2 Core (complete, Phases 1-4):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
-**Report Engine (Phases 5-9 complete, Phase 10+ pending):** Eval harness built and operational. First 6 pipeline stages implemented and passing fixture 001-ai-services.
+**Report Engine (Phases 5-9 complete, Phase 10+ pending):** Eval harness built and operational. First 6 pipeline stages implemented and passing fixture 001-ai-services. Second eval fixture (002-enterprise-proof-gap) created.
 
 # Phase Status
 
@@ -120,6 +120,14 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - 12 new tests (98 total across 4 files), 0 regressions
 - No validator logic changes -- schema-only phase
 
+**Report Engine Phase 10a -- Eval Fixture 002: Enterprise Proof Gap (complete)**
+- Created `src/report/evals/fixtures/002-enterprise-proof-gap/` with 7 files
+- Fictional company: StratusFlow -- enterprise workflow platform positioning with SMB-only customer evidence
+- 11 evidence records across 8 sources (Tier 1-3)
+- Tests a different failure mode from fixture 001: positioning-proof gap (enterprise claims vs SMB reality) rather than narrative-delivery mismatch (AI claims vs service delivery)
+- Dossier validates: 0 errors, 1 warning (narrative gap language traceability -- same as fixture 001)
+- Expected files: signals (4 must / 3 nice), tensions (2 must / 2 nice), patterns (2 must / 1 nice), hypotheses (2 must / 3 acceptable), implications (4 must / 2 nice)
+
 # Validator Architecture
 
 **validate-core.ts** (~430 lines): Pure validation logic. 21 numbered checks. Importable, no CLI dependencies.
@@ -159,7 +167,8 @@ src/report/pipeline/                    # Stage implementations
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
   generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[]
 src/report/evals/                       # Evaluation harness
-  fixtures/001-ai-services/             # First eval fixture (dossier + expected-*.md)
+  fixtures/001-ai-services/             # First eval fixture: AI narrative masks service delivery
+  fixtures/002-enterprise-proof-gap/    # Second eval fixture: enterprise positioning vs SMB reality
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + common keyword-overlap matcher
   stubs/stages.ts                       # Adapter layer: 6 real impls + downstream stubs
@@ -174,7 +183,7 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-MK2B Phase 6 (Evidence Summary / Research Depth) complete. 98 tests passing, 0 regressions.
+Report Engine Phase 10a (Eval Fixture 002) complete. Two eval fixtures now available for pipeline testing.
 
 Report Engine eval results for fixture 001-ai-services:
 ```
@@ -186,9 +195,16 @@ Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
 Overall: PASS
 ```
 
+Fixture 002-enterprise-proof-gap: created, validated (0 errors), not yet run through pipeline.
+
 # Next Step
 
-**Report Engine Phase 10 -- plan-report**
+**Report Engine Phase 10b -- Run fixture 002 through pipeline**
+- Run eval harness against fixture 002-enterprise-proof-gap
+- Validate that existing pipeline stages detect the enterprise-proof-gap failure mode
+- Tune templates if needed for new tension/pattern types
+
+**Report Engine Phase 10c -- plan-report**
 - Takes implications + upstream objects and produces a report plan/outline
 - Spec: docs/specs/report-specs/008-plan-report.md
 - Last two pipeline stages before report generation is complete
@@ -207,7 +223,7 @@ Overall: PASS
 - Errors = structural failures (block validation). Warnings = quality concerns (never block).
 - Do not refactor into multi-agent architecture. Single skill works.
 - WebSearch + WebFetch only. No external tools (Exa, Firecrawl, Puppeteer).
-- Do not build fixture 002 until harness is fully working against fixture 001.
+- Fixture 002 created -- run through pipeline before building fixture 003.
 - Eval results directory should be gitignored (transient outputs).
 
 # Dossier Schema Key Fields
@@ -224,9 +240,12 @@ Sections that require exact schema field names (common errors when generating ma
 
 # Files Modified Recently
 
-**MK2B Phase 6 -- Evidence Summary / Research Depth (this session):**
-- `src/types/dossier.ts` -- added BySourceTier, ByEvidenceCategory, DepthLevel, EvidenceSummary interfaces; updated RunMetadata
-- `schemas/company-dossier.schema.json` -- added evidence_summary to run_metadata with additionalProperties: false on all sub-objects
-- `src/utils/empty-dossier.ts` -- added zeroed evidence_summary with 'none' depths
-- `src/__tests__/validate.test.ts` -- 12 new tests for Phase 6 schema + empty dossier + collectValues safety
-- `docs/handoffs/current.md` -- updated with MK2B Phase 6 completion
+**Report Engine Phase 10a -- Eval Fixture 002 (this session):**
+- `src/report/evals/fixtures/002-enterprise-proof-gap/dossier.json` -- new: StratusFlow fixture dossier (11 evidence, 8 sources)
+- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-signals.md` -- new: 4 must-detect, 3 nice-to-detect, 4 must-avoid
+- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-tensions.md` -- new: 2 must-detect, 2 nice-to-detect
+- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-patterns.md` -- new: 2 must-detect, 1 nice-to-detect
+- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-hypotheses.md` -- new: 2 must-detect, 3 acceptable alternatives
+- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-implications.md` -- new: 4 must-detect, 2 nice-to-detect
+- `src/report/evals/fixtures/002-enterprise-proof-gap/notes.md` -- new: fixture purpose, failure modes, success criteria
+- `docs/handoffs/current.md` -- updated with Phase 10a completion
