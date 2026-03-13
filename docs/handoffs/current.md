@@ -38,7 +38,7 @@ The report engine operates only on dossier-derived data. No fresh research. Ever
 
 **MK1 (complete):** Full vertical slice. Input to validated dossier. One production run (Vercel). 12 sources, 46 evidence records.
 
-**MK2 Core (Phases 1-3 complete, Phase 4 planned):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
+**MK2 Core (Phases 1-3 complete, Phase 3 validation in progress, Phase 4 planned):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
 **Report Engine:** 9 spec documents written and audited. Phase 1 (Spec Locking) complete. Phase 2 (Evaluation Fixtures) complete — first fixture created and validated.
 
@@ -56,13 +56,16 @@ The report engine operates only on dossier-derived data. No fresh research. Ever
 - `source-tier-assignment.md` reference created
 - SKILL.md and schema-reference.md updated
 
-**Intelligence Engine Phase 3 — Skill Workflow Enhancement (complete)**
+**Intelligence Engine Phase 3 — Skill Workflow Enhancement (complete, validation in progress)**
 - Created `references/negative-signal-research.md`, `customer-voice-segmentation.md`, `competitor-depth.md`
 - Added Step 4b (Negative Signal Research) to SKILL.md
 - Enhanced Steps 4 and 5 with segmentation and competitor depth references
 - Added Critical Rule 8: WebFetch fallback
 - SKILL.md at 262 lines (under 400 limit)
-- Validated with Stripe run: 11 sources, 52 evidence records, 0 errors, 0 warnings
+- Stripe validation run: 11 sources, 52 evidence records, 0 errors, 0 warnings
+- Notion validation run: 12 sources, 55 evidence records, 0 errors, 0 warnings
+- HubSpot validation run pending (next)
+- Phase 3 generalization verdict pending: comparing research quality across Stripe, Notion, HubSpot
 
 **Intelligence Engine Phase 4 — Narrative Gap Traceability (planned, not started)**
 - 3 new validator warnings: gap company-evidence link, gap customer-evidence link, gap language traceability
@@ -157,43 +160,31 @@ runs/                                  # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 2 (Evaluation Fixtures) is complete. Fixture 001 is frozen and ready to anchor harness development.
+Phase 3 validation in progress. Notion dossier complete (0 errors, 0 warnings). HubSpot dossier pending. Cross-company comparison (Stripe vs Notion vs HubSpot) will determine Phase 3 generalization verdict.
 
 # Next Step
 
-**Report Engine Phase 3 — Evaluation Harness Skeleton**
+**Complete Phase 3 Validation**
 
-Build the machinery to run a fixture through the pipeline and score outputs stage by stage.
+1. Run `/build-company-dossier hubspot hubspot.com`
+2. Analyze both dossiers for: negative signal capture, evidence tag distribution, competitor analysis depth, narrative gap quality, blocked source handling
+3. Compare Stripe vs Notion vs HubSpot results
+4. If quality is consistent: Phase 3 validated
 
-Target structure:
-```
-src/report/evals/
-  runner/
-    run-fixture.ts                     # Load fixture, call stages, compare outputs
-  scoring/
-    score-signals.ts                   # Must-detect hit rate, must-avoid violations
-    score-tensions.ts
-    score-patterns.ts
-    score-hypotheses.ts
-    score-implications.ts
-  results/                             # Scoring output
-```
+**Then: Pre-Phase 4 Improvement**
 
-First harness behavior:
-1. Load fixture dossier.json
-2. Call stubbed pipeline stages
-3. Write intermediate outputs
-4. Compare outputs against expected fixture files
-5. Print pass/fail summary with must-detect hit rate, nice-to-detect hit rate, must-avoid violations
+Update SKILL.md to log inaccessible sources as `missing_data` entries in `run_metadata.notes` rather than silently removing them.
 
-Use human-readable scoring rules, not embeddings or fuzzy matching. Build harness around fixture 001 before creating fixture 002.
-
-**Intelligence Engine: Phase 4 — Narrative Gap Traceability** (separate track)
+**Then: Intelligence Engine Phase 4 — Narrative Gap Traceability**
 
 Add 3 validator warnings to `validate-core.ts`:
 1. Gap company-evidence link: gap evidence_ids must include >=1 company_claim_record/positioning_record/content_record
 2. Gap customer-evidence link: gap evidence_ids must include >=2 testimonial_record/review_record/customer_language_record/customer_value_record
 3. Gap language traceability: each company_language/customer_language string should appear as case-insensitive substring in a referenced evidence excerpt
+
+**Report Engine: Phase 3 — Evaluation Harness Skeleton** (separate track)
+
+Build the machinery to run a fixture through the pipeline and score outputs stage by stage.
 
 # Known Constraints
 
@@ -210,11 +201,22 @@ Add 3 validator warnings to `validate-core.ts`:
 
 # Files Modified Recently
 
-**Report Engine Phase 2 (this session):**
-- `src/report/evals/fixtures/001-ai-services/dossier.json` — created (fictional AutoFlow AI company)
-- `src/report/evals/fixtures/001-ai-services/expected-signals.md` — created
-- `src/report/evals/fixtures/001-ai-services/expected-tensions.md` — created
-- `src/report/evals/fixtures/001-ai-services/expected-patterns.md` — created
-- `src/report/evals/fixtures/001-ai-services/expected-hypotheses.md` — created
-- `src/report/evals/fixtures/001-ai-services/expected-implications.md` — created
-- `src/report/evals/fixtures/001-ai-services/notes.md` — created
+**Phase 3 validation (this session):**
+- `runs/notion/dossier.json` — created (Notion dossier: 12 sources, 55 evidence, 0 errors, 0 warnings)
+- `runs/notion/validation-report.json` — created (validation output)
+- `docs/handoffs/current.md` — updated with session checkpoint
+
+# Phase 3 Validation Results So Far
+
+**Stripe (previous session):** 11 sources, 52 evidence records, 0 errors, 0 warnings
+- 9 negative evidence records with friction/churn/negative tags
+- Tags: love, friction, negative, buyer_language, user_language, trust, churn
+- Narrative gap detected: "developer experience" (customer truth) vs "financial infrastructure" (company messaging)
+- 6 blocked sources documented in run_metadata.notes
+
+**Notion (this session):** 12 sources, 55 evidence records, 0 errors, 0 warnings
+- 15 negative evidence records tagged with negative/friction/churn/trust
+- Tags: love, friction, negative, buyer_language, user_language, churn, trust
+- 3 narrative gaps: AI marketing vs flexibility loyalty, enterprise scale vs setup burden, cloud vs data ownership
+- 5 blocked sources documented in run_metadata.notes (G2, Capterra, UX Planet, Notion customers page)
+- Competitor depth: messaging overlap, undifferentiated positioning, accidental differentiation all captured
