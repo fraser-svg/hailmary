@@ -29,6 +29,8 @@ BEFORE: signals -> tensions -> patterns (gate) -> hypotheses -> stress-test (bin
 AFTER:  signals -> tensions -> hypotheses (from tensions directly) -> scoring + ranking -> implications
 ```
 
+Phase 9B made all hypothesis/implication text company-specific via structured context interpolation.
+
 Patterns are now confidence multipliers, not gates. Hypotheses are ranked by score; top 3 survive.
 
 Writer modes: `template` (deterministic, default) | `skill` (Claude Code prose) | `llm` (runtime API, placeholder)
@@ -45,7 +47,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **MK3 (complete, Phase 7 + 7b):** Strategic hypotheses in dossier schema. SKILL.md refined for hypothesis quality (specificity, falsifiability, counter-signals).
 
-**Report Engine (complete, Phases 5-19 + Phase 8 Reasoning):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system + batch analysis runner + reasoning engine improvement.
+**Report Engine (complete, Phases 5-19 + Phase 8 Reasoning + Phase 9B Specificity):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system + batch analysis runner + reasoning engine improvement + template inflation fix.
 
 # Phase Status
 
@@ -74,7 +76,8 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | 17 (RE) | Skill writer mode | Skill bundle export, response import, validation, assembly |
 | 18 (RE) | Skill prompt system | Master prompt module with 5-layer architecture |
 | 19 (RE) | Batch analysis runner | ICP company orchestration, per-company output |
-| **8 (Reasoning)** | **Reasoning Engine Improvement** | **Scoring pipeline, tension-driven hypotheses, 10/10 report completion** |
+| 8 (Reasoning) | Reasoning Engine Improvement | Scoring pipeline, tension-driven hypotheses, 10/10 report completion |
+| **9B (Reasoning)** | **Template Inflation Fix** | **Company-specific hypothesis/implication text via CompanyContext interpolation** |
 
 106 tests across 4 test files via vitest. 0 regressions.
 
@@ -118,6 +121,7 @@ src/report/pipeline/                    # Stage implementations (8 stages)
   generate-implications.ts              # Stage 6: Hypothesis[] (top-ranked) -> Implication[]
   plan-report.ts                        # Stage 7: upstream objects -> ReportPlan
   write-report.ts                       # Stage 8: ReportPlan + upstream -> Report + markdown
+  company-context.ts                    # Helper: extracts CompanyContext from upstream pipeline objects
 src/report/writer/                      # Writer layer (3 modes)
 src/report/runner/                      # Batch analysis runner
   batch-analyse.ts                      # CLI entry: orchestrates full pipeline per company
@@ -134,33 +138,36 @@ reports/                                # Per-company analysis output (gitignore
 
 # Current Phase
 
-Phase 8 (Reasoning Engine Improvement) complete.
+Phase 9B (Template Inflation Fix) complete.
 
-**Problem:** The reasoning pipeline was overly strict. Patterns acted as gates for hypothesis generation, and stress-test survival required ALL of 5 criteria. Result: only 1/10 companies produced implications.
+**Problem:** Quality audit found 7/10 companies sharing nearly identical hypothesis titles and 8-9/10 sharing identical implication titles. Templates used hardcoded generic prose with no company-specific context.
 
-**Solution:** Converted from a filtering pipeline to a scoring pipeline:
+**Solution:** Company-specific text interpolation via structured context extraction:
 
-1. **Tension-driven hypothesis generation:** 8 new templates (T1-T8) fire directly from tension types without requiring patterns. Patterns boost confidence when present. Hypothesis types cover: delivery reality, positioning aspiration, ambition-evidence gap, founder concentration, organizational scaling, structural transition, segment strength, customer value divergence.
+1. **CompanyContext helper** (`company-context.ts`): Deterministic extraction of company name, product domain, narrative claim, customer reality, customer segment, positioned capability, buyer scrutiny area, and growth constraint from upstream Signal/Tension/Pattern objects. No LLM calls.
 
-2. **Scoring-based stress testing:** Binary survive/discard replaced with numeric scoring. Score = tension_support + signal_diversity + pattern_bonus + confidence - counter_penalties - assumption_fragility. Top 3 hypotheses by score receive 'survives' status.
+2. **Hypothesis templates updated** (`generate-hypotheses.ts`): All 17 templates now accept `CompanyContext` and interpolate company name + domain-specific nouns into titles/statements/assumptions.
 
-3. **Broader implication templates:** 6 new templates (18-23) match tension-driven hypothesis language. Added opportunity types (segment alignment, customer language intelligence) alongside risk, constraint, watchpoint types.
+3. **Implication templates updated** (`generate-implications.ts`): All 23 templates now accept `CompanyContext`. Template dispatch uses closures to pass context.
+
+4. **Deduplication improved:** Both stages now include normalised title word overlap check at 0.65 threshold (stop-word removal, lowercase, sorted word comparison).
 
 **Results:**
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Companies with implications | 1/10 | 10/10 |
-| Total hypotheses (surviving) | 9 (1) | 30 (28) |
-| Total implications | 3 | 71 |
-| Avg hypotheses/company | 0.9 | 3.0 |
-| Avg implications/company | 0.3 | 7.1 |
-| Implication types | risk only | risk, opportunity, watchpoint, constraint |
+| Metric | Phase 8 | Phase 9B |
+|--------|---------|----------|
+| Companies with implications | 10/10 | 10/10 |
+| Total surviving hypotheses | 28 | 28 |
+| Total implications | 71 | 69 |
+| Identical titles across companies | 7/10 shared | 0/10 shared |
+| Company-specific nouns in titles | 0% | 100% |
+
+Every hypothesis/implication title now contains the company name and domain-specific terms (e.g., "Trigger.dev's ai agent platform credibility" vs "Form3's architecture claims credibility").
 
 # Next Step
 
 Possible next directions:
-- Hypothesis template diversification (reduce template reuse across similar companies)
+- **Stress-test recalibration:** Survival rate is ~93% (28/30). Consider raising MIN_SURVIVE_SCORE from 2.0 to 2.5, or adding a novelty penalty for hypotheses sharing >60% normalised words
 - Signal extraction expansion (more extraction passes for broader tension variety)
 - Report quality scoring in eval harness
 - Cross-company comparison / portfolio analysis
@@ -175,6 +182,7 @@ Possible next directions:
 - Pipeline stages downstream of extract-signals must not inspect dossier directly (signals-only).
 - Stress-test scoring: top 3 by score survive (MIN_SURVIVE_SCORE = 2.0, DISCARD_SCORE = 1.0).
 - Hypotheses need sufficient unique tension IDs to avoid >70% overlap deduplication.
+- Deduplication also checks normalised title word overlap at 0.65 threshold.
 - SKILL.md must stay under ~400 lines. Reference docs handle depth.
 - All 16 dossier sections must exist even when empty.
 - Errors = structural failures (block validation). Warnings = quality concerns (never block).
@@ -185,8 +193,8 @@ Possible next directions:
 
 # Files Modified Recently
 
-**Phase 8 Reasoning Engine Improvement (this session):**
-- `src/report/pipeline/generate-hypotheses.ts` -- added 8 tension-driven templates (T1-T8), removed pattern-as-gate requirement, enhanced deduplication with tension-only overlap check
-- `src/report/pipeline/stress-test-hypotheses.ts` -- replaced binary survive/discard with numeric scoring + ranking (computeHypothesisScore, MAX_SURVIVING=3)
-- `src/report/pipeline/generate-implications.ts` -- added 6 broader implication templates (18-23) for tension-driven hypotheses, including opportunity types
-- `docs/handoffs/current.md` -- updated with Phase 8
+**Phase 9B Template Inflation Fix (this session):**
+- `src/report/pipeline/company-context.ts` -- NEW: CompanyContext interface + extraction from upstream pipeline objects + normalise() for dedup
+- `src/report/pipeline/generate-hypotheses.ts` -- all 17 templates accept CompanyContext, interpolate company-specific text, enhanced dedup with 0.65 normalised overlap
+- `src/report/pipeline/generate-implications.ts` -- all 23 templates accept CompanyContext, closure-based dispatch, enhanced dedup with 0.65 normalised overlap
+- `docs/handoffs/current.md` -- updated with Phase 9B

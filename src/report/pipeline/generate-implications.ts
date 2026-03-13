@@ -10,6 +10,8 @@
  *
  * V1: Deterministic template-based generation over surviving Hypothesis[].
  * No LLM calls. No dossier inspection.
+ *
+ * Phase 9B: Templates now interpolate CompanyContext for company-specific output.
  */
 
 import type { Signal } from './extract-signals.js';
@@ -17,6 +19,8 @@ import type { Tension } from './detect-tensions.js';
 import type { Pattern } from './detect-patterns.js';
 import type { Hypothesis } from './generate-hypotheses.js';
 import type { Confidence } from '../../types/evidence.js';
+import { extractCompanyContext, normalise } from './company-context.js';
+import type { CompanyContext } from './company-context.js';
 
 // ---------------------------------------------------------------------------
 // Implication types (per spec 007-generate-implications)
@@ -104,19 +108,16 @@ function makeImplication(
 }
 
 // ---------------------------------------------------------------------------
-// Implication templates
+// Implication templates (Phase 9B: company-specific interpolation)
 // ---------------------------------------------------------------------------
 
 /**
  * Template 1: Service scaling constraint
- *
- * Triggered by hypotheses about structural human delivery dependency.
- * If human delivery is structurally required, scaling revenue requires
- * scaling service capacity — creating a linear cost constraint.
  */
 function implyServiceScalingConstraint(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -126,13 +127,13 @@ function implyServiceScalingConstraint(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Scaling revenue may require scaling service capacity',
+    title: `Scaling ${ctx.companyName}'s revenue may require scaling ${ctx.productDomain} service capacity`,
     statement:
-      'If the current delivery model depends on human onboarding and implementation ' +
-      'support as a structural requirement, revenue growth may require increasing ' +
-      'service capacity rather than relying on product-led operational leverage. ' +
-      'Each new customer cohort demands proportional human investment, producing ' +
-      'linear cost scaling rather than the software-like leverage the platform ' +
+      `If ${ctx.companyName}'s current delivery model for ${ctx.productDomain} depends on human ` +
+      'onboarding and implementation support as a structural requirement, revenue growth may ' +
+      'require increasing service capacity rather than relying on product-led operational leverage. ' +
+      'Each new customer cohort demands proportional human investment, producing linear cost ' +
+      `scaling rather than the software-like leverage ${ctx.companyName}'s ${ctx.positionedCapability} ` +
       'positioning implies.',
     implication_type: 'constraint',
     audience: 'executive',
@@ -140,8 +141,8 @@ function implyServiceScalingConstraint(
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'What is the current ratio of implementation specialists to active customers?',
-      'Can onboarding be partially automated without reducing customer outcomes?',
+      `What is ${ctx.companyName}'s current ratio of implementation specialists to active customers?`,
+      `Can ${ctx.productDomain} onboarding be partially automated without reducing customer outcomes?`,
       'How does service capacity growth compare to revenue growth targets?',
     ],
   });
@@ -149,14 +150,11 @@ function implyServiceScalingConstraint(
 
 /**
  * Template 2: Operational leverage overstatement
- *
- * Triggered by hypotheses about automation narrative compensating for gaps.
- * If automation is incomplete, the company's unit economics may be closer
- * to professional services than SaaS.
  */
 function implyOperationalLeverageOverstatement(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -168,44 +166,37 @@ function implyOperationalLeverageOverstatement(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Automation claims may overstate operational leverage',
+    title: `${ctx.companyName}'s ${ctx.positionedCapability} claims may overstate operational leverage`,
     statement:
-      'If the product cannot deliver autonomous value without significant human ' +
-      'setup and implementation, the company\'s unit economics may be closer to a ' +
-      'professional services firm than a SaaS platform. Gross margins, customer ' +
-      'acquisition costs, and scalability projections may all be weaker than the ' +
-      'automation narrative implies. Operational leverage may be overstated in ' +
-      'investor materials and market positioning.',
+      `If ${ctx.companyName}'s product cannot deliver autonomous value around ${ctx.productDomain} ` +
+      'without significant human setup and implementation, the company\'s unit economics may be ' +
+      'closer to a professional services firm than a SaaS platform. Gross margins, customer ' +
+      `acquisition costs, and scalability projections may all be weaker than ${ctx.companyName}'s ` +
+      `${ctx.positionedCapability} narrative implies.`,
     implication_type: 'risk',
     audience: 'investor',
     horizon: 'near_term',
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'What percentage of customer deployments complete without human implementation support?',
+      `What percentage of ${ctx.companyName} deployments complete without human implementation support?`,
       'How do gross margins compare to pure SaaS benchmarks vs professional services firms?',
-      'What is the true cost of customer acquisition including implementation labor?',
+      'What is the true cost of customer acquisition including implementation labour?',
     ],
   });
 }
 
 /**
  * Template 3: Positioning risk growth
- *
- * Triggered by hypotheses about narrative-reality gaps.
- * As the customer base grows, the risk of public exposure of the gap
- * between narrative and delivery increases.
  */
 function implyPositioningRisk(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must reference narrative or positioning
   if (!textContains(text, ['narrative', 'positioning'])) return null;
-
-  // Must also be about a gap between claims and reality
   if (!textContains(text, [
     'gap',
     'compensating',
@@ -214,22 +205,21 @@ function implyPositioningRisk(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Positioning risk increases as customer base grows',
+    title: `${ctx.companyName}'s positioning risk increases as its ${ctx.productDomain} customer base grows`,
     statement:
-      'If early customers discover — or publicly share — that the automation ' +
-      'platform requires significant human onboarding and implementation, the ' +
-      'narrative gap could become a trust liability. This positioning risk ' +
-      'increases with visibility: more customers means more public reviews ' +
-      'describing the service-heavy reality, which may conflict with the ' +
-      'automation-first marketing message.',
+      `If early ${ctx.companyName} customers discover — or publicly share — that the ` +
+      `${ctx.positionedCapability} positioning requires significant human involvement, the ` +
+      'narrative gap could become a trust liability. This risk increases with visibility: ' +
+      `more customers means more public reviews describing the actual experience around ` +
+      `${ctx.customerReality}, which may conflict with ${ctx.companyName}'s marketing message.`,
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'How are existing customers describing their experience in public reviews?',
-      'What is the gap between marketing claims and customer-reported onboarding experience?',
+      `How are existing ${ctx.companyName} customers describing their experience in public reviews?`,
+      `What is the gap between ${ctx.companyName}'s marketing claims and customer-reported onboarding experience?`,
       'Does the company monitor and respond to narrative risks in customer feedback channels?',
     ],
   });
@@ -237,25 +227,20 @@ function implyPositioningRisk(
 
 /**
  * Template 4: Services team as competitive variable
- *
- * Triggered by hypotheses about structural human dependency for value delivery.
- * If customer success depends on implementation specialists, services team
- * quality becomes a core competitive concern.
  */
 function implyServicesTeamCompetitiveVariable(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about structural human delivery requirements
   if (!textContains(text, [
     'structurally required',
     'structural requirement',
     'unable to deliver value without',
   ])) return null;
 
-  // Must also reference implementation or services
   if (!textContains(text, [
     'implementation',
     'onboarding',
@@ -263,22 +248,21 @@ function implyServicesTeamCompetitiveVariable(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Services team quality becomes a critical competitive variable',
+    title: `${ctx.companyName}'s ${ctx.productDomain} services team quality becomes a critical competitive variable`,
     statement:
-      'If customer success depends on implementation specialists rather than ' +
-      'product capability alone, then hiring quality, training programs, and ' +
-      'consultant retention become critical competitive variables — not ' +
-      'peripheral support functions. The services team may be the actual ' +
-      'value delivery mechanism, making its quality and consistency a ' +
-      'competitive differentiator or vulnerability.',
+      `If ${ctx.companyName}'s customer success depends on implementation specialists rather than ` +
+      `product capability alone in ${ctx.productDomain}, then hiring quality, training programmes, ` +
+      'and consultant retention become critical competitive variables — not peripheral support ' +
+      'functions. The services team may be the actual value delivery mechanism, making its ' +
+      'quality and consistency a competitive differentiator or vulnerability.',
     implication_type: 'structural',
     audience: 'operator',
     horizon: 'structural',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'What is the current attrition rate among implementation specialists?',
-      'How standardized is the implementation methodology across the services team?',
+      `What is ${ctx.companyName}'s current attrition rate among implementation specialists?`,
+      `How standardised is ${ctx.companyName}'s implementation methodology across the services team?`,
       'Does the company invest in services team development as a competitive priority?',
       'How does service delivery quality vary across team members?',
     ],
@@ -287,20 +271,15 @@ function implyServicesTeamCompetitiveVariable(
 
 /**
  * Template 5: Investor narrative scrutiny
- *
- * Triggered by hypotheses about AI/automation narrative vs services reality.
- * Future fundraising may require reconciling the positioning gap.
  */
 function implyInvestorScrutiny(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about automation or AI narrative
   if (!textContains(text, ['automation narrative', 'automation-led'])) return null;
-
-  // Must also reference narrative/positioning gap
   if (!textContains(text, [
     'compensating',
     'ahead of',
@@ -308,21 +287,20 @@ function implyInvestorScrutiny(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Investor narrative may face scrutiny at scale',
+    title: `${ctx.companyName}'s ${ctx.productDomain} investor narrative may face scrutiny at scale`,
     statement:
-      'If the company raised capital on an AI-first thesis but operates as a ' +
-      'services-heavy business, future fundraising rounds may require ' +
-      'reconciling the positioning gap. Investor due diligence at scale examines ' +
-      'gross margins, services revenue mix, and customer acquisition costs — ' +
-      'metrics that may reveal the gap between the automation narrative and ' +
-      'operational reality.',
+      `If ${ctx.companyName} raised capital on a ${ctx.positionedCapability} thesis but operates as a ` +
+      'services-heavy business, future fundraising rounds may require reconciling the positioning ' +
+      'gap. Investor due diligence at scale examines gross margins, services revenue mix, and ' +
+      `customer acquisition costs — metrics that may reveal the gap between ${ctx.companyName}'s ` +
+      `${ctx.productDomain} narrative and operational reality.`,
     implication_type: 'risk',
     audience: 'investor',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'How does the company classify services revenue in financial reporting?',
+      `How does ${ctx.companyName} classify services revenue in financial reporting?`,
       'What gross margin does the company report, and how does it compare to SaaS benchmarks?',
       'Has investor due diligence previously examined the services dependency?',
     ],
@@ -331,14 +309,11 @@ function implyInvestorScrutiny(
 
 /**
  * Template 6: Product roadmap pressure
- *
- * Triggered by hypotheses about incomplete product automation.
- * Product engineering faces pressure to close the gap between claims
- * and capability.
  */
 function implyProductRoadmapPressure(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -349,250 +324,221 @@ function implyProductRoadmapPressure(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Product roadmap pressure intensifies as automation gap persists',
+    title: `${ctx.companyName}'s ${ctx.productDomain} roadmap pressure intensifies as the automation gap persists`,
     statement:
-      'If the company acknowledges the automation gap internally, product ' +
-      'engineering faces increasing pressure to close the gap between marketing ' +
-      'claims and product capability. This product roadmap pressure may lead to ' +
-      'rushed feature releases, quality trade-offs, or resource allocation ' +
-      'conflicts between maintaining services capacity and investing in ' +
-      'product automation.',
+      `If ${ctx.companyName} acknowledges the automation gap internally, product engineering faces ` +
+      `increasing pressure to close the gap between ${ctx.positionedCapability} claims and product ` +
+      'capability. This may lead to rushed feature releases, quality trade-offs, or resource ' +
+      `allocation conflicts between maintaining services capacity for ${ctx.customerReality} ` +
+      `and investing in product automation.`,
     implication_type: 'watchpoint',
     audience: 'founder',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'What percentage of engineering investment targets automation capability gaps?',
+      `What percentage of ${ctx.companyName}'s engineering investment targets automation capability gaps?`,
       'Is there internal acknowledgment of the gap between product claims and capability?',
-      'How does the product roadmap prioritize closing automation gaps vs new features?',
+      'How does the product roadmap prioritise closing automation gaps vs new features?',
     ],
   });
 }
 
 /**
  * Template 7: Enterprise credibility lag
- *
- * Triggered by hypotheses about aspirational positioning.
- * If the positioning is aspirational, enterprise buyers doing due diligence
- * may find the absence of enterprise references to be a credibility gap.
  */
 function implyEnterpriseCredibilityLag(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about aspirational positioning
   if (!textContains(text, ['aspirational positioning', 'aspirational rather than'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Enterprise credibility may lag enterprise ambition',
+    title: `${ctx.companyName}'s ${ctx.positionedCapability} credibility may lag its enterprise ambition`,
     statement:
-      'If the positioning is aspirational, enterprise buyers conducting due diligence ' +
-      'may find the absence of enterprise references, case studies, and large-scale ' +
-      'deployments to be a credibility gap. The more aggressive the enterprise narrative, ' +
-      'the more conspicuous the lack of enterprise proof becomes. Credibility may lag ' +
-      'ambition until the customer base catches up with the positioning.',
+      `If ${ctx.companyName}'s ${ctx.positionedCapability} positioning is aspirational, enterprise ` +
+      `buyers conducting due diligence may find the absence of enterprise references, case studies, ` +
+      `and large-scale deployments in ${ctx.productDomain} to be a credibility gap. The more ` +
+      `aggressive ${ctx.companyName}'s narrative around ${ctx.narrativeClaim}, the more conspicuous ` +
+      'the lack of enterprise proof becomes.',
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'How many reference customers exist at the scale implied by positioning?',
-      'What do enterprise prospects find when they conduct due diligence?',
-      'Does the company have case studies demonstrating enterprise-scale deployments?',
+      `How many ${ctx.companyName} reference customers exist at the scale implied by positioning?`,
+      `What do enterprise prospects find when they conduct due diligence on ${ctx.companyName}?`,
+      `Does ${ctx.companyName} have case studies demonstrating enterprise-scale ${ctx.productDomain} deployments?`,
     ],
   });
 }
 
 /**
  * Template 8: Larger customers may require undemonstrated capabilities
- *
- * Triggered by hypotheses about building traction in smaller organizations.
- * If the customer base is primarily smaller organizations, the product's
- * fitness for larger organizations is unproven.
  */
 function implyLargerCustomerCapabilityGap(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must reference smaller organizations or traction in a different segment
   if (!textContains(text, [
     'smaller organizations',
     'traction in smaller',
+    'traction in',
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Larger customers may require capabilities not yet demonstrated',
+    title: `Larger ${ctx.productDomain} buyers may require ${ctx.companyName} capabilities not yet demonstrated`,
     statement:
-      'If the current customer base is primarily smaller organizations, the product\'s ' +
-      'fitness for larger buyers is unproven. Larger customers typically require advanced ' +
-      'permissioning, complex workflow orchestration, multi-team governance, and deep ' +
-      'integration capabilities that may exceed what the product has demonstrated in ' +
-      'practice with its current customer base.',
+      `If ${ctx.companyName}'s current customer base is primarily ${ctx.customerSegment}, the ` +
+      `product's fitness for larger ${ctx.productDomain} buyers is unproven. Larger customers ` +
+      'typically require advanced permissioning, complex workflow orchestration, multi-team ' +
+      `governance, and deep integration capabilities that may exceed what ${ctx.companyName} ` +
+      'has demonstrated in practice with its current customer base.',
     implication_type: 'risk',
     audience: 'founder',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'What capabilities do larger buyers require that the current product has not demonstrated?',
-      'Has the product been tested in environments with the complexity larger buyers demand?',
-      'What is the gap between current product capabilities and larger buyer requirements?',
+      `What ${ctx.productDomain} capabilities do larger buyers require that ${ctx.companyName} has not demonstrated?`,
+      `Has ${ctx.companyName}'s product been tested in environments with the complexity larger buyers demand?`,
+      `What is the gap between current ${ctx.companyName} capabilities and larger buyer requirements?`,
     ],
   });
 }
 
 /**
  * Template 9: Positioning risk with enterprise scrutiny
- *
- * Triggered by hypotheses about aspirational forward-looking positioning.
- * If the company actively pursues enterprise deals, prospects will seek
- * reference customers — and the gap may create friction.
  */
 function implyPositioningScrutinyRisk(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about aspirational/forward-looking positioning with evidence gap
   if (!textContains(text, ['aspirational'])) return null;
   if (!textContains(text, ['forward-looking', 'absence of supporting'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Positioning risk may increase as enterprise buyers scrutinize proof',
+    title: `${ctx.companyName}'s positioning risk may increase as ${ctx.productDomain} buyers scrutinise proof`,
     statement:
-      'If the company actively pursues larger deals, prospects may seek reference ' +
-      'accounts of similar size and industry. The gap between the positioning narrative ' +
-      'and observable proof points may create sales cycle friction, extended ' +
-      'evaluation periods, or lost opportunities. Scrutiny of proof intensifies as ' +
-      'buyers become more sophisticated and the stakes of each deal increase.',
+      `If ${ctx.companyName} actively pursues larger ${ctx.productDomain} deals, prospects may ` +
+      `seek reference accounts of similar size and industry. The gap between ${ctx.companyName}'s ` +
+      `${ctx.positionedCapability} narrative and observable proof points may create sales cycle ` +
+      'friction, extended evaluation periods, or lost opportunities.',
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'What happens when enterprise prospects request reference customers at their scale?',
-      'How long are enterprise sales cycles, and does proof availability affect close rates?',
-      'Does the company have a strategy for bridging the reference gap in enterprise deals?',
+      `What happens when ${ctx.productDomain} prospects request ${ctx.companyName} reference customers at their scale?`,
+      `How long are ${ctx.companyName}'s enterprise sales cycles, and does proof availability affect close rates?`,
+      `Does ${ctx.companyName} have a strategy for bridging the reference gap in enterprise deals?`,
     ],
   });
 }
 
 /**
  * Template 10: SMB underserved by enterprise messaging
- *
- * Triggered by hypotheses about credibility/branding function targeting
- * a different segment than the actual customer base.
- * If the actual customers are smaller organizations, enterprise messaging
- * may alienate the best customers.
  */
 function implySMBUnderservedByEnterpriseMessaging(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about branding/credibility function serving a different segment
   if (!textContains(text, ['branding function', 'actual customer acquisition focuses'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'SMB customer base may be underserved by enterprise messaging',
+    title: `${ctx.companyName}'s ${ctx.customerSegment} may be underserved by its ${ctx.positionedCapability} messaging`,
     statement:
-      'If the actual customer base consists of smaller organizations, the enterprise-heavy ' +
-      'marketing may be creating a positioning mismatch for the company\'s best customers. ' +
-      'Smaller buyers may feel the product is not designed for them, or may have different ' +
-      'expectations about support, pricing, and complexity based on the enterprise framing. ' +
-      'The customers who drive current revenue may be underserved by messaging that targets ' +
-      'a different buyer profile.',
+      `If ${ctx.companyName}'s actual customer base consists of ${ctx.customerSegment}, the ` +
+      `enterprise-heavy ${ctx.positionedCapability} marketing may be creating a positioning ` +
+      'mismatch for the company\'s best customers. These buyers — who value ' +
+      `${ctx.customerReality} — may feel the product is not designed for them, or may have ` +
+      'different expectations about support, pricing, and complexity based on the enterprise framing.',
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'How do current customers describe the product — using enterprise language or simpler terms?',
-      'Are smaller buyers confused or deterred by the enterprise positioning?',
-      'Does the messaging accurately reflect the value proposition for the actual customer base?',
+      `How do current ${ctx.companyName} customers describe the product — using enterprise language or simpler terms?`,
+      `Are ${ctx.customerSegment} buyers confused or deterred by the ${ctx.positionedCapability} positioning?`,
+      `Does ${ctx.companyName}'s messaging accurately reflect the value proposition for its actual customer base?`,
     ],
   });
 }
 
 /**
- * Template 11: Sales motion adjustment risk (nice to detect)
- *
- * Triggered by hypotheses about aspirational positioning with different
- * market segment evidence. If enterprise proof remains thin, the current
- * sales motion may not be equipped for enterprise cycles.
+ * Template 11: Sales motion adjustment risk
  */
 function implySalesMotionAdjustment(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must reference aspirational positioning and different market segment
   if (!textContains(text, ['aspirational'])) return null;
   if (!textContains(text, ['different market segment', 'different segment'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Sales motion may require adjustment if enterprise proof remains thin',
+    title: `${ctx.companyName}'s ${ctx.productDomain} sales motion may require adjustment if enterprise proof remains thin`,
     statement:
-      'If the company attempts to move upmarket without building enterprise proof, ' +
-      'the current sales team — structured for shorter cycles and smaller deals — may ' +
-      'not be equipped for enterprise sales cycles that typically span longer periods ' +
-      'with multiple stakeholders. The sales motion may require adjustment to bridge ' +
-      'the gap between current capability and enterprise buyer expectations.',
+      `If ${ctx.companyName} attempts to move upmarket in ${ctx.productDomain} without building ` +
+      'enterprise proof, the current sales team — structured for shorter cycles and smaller deals ' +
+      `serving ${ctx.customerSegment} — may not be equipped for enterprise sales cycles that ` +
+      'typically span longer periods with multiple stakeholders.',
     implication_type: 'watchpoint',
     audience: 'operator',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'Is the current sales team structured for the deal sizes and cycles the positioning implies?',
-      'What is the average sales cycle length, and how does it compare to enterprise benchmarks?',
-      'Does the company have enterprise sales experience or playbooks?',
+      `Is ${ctx.companyName}'s current sales team structured for the deal sizes and cycles the positioning implies?`,
+      `What is ${ctx.companyName}'s average sales cycle length, and how does it compare to enterprise benchmarks?`,
+      `Does ${ctx.companyName} have enterprise sales experience or playbooks?`,
     ],
   });
 }
 
 /**
- * Template 12: Investor expectations calibration (nice to detect)
- *
- * Triggered by hypotheses about positioning as a signal to investors.
- * If investors funded an enterprise thesis, they may expect enterprise metrics.
+ * Template 12: Investor expectations calibration
  */
 function implyInvestorExpectationsCalibration(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
-  // Must be about signaling to investors / establishing credibility
   if (!textContains(text, ['signal to investors', 'establish credibility'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Investor expectations may be calibrated to enterprise narrative',
+    title: `${ctx.companyName}'s investor expectations may be calibrated to its ${ctx.positionedCapability} narrative`,
     statement:
-      'If capital was raised on an enterprise thesis, investors may expect enterprise ' +
-      'metrics — net revenue retention above benchmarks, expansion revenue, and large ' +
-      'logo acquisition. If the company\'s actual trajectory serves a different segment, ' +
-      'there may be a future disconnect between investor expectations and operational ' +
-      'reality. The enterprise narrative may set expectations that the current operating ' +
-      'model cannot fulfill.',
+      `If ${ctx.companyName} raised capital on a ${ctx.positionedCapability} thesis, investors may ` +
+      'expect enterprise metrics — net revenue retention above benchmarks, expansion revenue, and ' +
+      `large logo acquisition. If ${ctx.companyName}'s actual trajectory serves ${ctx.customerSegment}, ` +
+      'there may be a future disconnect between investor expectations and operational reality.',
     implication_type: 'risk',
     audience: 'investor',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'Was the most recent funding round positioned around an enterprise thesis?',
+      `Was ${ctx.companyName}'s most recent funding round positioned around an enterprise thesis?`,
       'What metrics are investors tracking — and do they align with the actual customer base?',
       'Is there a gap between investor expectations and operational trajectory?',
     ],
@@ -601,14 +547,11 @@ function implyInvestorExpectationsCalibration(
 
 /**
  * Template 13: Scaling requires distributing credibility
- *
- * Triggered by hypotheses about founder-dependent credibility.
- * If credibility is anchored to one person, growth may require
- * distributing that credibility across the organization.
  */
 function implyCredibilityDistribution(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -624,20 +567,20 @@ function implyCredibilityDistribution(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Scaling may require distributing credibility beyond the founder',
+    title: `Scaling ${ctx.companyName} may require distributing ${ctx.productDomain} credibility beyond the founder`,
     statement:
-      "If the company's credibility is currently anchored to the founder personally, " +
-      "growth beyond the founder's personal bandwidth may require building institutional " +
-      'credibility signals — a visible leadership team, team-led content, and customer ' +
-      'relationships managed by people other than the founder.',
+      `If ${ctx.companyName}'s credibility in ${ctx.productDomain} is currently anchored to the ` +
+      "founder personally, growth beyond the founder's personal bandwidth may require building " +
+      'institutional credibility signals — a visible leadership team, team-led content, and ' +
+      'customer relationships managed by people other than the founder.',
     implication_type: 'constraint',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'What institutional credibility signals exist beyond the founder?',
-      'Can customer relationships be successfully transitioned to other team members?',
+      `What institutional credibility signals exist at ${ctx.companyName} beyond the founder?`,
+      `Can ${ctx.companyName} customer relationships be successfully transitioned to other team members?`,
       "How dependent is new customer acquisition on the founder's personal involvement?",
     ],
   });
@@ -645,13 +588,11 @@ function implyCredibilityDistribution(
 
 /**
  * Template 14: Enterprise buyers seek institutional authority
- *
- * Triggered by hypotheses about founder-dependent credibility.
- * Enterprise procurement evaluates institutional maturity and vendor risk.
  */
 function implyEnterpriseInstitutionalAuthority(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -664,20 +605,21 @@ function implyEnterpriseInstitutionalAuthority(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Enterprise buyers may seek institutional authority signals beyond the founder',
+    title: `${ctx.productDomain} enterprise buyers may seek institutional authority signals beyond ${ctx.companyName}'s founder`,
     statement:
-      'If the company pursues larger customers, enterprise procurement processes may ' +
-      'evaluate institutional maturity — executive team depth, organizational resilience, ' +
-      'and continuity risk. A company whose public identity is inseparable from a single ' +
-      'individual may face additional scrutiny from enterprise buyers assessing vendor risk.',
+      `If ${ctx.companyName} pursues larger ${ctx.productDomain} customers, enterprise procurement ` +
+      'processes may evaluate institutional maturity — executive team depth, organisational ' +
+      `resilience, and continuity risk. A company whose ${ctx.productDomain} identity is ` +
+      'inseparable from a single individual may face additional scrutiny from enterprise buyers ' +
+      'assessing vendor risk.',
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'How do enterprise prospects evaluate vendor risk and institutional maturity?',
-      'Does the company have institutional authority signals beyond the founder?',
+      `How do enterprise ${ctx.productDomain} prospects evaluate vendor risk and institutional maturity?`,
+      `Does ${ctx.companyName} have institutional authority signals beyond the founder?`,
       'What continuity risk do enterprise buyers perceive in a founder-dependent company?',
     ],
   });
@@ -685,13 +627,11 @@ function implyEnterpriseInstitutionalAuthority(
 
 /**
  * Template 15: Leadership depth becomes increasingly important
- *
- * Triggered by hypotheses about emerging institutional leadership.
- * If the founder fills all roles, capacity becomes constrained.
  */
 function implyLeadershipDepthImportance(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -703,11 +643,11 @@ function implyLeadershipDepthImportance(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Leadership depth may become increasingly important as the company grows',
+    title: `${ctx.companyName}'s leadership depth in ${ctx.productDomain} may become increasingly important as it grows`,
     statement:
-      'If the current operating model — founder as sales, customer success, content ' +
-      'creator, and product evangelist — continues without delegation, the company\'s ' +
-      'capacity to serve additional customers may be constrained by the founder\'s ' +
+      `If ${ctx.companyName}'s current operating model — founder as sales, customer success, ` +
+      `content creator, and ${ctx.productDomain} product evangelist — continues without delegation, ` +
+      "the company's capacity to serve additional customers may be constrained by the founder's " +
       'available time and energy.',
     implication_type: 'constraint',
     audience: 'founder',
@@ -715,22 +655,20 @@ function implyLeadershipDepthImportance(
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'Which functions is the founder currently filling that could be delegated?',
+      `Which ${ctx.companyName} functions is the founder currently filling that could be delegated?`,
       'At what customer count does the current model reach capacity constraints?',
-      'What leadership hires would most effectively distribute critical functions?',
+      `What leadership hires would most effectively distribute critical ${ctx.productDomain} functions?`,
     ],
   });
 }
 
 /**
  * Template 16: Founder bandwidth influences deal flow
- *
- * Triggered by hypotheses about founder-dependent credibility.
- * If the founder is in every deal, concurrent deal capacity is limited.
  */
 function implyFounderBandwidthConstraint(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -742,19 +680,19 @@ function implyFounderBandwidthConstraint(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Founder bandwidth may influence deal flow and customer partnerships',
+    title: `${ctx.companyName}'s founder bandwidth may constrain ${ctx.productDomain} deal flow and customer partnerships`,
     statement:
-      'If the founder is personally involved in every customer implementation, demo, ' +
-      'and relationship, the number of concurrent deals and customer relationships may ' +
-      "be limited by one person's capacity. This may become visible in sales cycle " +
-      'length, response times, or customer attention quality as demand grows.',
+      `If ${ctx.companyName}'s founder is personally involved in every customer implementation, ` +
+      `demo, and ${ctx.productDomain} relationship, the number of concurrent deals and customer ` +
+      "relationships may be limited by one person's capacity. This may become visible in sales " +
+      'cycle length, response times, or customer attention quality as demand grows.',
     implication_type: 'watchpoint',
     audience: 'operator',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'How many concurrent customer engagements can the founder effectively manage?',
+      `How many concurrent ${ctx.productDomain} customer engagements can ${ctx.companyName}'s founder effectively manage?`,
       'Are there signs of capacity strain in response times or deal velocity?',
       'What customer functions could be delegated without reducing perceived value?',
     ],
@@ -762,14 +700,12 @@ function implyFounderBandwidthConstraint(
 }
 
 /**
- * Template 17: Investor perception evolves with leadership (nice to detect)
- *
- * Triggered by hypotheses about institutional leadership emergence.
- * Seed investors may have funded the founder; future investors evaluate the team.
+ * Template 17: Investor perception evolves with leadership
  */
 function implyInvestorPerceptionEvolution(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -777,38 +713,36 @@ function implyInvestorPerceptionEvolution(
   if (!textContains(text, ['seed stage', 'early-stage', 'early stage'])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Investor perception may evolve as leadership structure matures',
+    title: `${ctx.companyName}'s investor perception may evolve as its ${ctx.productDomain} leadership structure matures`,
     statement:
-      "If the seed round was raised on the strength of the founder's personal credibility, " +
-      'future investors may evaluate whether the company has developed institutional ' +
-      'capability beyond the founder. Series A investors typically assess team depth as ' +
-      'a scaling indicator.',
+      `If ${ctx.companyName}'s seed round was raised on the strength of the founder's personal ` +
+      `credibility in ${ctx.productDomain}, future investors may evaluate whether the company ` +
+      'has developed institutional capability beyond the founder. Series A investors typically ' +
+      'assess team depth as a scaling indicator.',
     implication_type: 'watchpoint',
     audience: 'investor',
     horizon: 'mid_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      "Was the seed round primarily based on the founder's personal credibility?",
+      `Was ${ctx.companyName}'s seed round primarily based on the founder's personal credibility?`,
       'What team depth milestones do Series A investors typically expect?',
-      'How is the company building institutional capability visible to future investors?',
+      `How is ${ctx.companyName} building institutional capability visible to future investors?`,
     ],
   });
 }
 
 // ---------------------------------------------------------------------------
-// Broader implication templates (Phase 8: match tension-driven hypotheses)
+// Broader implication templates (Phase 8, updated Phase 9B)
 // ---------------------------------------------------------------------------
 
 /**
  * Template 18: Narrative-reality alignment risk
- *
- * Fires for hypotheses about delivery gaps, positioning mismatches, or
- * narrative-reality divergence — broader than the automation-specific templates.
  */
 function implyNarrativeRealityRisk(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -822,21 +756,21 @@ function implyNarrativeRealityRisk(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Narrative-reality alignment may require attention as visibility increases',
+    title: `${ctx.companyName}'s narrative-reality alignment around ${ctx.productDomain} may require attention as visibility increases`,
     statement:
-      'If the gap between external narrative and observable reality persists, ' +
-      'increasing market visibility may expose the misalignment. Customers, partners, ' +
-      'and investors conducting due diligence may discover discrepancies between ' +
-      'positioning and operational evidence. Proactively aligning narrative with ' +
-      'reality — or accelerating reality toward narrative — may reduce this risk.',
+      `If the gap between ${ctx.companyName}'s external narrative around ${ctx.positionedCapability} ` +
+      'and observable reality persists, increasing market visibility may expose the misalignment. ' +
+      `Customers, partners, and investors conducting due diligence on ${ctx.companyName} may ` +
+      `discover discrepancies between the ${ctx.productDomain} positioning and operational evidence ` +
+      `like ${ctx.customerReality}.`,
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'How would sophisticated buyers describe the gap between marketing and experience?',
-      'Does the company monitor for narrative-reality divergence in customer feedback?',
+      `How would sophisticated buyers describe the gap between ${ctx.companyName}'s marketing and experience?`,
+      `Does ${ctx.companyName} monitor for narrative-reality divergence in customer feedback?`,
       'Is there a plan to close the gap — by adjusting narrative or accelerating capability?',
     ],
   });
@@ -844,18 +778,17 @@ function implyNarrativeRealityRisk(
 
 /**
  * Template 19: Growth stage scaling constraints
- *
- * Fires for hypotheses about organizational depth, founder concentration,
- * or capacity constraints.
  */
 function implyGrowthScalingConstraints(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
   if (!textContains(text, [
     'organizational depth',
+    'organisational depth',
     'growth capacity',
     'scaling constraint',
     'growth transition',
@@ -864,34 +797,33 @@ function implyGrowthScalingConstraints(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Current operating model may face capacity constraints at the next growth stage',
+    title: `${ctx.companyName}'s current ${ctx.productDomain} operating model may face capacity constraints at the next growth stage`,
     statement:
-      'If the company\'s operating model depends on concentrated individual effort ' +
-      'or lean organizational structure, growth beyond current scale may require ' +
-      'deliberate investment in team depth, process formalization, or leadership ' +
-      'expansion. The transition from founder-led to team-scaled operations is a ' +
-      'common inflection point for growth-stage companies.',
+      `If ${ctx.companyName}'s operating model depends on concentrated individual effort or lean ` +
+      `organisational structure, growth beyond current scale in ${ctx.productDomain} may require ` +
+      'deliberate investment in team depth, process formalisation, or leadership expansion. ' +
+      `The transition from founder-led to team-scaled operations is a common inflection point ` +
+      `for growth-stage companies like ${ctx.companyName}.`,
     implication_type: 'constraint',
     audience: 'founder',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'At what customer volume does the current operating model reach capacity limits?',
-      'Which functions currently depend on individual effort that could be systematized?',
-      'What leadership or operational investments would unlock the next growth phase?',
+      `At what customer volume does ${ctx.companyName}'s current operating model reach capacity limits?`,
+      'Which functions currently depend on individual effort that could be systematised?',
+      `What leadership or operational investments would unlock ${ctx.companyName}'s next growth phase?`,
     ],
   });
 }
 
 /**
  * Template 20: Buyer due diligence vulnerability
- *
- * Fires for hypotheses about aspirational positioning or evidence gaps.
  */
 function implyBuyerDueDiligenceRisk(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -910,34 +842,33 @@ function implyBuyerDueDiligenceRisk(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Sophisticated buyers may probe for evidence behind positioning claims',
+    title: `Sophisticated ${ctx.productDomain} buyers may probe for evidence behind ${ctx.companyName}'s positioning claims`,
     statement:
-      'If the company\'s external positioning exceeds what observable evidence supports, ' +
-      'sophisticated buyers — enterprise procurement, strategic partners, or investors — ' +
-      'may request proof points that are difficult to provide. Reference customers, case ' +
-      'studies, and independently verifiable metrics become increasingly important as the ' +
-      'company targets more demanding stakeholders.',
+      `If ${ctx.companyName}'s external positioning around ${ctx.positionedCapability} exceeds what ` +
+      'observable evidence supports, sophisticated buyers — enterprise procurement, strategic ' +
+      `partners, or investors — may request proof points that are difficult to provide. ` +
+      `Reference customers, ${ctx.productDomain} case studies, and independently verifiable ` +
+      `metrics become increasingly important as ${ctx.companyName} targets more demanding stakeholders.`,
     implication_type: 'risk',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'high',
     impact: 'high',
     key_questions: [
-      'What proof points can the company offer to validate its positioning claims?',
-      'How many reference customers exist at the scale implied by positioning?',
-      'What evidence would a skeptical buyer need to see before committing?',
+      `What proof points can ${ctx.companyName} offer to validate its ${ctx.positionedCapability} claims?`,
+      `How many reference customers exist at the scale implied by ${ctx.companyName}'s positioning?`,
+      `What evidence would a sceptical ${ctx.productDomain} buyer need to see before committing?`,
     ],
   });
 }
 
 /**
  * Template 21: Strategic clarity opportunity
- *
- * Fires for hypotheses about structural transitions or multiple tensions.
  */
 function implyStrategicClarityOpportunity(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -948,21 +879,20 @@ function implyStrategicClarityOpportunity(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Clarifying strategic priorities may accelerate growth through the transition',
+    title: `Clarifying ${ctx.companyName}'s strategic priorities may accelerate growth through the ${ctx.productDomain} transition`,
     statement:
-      'If the company is navigating a structural growth transition, explicitly ' +
-      'prioritizing which tensions to resolve first — and which to tolerate — may ' +
-      'accelerate progress. Companies that acknowledge and address transition ' +
-      'challenges directly tend to move through them faster than those that let ' +
-      'tensions accumulate without strategic response.',
+      `If ${ctx.companyName} is navigating a structural growth transition in ${ctx.productDomain}, ` +
+      'explicitly prioritising which tensions to resolve first — and which to tolerate — may ' +
+      `accelerate progress. The tension between ${ctx.positionedCapability} positioning and ` +
+      `${ctx.customerReality} is a strategic choice that benefits from deliberate resolution.`,
     implication_type: 'opportunity',
     audience: 'founder',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'Which tension — delivery, positioning, or organizational — is most urgent to resolve?',
-      'Does leadership have a shared view of the company\'s current growth transition?',
+      `Which tension at ${ctx.companyName} — delivery, positioning, or organisational — is most urgent to resolve?`,
+      `Does ${ctx.companyName}'s leadership have a shared view of the company's current growth transition?`,
       'What strategic choices would most directly accelerate the transition?',
     ],
   });
@@ -970,12 +900,11 @@ function implyStrategicClarityOpportunity(
 
 /**
  * Template 22: Segment-aligned positioning opportunity
- *
- * Fires for hypotheses about actual customer segment being a strength.
  */
 function implySegmentAlignmentOpportunity(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -986,19 +915,20 @@ function implySegmentAlignmentOpportunity(
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Aligning positioning with actual customer strength could accelerate growth',
+    title: `Aligning ${ctx.companyName}'s positioning with ${ctx.customerSegment} could accelerate ${ctx.productDomain} growth`,
     statement:
-      'If the current customer base represents genuine product-market fit, ' +
-      'adjusting positioning to reflect this strength — rather than an aspirational ' +
-      'segment — could improve conversion rates, reduce sales cycle length, and ' +
-      'build more authentic case studies and references.',
+      `If ${ctx.companyName}'s current customer base — ${ctx.customerSegment} who value ` +
+      `${ctx.customerReality} — represents genuine product-market fit, adjusting positioning ` +
+      `to reflect this strength rather than aspirational ${ctx.positionedCapability} could ` +
+      'improve conversion rates, reduce sales cycle length, and build more authentic case ' +
+      'studies and references.',
     implication_type: 'opportunity',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'high',
     key_questions: [
-      'What would positioning look like if it reflected the current customer base?',
+      `What would ${ctx.companyName}'s positioning look like if it reflected its current customer base?`,
       'How do conversion rates compare between the current segment and the aspirational one?',
       'Would segment-aligned positioning enable faster growth than aspirational positioning?',
     ],
@@ -1007,12 +937,11 @@ function implySegmentAlignmentOpportunity(
 
 /**
  * Template 23: Customer language intelligence opportunity
- *
- * Fires for hypotheses about customer value perception divergence.
  */
 function implyCustomerLanguageIntelligence(
   hyp: Hypothesis,
   companyId: string,
+  ctx: CompanyContext,
 ): Implication | null {
   const text = `${hyp.title} ${hyp.statement}`;
 
@@ -1020,46 +949,59 @@ function implyCustomerLanguageIntelligence(
     'customer perception of value',
     'positioning language',
     'value may differ',
+    'perceive value differently',
   ])) return null;
 
   return makeImplication(companyId, hyp, {
-    title: 'Customer language analysis could reveal untapped positioning opportunities',
+    title: `${ctx.companyName}'s customer language analysis could reveal untapped ${ctx.productDomain} positioning opportunities`,
     statement:
-      'If customers describe the product\'s value differently than the company does, ' +
-      'systematically analyzing customer language — in reviews, support tickets, and ' +
-      'sales conversations — could reveal positioning angles that resonate more ' +
-      'authentically with buyers. Companies that adopt customer language in their ' +
-      'positioning tend to convert more effectively.',
+      `If ${ctx.companyName}'s customers describe value in terms of ${ctx.customerReality} rather ` +
+      `than ${ctx.positionedCapability}, systematically analysing customer language — in reviews, ` +
+      'support tickets, and sales conversations — could reveal positioning angles that resonate ' +
+      `more authentically with ${ctx.productDomain} buyers.`,
     implication_type: 'opportunity',
     audience: 'executive',
     horizon: 'near_term',
     urgency: 'medium',
     impact: 'medium',
     key_questions: [
-      'How do customers describe the product in their own words?',
-      'What problem do customers say the product solves vs what marketing says?',
-      'Has the company tested positioning that mirrors customer language?',
+      `How do ${ctx.companyName}'s customers describe the product in their own words?`,
+      `What problem do customers say ${ctx.companyName} solves vs what marketing says?`,
+      `Has ${ctx.companyName} tested positioning that mirrors customer language?`,
     ],
   });
 }
 
 // ---------------------------------------------------------------------------
-// Deduplication
+// Deduplication (Phase 9B: enhanced with normalised title + key phrases)
 // ---------------------------------------------------------------------------
 
-/** Remove implications with >70% title keyword overlap. */
+/** Remove implications with >70% title keyword overlap or >65% normalised word overlap. */
 function deduplicateImplications(implications: Implication[]): Implication[] {
   const result: Implication[] = [];
 
   for (const imp of implications) {
     const titleWords = imp.title.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+    const normTitle = normalise(imp.title);
+    const normWords = normTitle.split(/\s+/).filter(w => w.length >= 3);
 
     const isDuplicate = result.some(existing => {
+      // Check 1: raw title word overlap (original)
       const existingWords = existing.title.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
       const overlapCount = titleWords.filter(w => existingWords.includes(w)).length;
       const maxLen = Math.max(titleWords.length, existingWords.length);
-      if (maxLen === 0) return false;
-      return overlapCount / maxLen > 0.7;
+      if (maxLen > 0 && overlapCount / maxLen > 0.7) return true;
+
+      // Check 2: normalised title overlap (Phase 9B — catches semantic duplicates)
+      const existingNorm = normalise(existing.title);
+      const existingNormWords = existingNorm.split(/\s+/).filter(w => w.length >= 3);
+      if (normWords.length > 0 && existingNormWords.length > 0) {
+        const normOverlap = normWords.filter(w => existingNormWords.includes(w)).length;
+        const maxNorm = Math.max(normWords.length, existingNormWords.length);
+        if (normOverlap / maxNorm > 0.65) return true;
+      }
+
+      return false;
     });
 
     if (!isDuplicate) {
@@ -1088,37 +1030,40 @@ export function generateImplications(
 
   const companyId = surviving[0].company_id;
 
+  // Extract company context for template interpolation
+  const ctx = extractCompanyContext(_signals, _tensions, _patterns);
+
   const templates = [
-    implyServiceScalingConstraint,
-    implyOperationalLeverageOverstatement,
-    implyPositioningRisk,
-    implyServicesTeamCompetitiveVariable,
-    implyInvestorScrutiny,
-    implyProductRoadmapPressure,
-    implyEnterpriseCredibilityLag,
-    implyLargerCustomerCapabilityGap,
-    implyPositioningScrutinyRisk,
-    implySMBUnderservedByEnterpriseMessaging,
-    implySalesMotionAdjustment,
-    implyInvestorExpectationsCalibration,
-    implyCredibilityDistribution,
-    implyEnterpriseInstitutionalAuthority,
-    implyLeadershipDepthImportance,
-    implyFounderBandwidthConstraint,
-    implyInvestorPerceptionEvolution,
-    implyNarrativeRealityRisk,
-    implyGrowthScalingConstraints,
-    implyBuyerDueDiligenceRisk,
-    implyStrategicClarityOpportunity,
-    implySegmentAlignmentOpportunity,
-    implyCustomerLanguageIntelligence,
+    (h: Hypothesis) => implyServiceScalingConstraint(h, companyId, ctx),
+    (h: Hypothesis) => implyOperationalLeverageOverstatement(h, companyId, ctx),
+    (h: Hypothesis) => implyPositioningRisk(h, companyId, ctx),
+    (h: Hypothesis) => implyServicesTeamCompetitiveVariable(h, companyId, ctx),
+    (h: Hypothesis) => implyInvestorScrutiny(h, companyId, ctx),
+    (h: Hypothesis) => implyProductRoadmapPressure(h, companyId, ctx),
+    (h: Hypothesis) => implyEnterpriseCredibilityLag(h, companyId, ctx),
+    (h: Hypothesis) => implyLargerCustomerCapabilityGap(h, companyId, ctx),
+    (h: Hypothesis) => implyPositioningScrutinyRisk(h, companyId, ctx),
+    (h: Hypothesis) => implySMBUnderservedByEnterpriseMessaging(h, companyId, ctx),
+    (h: Hypothesis) => implySalesMotionAdjustment(h, companyId, ctx),
+    (h: Hypothesis) => implyInvestorExpectationsCalibration(h, companyId, ctx),
+    (h: Hypothesis) => implyCredibilityDistribution(h, companyId, ctx),
+    (h: Hypothesis) => implyEnterpriseInstitutionalAuthority(h, companyId, ctx),
+    (h: Hypothesis) => implyLeadershipDepthImportance(h, companyId, ctx),
+    (h: Hypothesis) => implyFounderBandwidthConstraint(h, companyId, ctx),
+    (h: Hypothesis) => implyInvestorPerceptionEvolution(h, companyId, ctx),
+    (h: Hypothesis) => implyNarrativeRealityRisk(h, companyId, ctx),
+    (h: Hypothesis) => implyGrowthScalingConstraints(h, companyId, ctx),
+    (h: Hypothesis) => implyBuyerDueDiligenceRisk(h, companyId, ctx),
+    (h: Hypothesis) => implyStrategicClarityOpportunity(h, companyId, ctx),
+    (h: Hypothesis) => implySegmentAlignmentOpportunity(h, companyId, ctx),
+    (h: Hypothesis) => implyCustomerLanguageIntelligence(h, companyId, ctx),
   ];
 
   // Apply each template to each surviving hypothesis
   const raw: Implication[] = [];
   for (const hyp of surviving) {
     for (const template of templates) {
-      const result = template(hyp, companyId);
+      const result = template(hyp);
       if (result) raw.push(result);
     }
   }

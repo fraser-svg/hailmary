@@ -7,12 +7,16 @@
  *
  * V1: Deterministic template-based generation over Pattern[] + Tension[] + Signal[].
  * No LLM calls. No dossier inspection.
+ *
+ * Phase 9B: Templates now interpolate CompanyContext for company-specific output.
  */
 
 import type { Signal } from './extract-signals.js';
 import type { Tension, TensionType } from './detect-tensions.js';
 import type { Pattern, PatternType } from './detect-patterns.js';
 import type { Confidence } from '../../types/evidence.js';
+import { extractCompanyContext, normalise } from './company-context.js';
+import type { CompanyContext } from './company-context.js';
 
 // ---------------------------------------------------------------------------
 // Hypothesis types (per spec 005-generate-hypotheses)
@@ -162,64 +166,59 @@ function findTensionsByIds(tensions: Tension[], ids: string[]): Tension[] {
 }
 
 // ---------------------------------------------------------------------------
-// Hypothesis templates
+// Hypothesis templates (Phase 9B: company-specific interpolation)
 // ---------------------------------------------------------------------------
 
 /**
  * Template 1: Automation narrative compensates for incomplete product automation
- *
- * Triggered by: dependency-type pattern (service-assisted delivery)
- * Explains: the automation narrative may exist because the product cannot
- * yet deliver autonomous operation.
  */
 function hypothesizeAutomationCompensation(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
-  // Look for service-dependency pattern
   const depPattern = findPatternByType(patterns, 'dependency')
     ?? findPatternByTitleKeyword(patterns, 'service');
 
   if (!depPattern) return null;
 
-  // Get supporting tensions from the pattern
   const supportingTensions = findTensionsByIds(tensions, depPattern.tension_ids);
 
-  // Pull customer signals for reinforcement
   const customerSignals = signals.filter(s =>
     s.kind === 'customer' &&
     s.tags.some(t => /service_dependency|buyer_language|customer_voice/.test(t))
   );
 
   return makeHypothesis(companyId, {
-    title: 'Automation narrative may be compensating for incomplete product automation',
+    title: `${ctx.companyName}'s ${ctx.productDomain} narrative may be compensating for incomplete product automation`,
     statement:
-      "The company's automation-led positioning may be ahead of its actual delivery model, " +
+      `${ctx.companyName}'s positioning around ${ctx.narrativeClaim} may be ahead of its actual delivery model, ` +
       'which appears to rely on meaningful human onboarding and implementation support. ' +
-      'The strength of the automation narrative may exist precisely because the product ' +
-      'cannot yet deliver autonomous operation — the messaging fills the gap between ' +
+      `While the company emphasises ${ctx.positionedCapability}, customers describe value in terms of ` +
+      `${ctx.customerReality}. The strength of the automation narrative may exist precisely because ` +
+      'the product cannot yet deliver autonomous operation — the messaging fills the gap between ' +
       'current capability and market expectation.',
     hypothesis_type: 'product',
     patterns: [depPattern],
     tensions: supportingTensions,
     extraSignals: customerSignals,
     assumptions: [
-      'Customers expect automated delivery based on the company\'s marketing claims.',
+      `Customers expect automated delivery based on ${ctx.companyName}'s marketing claims around ${ctx.positionedCapability}.`,
       'The current level of human involvement in delivery is higher than what the narrative implies.',
       'Implementation specialists are necessary rather than optional for customer success.',
     ],
     alternative_explanations: [
-      'The company may deliberately use high-touch onboarding as a competitive moat and ' +
-        'land-and-expand strategy, while maintaining the AI narrative for market positioning.',
+      `${ctx.companyName} may deliberately use high-touch onboarding as a competitive moat and ` +
+        `land-and-expand strategy, while maintaining the ${ctx.productDomain} narrative for market positioning.`,
       'Automation narrative may be aspirational and forward-looking — describing a credible ' +
         'product roadmap rather than current capability, which is common in VC-backed companies.',
       'The product may genuinely automate core functions while requiring human expertise only ' +
         'for higher-order configuration, making the automation claims partially true but overstated in scope.',
     ],
     missing_evidence: [
-      'Evidence of fully automated customer deployments without implementation support.',
+      `Evidence of fully automated ${ctx.companyName} deployments without implementation support.`,
       'Customer retention or NPS data comparing self-serve vs assisted onboarding cohorts.',
       'Product roadmap or engineering investment data showing automation capability progress.',
     ],
@@ -232,24 +231,19 @@ function hypothesizeAutomationCompensation(
 
 /**
  * Template 2: Human onboarding is structurally required, not transitional
- *
- * Triggered by: misalignment-type pattern (narrative-operating model mismatch)
- * Explains: the onboarding program is a structural requirement of the current
- * product, not a temporary growth artifact.
  */
 function hypothesizeStructuralOnboarding(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
-  // Look for narrative-operating model mismatch (service-delivery variant)
   const mismatchPattern = findPatternByType(patterns, 'misalignment')
     ?? findPatternByTitleKeyword(patterns, 'mismatch');
 
   if (!mismatchPattern) return null;
 
-  // Only fire when the mismatch is about service delivery, not customer segment
   const supportingTensions = findTensionsByIds(tensions, mismatchPattern.tension_ids);
   const hasServiceTensions = supportingTensions.some(t =>
     t.type === 'automation_vs_service' ||
@@ -259,27 +253,26 @@ function hypothesizeStructuralOnboarding(
   );
   if (!hasServiceTensions) return null;
 
-  // Reinforce with operations and talent signals
   const opsSignals = signals.filter(s =>
     (s.kind === 'operations' || s.kind === 'talent') &&
     s.tags.some(t => /service_model|consulting|hiring_signal|service_scaling/.test(t))
   );
 
   return makeHypothesis(companyId, {
-    title: 'Human onboarding may be structurally required because product automation is incomplete',
+    title: `${ctx.companyName}'s onboarding may be structurally required because ${ctx.productDomain} automation is incomplete`,
     statement:
-      'The product may be unable to deliver value without significant human configuration ' +
-      'and training. The onboarding and implementation program is not a temporary growth-stage ' +
-      'artifact — it may be a structural requirement of the current product\'s capability level. ' +
-      'The formalization of professional services as a department rather than its reduction ' +
-      'suggests the company recognizes this dependency.',
+      `${ctx.companyName}'s product may be unable to deliver value around ${ctx.productDomain} without ` +
+      'significant human configuration and training. The onboarding and implementation program ' +
+      "is not a temporary growth-stage artifact — it may be a structural requirement of the current " +
+      "product's capability level. The formalisation of professional services as a department " +
+      'rather than its reduction suggests the company recognises this dependency.',
     hypothesis_type: 'operational',
     patterns: [mismatchPattern],
     tensions: supportingTensions,
     extraSignals: opsSignals,
     assumptions: [
-      'The company\'s product requires meaningful human configuration to deliver customer value.',
-      'Professional services is being formalized as a function rather than being reduced.',
+      `${ctx.companyName}'s product requires meaningful human configuration to deliver customer value.`,
+      'Professional services is being formalised as a function rather than being reduced.',
       'Customer outcomes depend more on implementation quality than on product capability alone.',
     ],
     alternative_explanations: [
@@ -287,12 +280,12 @@ function hypothesizeStructuralOnboarding(
         'services dependency may reflect customer preference rather than product limitation.',
       'Service-heavy delivery may be a deliberate wedge strategy rather than a weakness — ' +
         'using deep implementation as a competitive moat that creates switching costs.',
-      'The company may be running a two-speed delivery model where automation handles routine ' +
-        'tasks while humans manage complex enterprise configurations.',
+      `${ctx.companyName} may be running a two-speed delivery model where automation handles routine ` +
+        'tasks while humans manage complex configurations.',
     ],
     missing_evidence: [
       'Customer churn data comparing assisted vs unassisted onboarding outcomes.',
-      'Internal product capability assessments or automation coverage metrics.',
+      `Internal ${ctx.companyName} product capability assessments or automation coverage metrics.`,
       'Evidence of successful fully-automated customer deployments.',
       'Professional services revenue trend as a percentage of total revenue.',
     ],
@@ -305,18 +298,14 @@ function hypothesizeStructuralOnboarding(
 
 /**
  * Template 3: Services-led GTM may be intentional strategy
- *
- * Triggered by: consistency-type pattern (customer value attribution)
- * Explains: the services layer may be a deliberate competitive advantage
- * rather than a product deficiency.
  */
 function hypothesizeIntentionalServicesGTM(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
-  // Look for customer attribution or consistency pattern
   const attributionPattern = findPatternByType(patterns, 'consistency')
     ?? findPatternByTitleKeyword(patterns, 'attribution');
 
@@ -329,21 +318,22 @@ function hypothesizeIntentionalServicesGTM(
   );
 
   return makeHypothesis(companyId, {
-    title: 'Services-led GTM may be a deliberate competitive wedge rather than a product gap',
+    title: `${ctx.companyName}'s services-led GTM may be a deliberate competitive wedge in ${ctx.productDomain}`,
     statement:
-      'The company may deliberately use high-touch onboarding and implementation as a ' +
-      'competitive moat and land-and-expand strategy. Customer attribution of value to ' +
+      `${ctx.companyName} may deliberately use high-touch onboarding and implementation as a ` +
+      `competitive moat in the ${ctx.productDomain} space. Customer attribution of value to ` +
       'human consultants could indicate that the services layer creates switching costs ' +
-      'and deep integration that product-only competitors cannot match. The gap between ' +
-      'narrative and delivery may be strategic rather than a product maturity issue.',
+      `and deep integration that product-only competitors cannot match. The gap between ` +
+      `${ctx.companyName}'s narrative around ${ctx.positionedCapability} and its delivery model ` +
+      'may be strategic rather than a product maturity issue.',
     hypothesis_type: 'gtm',
     patterns: [attributionPattern],
     tensions: supportingTensions,
     extraSignals: customerSignals,
     assumptions: [
       'Customer stickiness is driven partly by human relationships built during implementation.',
-      'The services layer creates integration depth that product-only alternatives cannot replicate.',
-      'The company maintains the automation narrative for market positioning while building on services.',
+      `The services layer creates integration depth in ${ctx.productDomain} that product-only alternatives cannot replicate.`,
+      `${ctx.companyName} maintains the ${ctx.positionedCapability} narrative for market positioning while building on services.`,
     ],
     alternative_explanations: [
       'The services dependency may be purely compensatory — masking product immaturity ' +
@@ -365,22 +355,18 @@ function hypothesizeIntentionalServicesGTM(
 
 /**
  * Template 4: Hiring patterns reveal actual strategic priorities
- *
- * Triggered by: concentration-type pattern (hiring-as-strategy-reveal)
- * Explains: hiring for services roles rather than engineering reveals
- * where the company actually invests vs what it claims.
  */
 function hypothesizeHiringRevealsStrategy(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const hiringPattern = findPatternByTitleKeyword(patterns, 'hiring')
     ?? findPatternByType(patterns, 'concentration');
 
   if (!hiringPattern) return null;
-  // Guard: must be about hiring patterns, not founder credibility concentration
   if (!hiringPattern.title.toLowerCase().includes('hiring')) return null;
 
   const supportingTensions = findTensionsByIds(tensions, hiringPattern.tension_ids);
@@ -391,12 +377,12 @@ function hypothesizeHiringRevealsStrategy(
   );
 
   return makeHypothesis(companyId, {
-    title: 'Hiring patterns may reveal actual strategy diverges from stated AI-first investment thesis',
+    title: `${ctx.companyName}'s hiring patterns may reveal strategy diverges from its ${ctx.productDomain} investment thesis`,
     statement:
-      'The company\'s hiring activity — concentrated in implementation, onboarding, and services ' +
+      `${ctx.companyName}'s hiring activity — concentrated in implementation, onboarding, and services ` +
       'roles — may more accurately reflect its actual strategic priorities than its public ' +
-      'narrative about AI engineering investment. This could indicate the company privately ' +
-      'recognizes its near-term growth depends on scaling human delivery capacity rather than ' +
+      `narrative about ${ctx.positionedCapability}. This could indicate the company privately ` +
+      'recognises its near-term growth depends on scaling human delivery capacity rather than ' +
       'product automation.',
     hypothesis_type: 'strategic',
     patterns: [hiringPattern],
@@ -405,7 +391,7 @@ function hypothesizeHiringRevealsStrategy(
     assumptions: [
       'Hiring patterns reflect resource allocation decisions more accurately than press releases.',
       'Services hiring is growing faster than engineering hiring.',
-      'The company\'s growth model currently requires proportional human scaling.',
+      `${ctx.companyName}'s growth model currently requires proportional human scaling.`,
     ],
     alternative_explanations: [
       'Services hiring may be cyclical — the company could be building implementation capacity ' +
@@ -414,7 +400,7 @@ function hypothesizeHiringRevealsStrategy(
         'filled through different channels.',
     ],
     missing_evidence: [
-      'Complete headcount breakdown by function over time.',
+      `Complete ${ctx.companyName} headcount breakdown by function over time.`,
       'Engineering hiring data from internal sources or job boards.',
       'Revenue per employee trends that would reveal scaling efficiency.',
     ],
@@ -427,20 +413,17 @@ function hypothesizeHiringRevealsStrategy(
 
 /**
  * Template 5: Cross-pattern — Narrative-delivery gap is widening
- *
- * Triggered by: both dependency AND misalignment patterns present.
- * Higher-order hypothesis that combines multiple patterns.
  */
 function hypothesizeWideningGap(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const depPattern = findPatternByType(patterns, 'dependency');
   const mismatchPattern = findPatternByType(patterns, 'misalignment');
 
-  // Requires both core patterns
   if (!depPattern || !mismatchPattern) return null;
 
   const allPatternTensionIds = unique([
@@ -450,30 +433,30 @@ function hypothesizeWideningGap(
   const supportingTensions = findTensionsByIds(tensions, allPatternTensionIds);
 
   return makeHypothesis(companyId, {
-    title: 'The gap between automation narrative and service-dependent delivery may be widening',
+    title: `${ctx.companyName}'s gap between ${ctx.productDomain} narrative and service-dependent delivery may be widening`,
     statement:
-      'Multiple structural patterns suggest the distance between the company\'s external ' +
-      'narrative and its operating reality may be increasing rather than narrowing. ' +
-      'Services formalization, implementation hiring growth, and customer attribution ' +
-      'of value to human support all point toward deepening service dependency, while ' +
-      'the automation narrative continues to strengthen in marketing materials.',
+      `Multiple structural patterns suggest the distance between ${ctx.companyName}'s external ` +
+      `narrative around ${ctx.positionedCapability} and its operating reality may be increasing ` +
+      'rather than narrowing. Services formalisation, implementation hiring growth, and customer ' +
+      `attribution of value to ${ctx.customerReality} all point toward deepening service dependency, ` +
+      `while the ${ctx.productDomain} narrative continues to strengthen in marketing materials.`,
     hypothesis_type: 'narrative',
     patterns: [depPattern, mismatchPattern],
     tensions: supportingTensions,
     assumptions: [
-      'The automation narrative has been strengthening over time in external communications.',
-      'Services dependency is growing rather than shrinking based on hiring and formalization.',
+      `${ctx.companyName}'s ${ctx.productDomain} narrative has been strengthening over time in external communications.`,
+      'Services dependency is growing rather than shrinking based on hiring and formalisation.',
       'The gap between narrative and reality has strategic consequences for credibility.',
     ],
     alternative_explanations: [
-      'The company may be in a normal transition period where services investment leads ' +
+      `${ctx.companyName} may be in a normal transition period where services investment leads ` +
         'product automation — the gap may narrow as engineering investments mature.',
       'The apparent widening may reflect measurement timing — services are more visible ' +
         'externally than internal engineering progress.',
     ],
     missing_evidence: [
       'Historical trend data on services headcount vs engineering headcount.',
-      'Product release cadence or automation feature shipping velocity.',
+      `${ctx.companyName} product release cadence or automation feature shipping velocity.`,
       'Customer satisfaction trends over time that might reveal improving or worsening experience.',
     ],
     confidence: 'low',
@@ -485,17 +468,13 @@ function hypothesizeWideningGap(
 
 /**
  * Template 6: Positioning may be aspirational rather than descriptive
- *
- * Triggered by: overextension-type pattern (aspiration exceeding adoption)
- * Explains: the company's positioning may represent where it wants to be,
- * not where it currently is. The gap between narrative and evidence is
- * forward-looking positioning, not a description of current reality.
  */
 function hypothesizeAspirationalPositioning(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const aspirationPattern = findPatternByType(patterns, 'overextension')
     ?? findPatternByTitleKeyword(patterns, 'aspiration');
@@ -504,7 +483,6 @@ function hypothesizeAspirationalPositioning(
 
   const supportingTensions = findTensionsByIds(tensions, aspirationPattern.tension_ids);
 
-  // Pull in additional related tensions for broader support
   const relatedTensions = tensions.filter(t =>
     !aspirationPattern.tension_ids.includes(t.tension_id) &&
     (t.type === 'positioning_vs_market_fit' || t.type === 'narrative_scale_vs_operations')
@@ -515,30 +493,31 @@ function hypothesizeAspirationalPositioning(
   );
 
   return makeHypothesis(companyId, {
-    title: 'Enterprise positioning may be aspirational rather than reflective of the current customer base',
+    title: `${ctx.companyName}'s positioning around ${ctx.positionedCapability} may be aspirational rather than reflective of current adoption`,
     statement:
-      "The company's consistent use of aspirational positioning across marketing, product, " +
-      'and press may represent where the company wants to be, not where it currently is. ' +
-      'The absence of supporting customer evidence — combined with pricing, hiring, and ' +
-      'case study evidence indicating a different market segment — suggests the positioning ' +
-      'narrative is forward-looking, not a description of current reality.',
+      `${ctx.companyName}'s consistent use of aspirational positioning around ${ctx.narrativeClaim} ` +
+      'across marketing, product, and press may represent where the company wants to be, not ' +
+      `where it currently is. The absence of supporting customer evidence — combined with ` +
+      `${ctx.customerSegment} indicating a different market segment — suggests the positioning ` +
+      `narrative is forward-looking, not a description of current reality. Customers describe ` +
+      `value in terms of ${ctx.customerReality}, not ${ctx.positionedCapability}.`,
     hypothesis_type: 'narrative',
     patterns: [aspirationPattern],
     tensions: [...supportingTensions, ...relatedTensions],
     extraSignals: customerSignals,
     assumptions: [
-      'The positioning language is intentional and reflects leadership strategy.',
+      `${ctx.companyName}'s positioning language around ${ctx.positionedCapability} is intentional and reflects leadership strategy.`,
       'The observable customer base represents the current state, not a subset of a larger base.',
       'Pricing and hiring patterns reflect actual go-to-market priorities.',
     ],
     alternative_explanations: [
-      'The company may have a genuine pipeline in the targeted segment that is not yet ' +
+      `${ctx.companyName} may have a genuine pipeline in the targeted segment that is not yet ` +
         'visible in public evidence — sales cycles can be long.',
       'The positioning may be a deliberate beachhead strategy, using aspirational framing ' +
         'to establish credibility while building traction in a different segment.',
     ],
     missing_evidence: [
-      'Evidence of customer adoption at the scale implied by positioning.',
+      `Evidence of ${ctx.companyName} customer adoption at the scale implied by positioning.`,
       'Pipeline or deal stage data showing movement toward the positioned segment.',
       'Internal strategy documents clarifying whether the positioning is aspirational or descriptive.',
     ],
@@ -551,25 +530,19 @@ function hypothesizeAspirationalPositioning(
 
 /**
  * Template 7: Company may be building credibility while serving a different segment
- *
- * Triggered by: misalignment-type pattern (narrative-scale mismatch around customer scale)
- * Explains: the aspirational positioning may serve a branding function (investors,
- * press, credibility) while actual customer acquisition focuses on a different segment.
  */
 function hypothesizeCredibilityWhileBuildingTraction(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
-  // Look for narrative-scale mismatch pattern
   const mismatchPattern = findPatternByType(patterns, 'misalignment')
     ?? findPatternByTitleKeyword(patterns, 'scale');
 
   if (!mismatchPattern) return null;
 
-  // Avoid duplicate with Template 2 (structural onboarding) by checking for
-  // segment-related tensions rather than service-related tensions
   const hasSegmentTensions = mismatchPattern.tension_ids.length > 0 &&
     findTensionsByIds(tensions, mismatchPattern.tension_ids).some(t =>
       t.type === 'positioning_vs_customer_base' ||
@@ -581,9 +554,6 @@ function hypothesizeCredibilityWhileBuildingTraction(
 
   const supportingTensions = findTensionsByIds(tensions, mismatchPattern.tension_ids);
 
-  // Pull in additional related tensions for broader support
-  // Include both ambition_vs_proof and vision_vs_execution to differentiate
-  // from the aspirational positioning hypothesis (which uses positioning_vs_market_fit)
   const relatedTensions = tensions.filter(t =>
     !mismatchPattern.tension_ids.includes(t.tension_id) &&
     (t.type === 'ambition_vs_proof' || t.type === 'vision_vs_execution' ||
@@ -595,32 +565,33 @@ function hypothesizeCredibilityWhileBuildingTraction(
   );
 
   return makeHypothesis(companyId, {
-    title: 'The company may be targeting enterprise credibility while building traction in smaller organizations',
+    title: `${ctx.companyName} may be targeting ${ctx.positionedCapability} credibility while building traction in ${ctx.customerSegment}`,
     statement:
-      'The aspirational positioning may be a deliberate signal to investors, press, and ' +
-      'the market to establish credibility, while actual customer acquisition focuses on ' +
-      'a different segment. The product may genuinely serve smaller organizations well, ' +
-      'with the aspirational narrative serving a branding function rather than a customer ' +
-      'acquisition function.',
+      `${ctx.companyName}'s aspirational positioning around ${ctx.narrativeClaim} may be a deliberate ` +
+      'signal to investors, press, and the market to establish credibility, while actual ' +
+      `customer acquisition focuses on ${ctx.customerSegment}. The product may genuinely serve ` +
+      `this segment well, with the aspirational narrative serving a branding function rather ` +
+      `than a customer acquisition function. Customers describe value as ${ctx.customerReality}, ` +
+      `not as ${ctx.positionedCapability}.`,
     hypothesis_type: 'strategic',
     patterns: [mismatchPattern],
     tensions: [...supportingTensions, ...relatedTensions],
     extraSignals: segmentSignals,
     assumptions: [
-      'Press coverage uses aspirational framing that reinforces brand credibility.',
-      'Hiring targets a specific segment that differs from the positioned segment.',
+      `Press coverage of ${ctx.companyName} uses aspirational framing that reinforces brand credibility.`,
+      `Hiring targets ${ctx.customerSegment} rather than the positioned segment.`,
       'Customers describe value in terms appropriate to their actual segment, not the positioned segment.',
     ],
     alternative_explanations: [
       'The segment adoption may be early and not yet visible — the gap may reflect timing ' +
         'rather than strategy.',
-      'The company may be executing a bottom-up adoption strategy, building in one segment ' +
+      `${ctx.companyName} may be executing a bottom-up adoption strategy, building in ${ctx.customerSegment} ` +
         'and expanding upmarket over time.',
       'Aspirational features may exist primarily to close deals at higher price points ' +
         'within the current segment, not for actual upmarket sales.',
     ],
     missing_evidence: [
-      'Internal strategy documents or leadership commentary on segment strategy.',
+      `Internal ${ctx.companyName} strategy documents or leadership commentary on segment strategy.`,
       'Pipeline data showing movement toward the positioned segment.',
       'Competitive win/loss data at different customer scales.',
     ],
@@ -633,28 +604,22 @@ function hypothesizeCredibilityWhileBuildingTraction(
 
 /**
  * Template 8: Founder-dependent credibility
- *
- * Triggered by: concentration-type pattern (credibility concentrated in founder)
- * Explains: the company's market position may be anchored to a single individual
- * rather than to institutional capability.
  */
 function hypothesizeFounderDependentCredibility(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
-  // Look for founder credibility concentration pattern
   const concentrationPattern = findPatternByTitleKeyword(patterns, 'credibility concentrated')
     ?? findPatternByTitleKeyword(patterns, 'founder');
 
   if (!concentrationPattern) return null;
-  // Guard: must be about founder concentration, not hiring-as-strategy-reveal
   if (concentrationPattern.title.toLowerCase().includes('hiring-as-strategy')) return null;
 
   const supportingTensions = findTensionsByIds(tensions, concentrationPattern.tension_ids);
 
-  // Also pull in the institutional leadership gap pattern tensions if available
   const gapPattern = findPatternByTitleKeyword(patterns, 'institutional leadership');
   const additionalTensions = gapPattern
     ? findTensionsByIds(tensions, gapPattern.tension_ids).filter(
@@ -662,28 +627,27 @@ function hypothesizeFounderDependentCredibility(
       )
     : [];
 
-  // Pull in founder-related signals across multiple kinds
   const founderSignals = signals.filter(s =>
     s.tags.some(t => /founder_dependency|founder_visibility|founder_concentration/.test(t))
   );
 
   return makeHypothesis(companyId, {
-    title: "The company's credibility may currently depend heavily on founder personal authority",
+    title: `${ctx.companyName}'s credibility in ${ctx.productDomain} may currently depend heavily on founder personal authority`,
     statement:
-      "The concentration of credibility, customer relationships, and public narrative in " +
-      "the founder may mean that the company's market position is anchored to a single " +
-      'individual rather than to institutional capability. The absence of visible senior ' +
-      "leadership, the founder's direct involvement in customer implementations, and the " +
-      'exclusively founder-generated content all suggest that credibility has not yet been ' +
-      'distributed beyond the founder.',
+      `The concentration of credibility, customer relationships, and public narrative at ` +
+      `${ctx.companyName} in the founder may mean that the company's market position in ` +
+      `${ctx.productDomain} is anchored to a single individual rather than to institutional ` +
+      'capability. The absence of visible senior leadership, the founder\'s direct involvement ' +
+      'in customer implementations, and the exclusively founder-generated content all suggest ' +
+      'that credibility has not yet been distributed beyond the founder.',
     hypothesis_type: 'leadership',
     patterns: gapPattern ? [concentrationPattern, gapPattern] : [concentrationPattern],
     tensions: [...supportingTensions, ...additionalTensions],
     extraSignals: founderSignals,
     assumptions: [
-      "The founder's personal involvement is currently necessary for customer acquisition and retention.",
+      `The founder's personal involvement is currently necessary for ${ctx.companyName}'s customer acquisition and retention.`,
       'No other team member has comparable external authority or customer-facing credibility.',
-      'The company\'s brand identity is inseparable from the founder\'s personal identity.',
+      `${ctx.companyName}'s brand identity is inseparable from the founder's personal identity.`,
     ],
     alternative_explanations: [
       "Founder visibility may be a deliberate early-stage growth strategy — using the founder's " +
@@ -692,7 +656,7 @@ function hypothesizeFounderDependentCredibility(
         'companies often make leadership hires through networks rather than public postings.',
     ],
     missing_evidence: [
-      'Evidence of customer relationships managed by team members other than the founder.',
+      `Evidence of ${ctx.companyName} customer relationships managed by team members other than the founder.`,
       'Internal hiring plans or leadership development strategies not visible publicly.',
       'Customer retention data comparing founder-led vs team-led engagements.',
     ],
@@ -705,28 +669,23 @@ function hypothesizeFounderDependentCredibility(
 
 /**
  * Template 9: Institutional leadership still emerging
- *
- * Triggered by: gap-type pattern (institutional leadership depth lagging)
- * Explains: the limited leadership depth may reflect early-stage phase,
- * not a structural limitation.
  */
 function hypothesizeEmergingInstitutionalLeadership(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const gapPattern = findPatternByType(patterns, 'gap')
     ?? findPatternByTitleKeyword(patterns, 'institutional leadership');
 
   if (!gapPattern) return null;
-  // Guard: must be about leadership depth, not other gaps
   if (!gapPattern.title.toLowerCase().includes('leadership') &&
       !gapPattern.title.toLowerCase().includes('institutional')) return null;
 
   const supportingTensions = findTensionsByIds(tensions, gapPattern.tension_ids);
 
-  // Also look for founder-centric growth pattern for broader support
   const growthPattern = findPatternByTitleKeyword(patterns, 'founder-centric growth')
     ?? findPatternByType(patterns, 'dependency');
   const additionalTensions = growthPattern
@@ -741,31 +700,31 @@ function hypothesizeEmergingInstitutionalLeadership(
   );
 
   return makeHypothesis(companyId, {
-    title: 'Institutional leadership structures may still be emerging as the company scales',
+    title: `${ctx.companyName}'s institutional leadership structures may still be emerging as it scales ${ctx.productDomain}`,
     statement:
-      'The limited leadership depth may reflect an early-stage company that has not yet ' +
-      'reached the inflection point where senior leadership hires become necessary. The ' +
-      'founder may be intentionally maintaining a lean structure during the seed stage, ' +
-      'with plans to build institutional depth as revenue and customer base grow. The ' +
-      'current state may be a temporary phase rather than a structural limitation.',
+      `The limited leadership depth at ${ctx.companyName} may reflect an early-stage company that ` +
+      'has not yet reached the inflection point where senior leadership hires become necessary. ' +
+      `The founder may be intentionally maintaining a lean structure while building the ` +
+      `${ctx.productDomain} business, with plans to develop institutional depth as revenue ` +
+      'and customer base grow. The current state may be a temporary phase rather than a structural limitation.',
     hypothesis_type: 'organizational',
     patterns: growthPattern ? [gapPattern, growthPattern] : [gapPattern],
     tensions: [...supportingTensions, ...additionalTensions],
     extraSignals: talentSignals,
     assumptions: [
-      'The company is at an early stage where founder-led operations are expected.',
+      `${ctx.companyName} is at an early stage where founder-led operations are expected.`,
       'Junior hires are building operational capacity while leadership hiring is deferred.',
       'The founder intends to build institutional leadership as the company matures.',
     ],
     alternative_explanations: [
       "The founder's personal involvement may be a competitive differentiator the company " +
-        'is deliberately leveraging rather than a sign of incomplete institutionalization.',
-      'The company may have informal leadership structures or advisors that are not ' +
+        'is deliberately leveraging rather than a sign of incomplete institutionalisation.',
+      `${ctx.companyName} may have informal leadership structures or advisors that are not ` +
         'reflected on the public team page or job postings.',
     ],
     missing_evidence: [
       'Board composition or advisory board that might provide institutional guidance.',
-      'Internal hiring plans for senior leadership positions.',
+      `Internal ${ctx.companyName} hiring plans for senior leadership positions.`,
       'Evidence of delegation or leadership development within the existing team.',
     ],
     confidence: 'medium',
@@ -777,9 +736,7 @@ function hypothesizeEmergingInstitutionalLeadership(
 
 // ---------------------------------------------------------------------------
 // Tension-driven hypothesis templates (Phase 8: no pattern requirement)
-//
-// These fire based on tension type clusters, not pattern matches.
-// Patterns boost confidence when present but are not required.
+// Phase 9B: now interpolate CompanyContext
 // ---------------------------------------------------------------------------
 
 /** Tension type groups for themed hypothesis generation. */
@@ -822,15 +779,13 @@ function maxSeverity(tensions: Tension[]): Confidence {
 
 /**
  * T1: Product delivery may require more human involvement than narrative suggests
- *
- * Fires when service/delivery tensions exist.
- * Patterns boost confidence but are not required.
  */
 function hypothesizeDeliveryReality(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensionsByTypes(tensions, SERVICE_DELIVERY_TYPES);
   if (relevant.length === 0) return null;
@@ -842,18 +797,19 @@ function hypothesizeDeliveryReality(
   const relatedSignals = signalsForTensions(relevant, signals);
 
   return makeHypothesis(companyId, {
-    title: 'Product delivery may require more human involvement than the company narrative suggests',
+    title: `${ctx.companyName}'s ${ctx.productDomain} delivery may require more human involvement than its narrative suggests`,
     statement:
-      'Tensions between the company\'s stated capabilities and observable delivery evidence ' +
-      'suggest the product may depend on human configuration, onboarding, or implementation ' +
-      'support to a greater degree than external messaging implies. This is common in ' +
-      'growth-stage companies where the product is still maturing toward full automation.',
+      `Tensions between ${ctx.companyName}'s stated capabilities around ${ctx.positionedCapability} ` +
+      `and observable delivery evidence suggest the product may depend on human configuration, ` +
+      `onboarding, or implementation support to a greater degree than external messaging implies. ` +
+      `Customers describe value in terms of ${ctx.customerReality}, which suggests a more ` +
+      'hands-on delivery model than the positioning narrative implies.',
     hypothesis_type: 'product',
     patterns: boostPatterns,
     tensions: relevant,
     extraSignals: relatedSignals,
     assumptions: [
-      'The company\'s external narrative emphasizes automation or self-service delivery.',
+      `${ctx.companyName}'s external narrative emphasises ${ctx.positionedCapability}.`,
       'Observable evidence suggests human involvement in customer onboarding or delivery.',
       'The gap between narrative and delivery is structural rather than temporary.',
     ],
@@ -862,7 +818,7 @@ function hypothesizeDeliveryReality(
       'The delivery model may be transitional, with automation improvements already in progress.',
     ],
     missing_evidence: [
-      'Evidence of fully automated customer deployments without human support.',
+      `Evidence of fully automated ${ctx.companyName} customer deployments without human support.`,
       'Customer feedback comparing self-serve vs assisted delivery experiences.',
       'Product roadmap or engineering investment data showing automation progress.',
     ],
@@ -875,14 +831,13 @@ function hypothesizeDeliveryReality(
 
 /**
  * T2: Market positioning may be aspirational rather than reflective of current state
- *
- * Fires when positioning/segment tensions exist.
  */
 function hypothesizePositioningAspiration(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensionsByTypes(tensions, POSITIONING_TYPES);
   if (relevant.length === 0) return null;
@@ -894,29 +849,29 @@ function hypothesizePositioningAspiration(
   const relatedSignals = signalsForTensions(relevant, signals);
 
   return makeHypothesis(companyId, {
-    title: 'Market positioning may be aspirational rather than fully reflective of current traction',
+    title: `${ctx.companyName}'s ${ctx.productDomain} positioning may be aspirational rather than fully reflective of current traction`,
     statement:
-      'The company\'s market positioning — including target customer profile, scale claims, ' +
-      'and competitive framing — may represent where the company aspires to be rather than ' +
-      'where it currently operates. Observable customer evidence, pricing structure, and ' +
-      'hiring patterns may indicate a different market segment than the one described in ' +
-      'external positioning.',
+      `${ctx.companyName}'s market positioning around ${ctx.narrativeClaim} — including target ` +
+      'customer profile, scale claims, and competitive framing — may represent where the company ' +
+      `aspires to be rather than where it currently operates. Observable customer evidence ` +
+      `suggesting ${ctx.customerReality}, together with ${ctx.customerSegment}, may indicate ` +
+      'a different market segment than the one described in external positioning.',
     hypothesis_type: 'narrative',
     patterns: boostPatterns,
     tensions: relevant,
     extraSignals: relatedSignals,
     assumptions: [
-      'The company\'s positioning language targets a specific customer segment or scale.',
+      `${ctx.companyName}'s positioning language around ${ctx.positionedCapability} targets a specific customer segment or scale.`,
       'Observable customer evidence suggests a different profile than the positioned segment.',
       'The gap between positioning and evidence reflects strategy rather than deception.',
     ],
     alternative_explanations: [
-      'The company may have genuine traction in the positioned segment that is not yet publicly visible.',
+      `${ctx.companyName} may have genuine traction in the positioned segment that is not yet publicly visible.`,
       'Aspirational positioning may be a deliberate beachhead strategy common in venture-backed companies.',
       'Sales pipeline may include prospects at the positioned scale that have not yet converted.',
     ],
     missing_evidence: [
-      'Evidence of customer adoption at the scale implied by positioning.',
+      `Evidence of ${ctx.companyName} customer adoption at the scale implied by positioning.`,
       'Pipeline or deal stage data showing movement toward the positioned segment.',
       'Internal strategy documents clarifying positioning intent.',
     ],
@@ -929,14 +884,13 @@ function hypothesizePositioningAspiration(
 
 /**
  * T3: Observable traction may not yet match the scale of company ambitions
- *
- * Fires when ambition_vs_proof or vision_vs_execution tensions exist.
  */
 function hypothesizeAmbitionEvidenceGap(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensions.filter(t =>
     t.type === 'ambition_vs_proof' || t.type === 'vision_vs_execution',
@@ -950,19 +904,20 @@ function hypothesizeAmbitionEvidenceGap(
   const relatedSignals = signalsForTensions(relevant, signals);
 
   return makeHypothesis(companyId, {
-    title: 'Observable traction may not yet match the scale of company ambitions',
+    title: `${ctx.companyName}'s observable traction in ${ctx.productDomain} may not yet match the scale of its ambitions`,
     statement:
-      'The company\'s stated ambitions — growth targets, market scope, or competitive ' +
-      'positioning — may exceed what can be verified through observable evidence. This ' +
-      'is common in early-stage companies where vision necessarily leads execution, but ' +
-      'the gap between ambition and proof may affect credibility with sophisticated buyers ' +
-      'or investors who seek evidence of traction.',
+      `${ctx.companyName}'s stated ambitions around ${ctx.narrativeClaim} — growth targets, ` +
+      'market scope, or competitive positioning — may exceed what can be verified through ' +
+      `observable evidence. While customers describe value as ${ctx.customerReality}, the ` +
+      `company positions around ${ctx.positionedCapability}. The gap between ambition and ` +
+      `proof may affect credibility with sophisticated buyers or investors who seek evidence ` +
+      'of traction at the scale implied.',
     hypothesis_type: 'strategic',
     patterns: boostPatterns,
     tensions: relevant,
     extraSignals: relatedSignals,
     assumptions: [
-      'The company\'s growth ambitions are expressed in external communications.',
+      `${ctx.companyName}'s growth ambitions are expressed in external communications.`,
       'Observable evidence of traction is limited relative to stated ambitions.',
       'Sophisticated buyers or investors will evaluate evidence alongside claims.',
     ],
@@ -971,7 +926,7 @@ function hypothesizeAmbitionEvidenceGap(
       'Evidence of traction may exist in private metrics not visible through public research.',
     ],
     missing_evidence: [
-      'Customer growth metrics or revenue trajectory data.',
+      `${ctx.companyName} customer growth metrics or revenue trajectory data.`,
       'Competitive win/loss data showing market position accuracy.',
       'Independent validation of market traction claims.',
     ],
@@ -984,14 +939,13 @@ function hypothesizeAmbitionEvidenceGap(
 
 /**
  * T4: Company credibility may depend disproportionately on founder involvement
- *
- * Fires when founder/leadership tensions exist.
  */
 function hypothesizeFounderConcentration(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensionsByTypes(tensions, FOUNDER_TYPES);
   if (relevant.length === 0) return null;
@@ -1003,27 +957,28 @@ function hypothesizeFounderConcentration(
   const relatedSignals = signalsForTensions(relevant, signals);
 
   return makeHypothesis(companyId, {
-    title: 'Company credibility and growth capacity may depend disproportionately on founder involvement',
+    title: `${ctx.companyName}'s ${ctx.productDomain} credibility and growth may depend disproportionately on founder involvement`,
     statement:
-      'The company\'s market credibility, customer relationships, and public narrative ' +
-      'may be concentrated in the founder rather than distributed across the organization. ' +
-      'This concentration may be appropriate for the current stage but could become a ' +
-      'scaling constraint as the company grows beyond the founder\'s personal bandwidth.',
+      `${ctx.companyName}'s market credibility, customer relationships, and public narrative ` +
+      `in the ${ctx.productDomain} space may be concentrated in the founder rather than ` +
+      'distributed across the organisation. This concentration may be appropriate for the ' +
+      "current stage but could become a scaling constraint as the company grows beyond the " +
+      "founder's personal bandwidth.",
     hypothesis_type: 'leadership',
     patterns: boostPatterns,
     tensions: relevant,
     extraSignals: relatedSignals,
     assumptions: [
-      'The founder is the primary source of external credibility and customer relationships.',
+      `The founder is the primary source of external credibility for ${ctx.companyName}.`,
       'No other team member has comparable external visibility or authority.',
       'Growth beyond current scale may require distributing leadership functions.',
     ],
     alternative_explanations: [
       'Founder-led credibility may be a deliberate early-stage strategy with planned transition.',
-      'The company may have informal leadership depth not visible through public research.',
+      `${ctx.companyName} may have informal leadership depth not visible through public research.`,
     ],
     missing_evidence: [
-      'Evidence of customer relationships managed by team members other than the founder.',
+      `Evidence of ${ctx.companyName} customer relationships managed by team members other than the founder.`,
       'Internal leadership development plans or senior hiring pipeline.',
       'Board or advisory composition providing institutional depth.',
     ],
@@ -1036,14 +991,13 @@ function hypothesizeFounderConcentration(
 
 /**
  * T5: Organizational depth may need to develop to support next growth stage
- *
- * Fires when leadership scaling or narrative authority tensions exist.
  */
 function hypothesizeOrganizationalScaling(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensions.filter(t =>
     t.type === 'leadership_concentration_vs_scaling' ||
@@ -1058,27 +1012,27 @@ function hypothesizeOrganizationalScaling(
   const relatedSignals = signalsForTensions(relevant, signals);
 
   return makeHypothesis(companyId, {
-    title: 'Organizational depth may need to develop to support the next growth stage',
+    title: `${ctx.companyName}'s organisational depth may need to develop to support the next growth stage in ${ctx.productDomain}`,
     statement:
-      'The current organizational structure may be lean relative to the company\'s ' +
-      'stated ambitions. Leadership concentration, limited team depth, and founder-dependent ' +
-      'operations may be appropriate for the current stage but could constrain capacity ' +
-      'as customer volume and operational complexity increase.',
+      `${ctx.companyName}'s current organisational structure may be lean relative to its ` +
+      `stated ambitions in ${ctx.productDomain}. Leadership concentration, limited team depth, ` +
+      'and founder-dependent operations may be appropriate for the current stage but could ' +
+      'constrain capacity as customer volume and operational complexity increase.',
     hypothesis_type: 'organizational',
     patterns: boostPatterns,
     tensions: relevant,
     extraSignals: relatedSignals,
     assumptions: [
-      'The company operates with a lean organizational structure relative to its ambitions.',
+      `${ctx.companyName} operates with a lean organisational structure relative to its ambitions.`,
       'Key functions are concentrated in a small number of individuals.',
       'Scaling beyond current capacity may require additional leadership hiring.',
     ],
     alternative_explanations: [
       'Lean operations may be intentional and efficient for the current stage.',
-      'The company may have plans for organizational expansion not visible externally.',
+      `${ctx.companyName} may have plans for organisational expansion not visible externally.`,
     ],
     missing_evidence: [
-      'Internal hiring plans for senior leadership positions.',
+      `Internal ${ctx.companyName} hiring plans for senior leadership positions.`,
       'Operational capacity metrics relative to growth targets.',
       'Evidence of delegation or leadership development within the team.',
     ],
@@ -1091,15 +1045,13 @@ function hypothesizeOrganizationalScaling(
 
 /**
  * T6: Multiple tensions suggest a structural growth transition
- *
- * Fires when tensions exist across 2+ theme groups.
- * Higher-order hypothesis that synthesizes cross-theme observations.
  */
 function hypothesizeStructuralTransition(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const hasService = tensionsByTypes(tensions, SERVICE_DELIVERY_TYPES).length > 0;
   const hasPositioning = tensionsByTypes(tensions, POSITIONING_TYPES).length > 0;
@@ -1110,20 +1062,26 @@ function hypothesizeStructuralTransition(
 
   const relatedSignals = signalsForTensions(tensions, signals);
 
+  // Build a theme-specific dimension list
+  const dimensions: string[] = [];
+  if (hasService) dimensions.push(`${ctx.productDomain} delivery model`);
+  if (hasPositioning) dimensions.push(`market positioning around ${ctx.positionedCapability}`);
+  if (hasFounder) dimensions.push('organisational structure');
+
   return makeHypothesis(companyId, {
-    title: 'Multiple structural tensions suggest the company is navigating a growth transition',
+    title: `Multiple structural tensions suggest ${ctx.companyName} is navigating a growth transition in ${ctx.productDomain}`,
     statement:
-      'Tensions spanning multiple dimensions — delivery model, market positioning, and ' +
-      'organizational structure — suggest the company may be in a transitional phase ' +
-      'where its current operating model is being stretched by growth ambitions. This ' +
-      'is common in growth-stage companies moving from founder-led to institutionally ' +
-      'scaled operations.',
+      `Tensions spanning multiple dimensions at ${ctx.companyName} — ${dimensions.join(', ')} ` +
+      '— suggest the company may be in a transitional phase where its current operating model ' +
+      `is being stretched by growth ambitions. While the company positions around ` +
+      `${ctx.narrativeClaim}, customers describe ${ctx.customerReality}. This is common in ` +
+      'growth-stage companies moving from founder-led to institutionally scaled operations.',
     hypothesis_type: 'strategic',
-    patterns: patterns.slice(0, 2), // include top patterns as boosters if available
+    patterns: patterns.slice(0, 2),
     tensions,
     extraSignals: relatedSignals,
     assumptions: [
-      'The company is experiencing tensions across multiple operational dimensions.',
+      `${ctx.companyName} is experiencing tensions across multiple operational dimensions.`,
       'These tensions reflect growth-stage dynamics rather than fundamental dysfunction.',
       'Resolving these tensions will require deliberate strategic choices.',
     ],
@@ -1132,7 +1090,7 @@ function hypothesizeStructuralTransition(
       'The tensions may be independently caused rather than symptoms of a single transition.',
     ],
     missing_evidence: [
-      'Internal strategic planning documents addressing these tensions.',
+      `Internal ${ctx.companyName} strategic planning documents addressing these tensions.`,
       'Founder or leadership commentary acknowledging growth transition challenges.',
       'Operational metrics showing capacity constraints or scaling friction.',
     ],
@@ -1145,16 +1103,13 @@ function hypothesizeStructuralTransition(
 
 /**
  * T7: The actual customer base may represent the company's strongest market position
- *
- * Fires on positioning_vs_customer_base (single tension, distinct angle).
- * Reframes segment mismatch as an opportunity: the current customers
- * may be the right market, and positioning should follow.
  */
 function hypothesizeActualSegmentStrength(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensions.filter(t => t.type === 'positioning_vs_customer_base');
   if (relevant.length === 0) return null;
@@ -1166,28 +1121,29 @@ function hypothesizeActualSegmentStrength(
   );
 
   return makeHypothesis(companyId, {
-    title: 'The actual customer base may represent a stronger market position than the aspirational target',
+    title: `${ctx.companyName}'s actual customer base may represent a stronger market position than its ${ctx.positionedCapability} target`,
     statement:
-      'The customers the company currently serves may represent its genuine product-market ' +
-      'fit. Rather than viewing the gap between positioning and customer base as a weakness, ' +
-      'the current segment may be where the product delivers the most value. Leaning into ' +
-      'this segment — rather than stretching toward an aspirational one — could accelerate ' +
-      'growth by aligning messaging with demonstrated strength.',
+      `The customers ${ctx.companyName} currently serves — who describe value as ` +
+      `${ctx.customerReality} — may represent its genuine product-market fit. Rather than ` +
+      `viewing the gap between ${ctx.positionedCapability} positioning and ${ctx.customerSegment} ` +
+      `as a weakness, the current segment may be where the product delivers the most value. ` +
+      'Leaning into this segment — rather than stretching toward an aspirational one — could ' +
+      'accelerate growth by aligning messaging with demonstrated strength.',
     hypothesis_type: 'market',
     patterns: [],
     tensions: relevant,
     extraSignals: [...relatedSignals, ...customerSignals],
     assumptions: [
-      'The current customer base reflects genuine product-market fit.',
+      `${ctx.companyName}'s current customer base reflects genuine product-market fit.`,
       'Customer retention and satisfaction are stronger in the current segment.',
       'Aspirational positioning may be distracting from the strongest growth path.',
     ],
     alternative_explanations: [
-      'The aspirational segment may be the correct long-term target, with current customers as a beachhead.',
+      `The aspirational segment may be the correct long-term target for ${ctx.companyName}, with current customers as a beachhead.`,
       'The company may be deliberately building capability in the current segment before moving upmarket.',
     ],
     missing_evidence: [
-      'Customer retention rates comparing current segment vs aspirational segment.',
+      `${ctx.companyName} customer retention rates comparing current segment vs aspirational segment.`,
       'Revenue concentration analysis across customer segments.',
       'Customer satisfaction or NPS data by segment.',
     ],
@@ -1200,16 +1156,13 @@ function hypothesizeActualSegmentStrength(
 
 /**
  * T8: Customer value perception may diverge from company messaging
- *
- * Fires on positioning_vs_market_fit (single tension, customer-centric angle).
- * Focuses on how customers describe and experience value differently
- * from how the company positions it.
  */
 function hypothesizeCustomerValueDivergence(
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
   companyId: string,
+  ctx: CompanyContext,
 ): Hypothesis | null {
   const relevant = tensions.filter(t => t.type === 'positioning_vs_market_fit');
   if (relevant.length === 0) return null;
@@ -1220,19 +1173,20 @@ function hypothesizeCustomerValueDivergence(
   );
 
   return makeHypothesis(companyId, {
-    title: 'Customer perception of value may differ from how the company positions its product',
+    title: `${ctx.companyName}'s customers may perceive value differently from its ${ctx.positionedCapability} positioning`,
     statement:
-      'The language customers use to describe the product\'s value may differ from the ' +
-      'company\'s own positioning language. This divergence can signal that the product ' +
-      'solves a different problem than the company emphasizes — or solves the right ' +
-      'problem but for different reasons than marketing suggests. Understanding this ' +
-      'gap could reveal untapped positioning opportunities.',
+      `The language ${ctx.companyName}'s customers use to describe the product's value — ` +
+      `centred on ${ctx.customerReality} — may differ materially from the company's own ` +
+      `positioning around ${ctx.narrativeClaim}. This divergence can signal that the product ` +
+      'solves a different problem than the company emphasises — or solves the right problem ' +
+      'but for different reasons than marketing suggests. Understanding this gap could reveal ' +
+      `untapped positioning opportunities for ${ctx.companyName}.`,
     hypothesis_type: 'gtm',
     patterns: [],
     tensions: relevant,
     extraSignals: [...relatedSignals, ...customerSignals],
     assumptions: [
-      'Customer language differs from company positioning language.',
+      `${ctx.companyName}'s customer language differs from company positioning language.`,
       'The divergence reflects genuine differences in perceived value.',
       'Aligning positioning with customer perception could improve conversion.',
     ],
@@ -1241,7 +1195,7 @@ function hypothesizeCustomerValueDivergence(
       'The positioning may be intentionally aspirational to attract a higher-value segment.',
     ],
     missing_evidence: [
-      'Direct customer quotes describing why they chose the product.',
+      `Direct ${ctx.companyName} customer quotes describing why they chose the product.`,
       'Win/loss analysis showing what customers value most.',
       'A/B test data on positioning messages and conversion rates.',
     ],
@@ -1253,24 +1207,25 @@ function hypothesizeCustomerValueDivergence(
 }
 
 // ---------------------------------------------------------------------------
-// Deduplication
+// Deduplication (Phase 9B: enhanced with normalised title + key phrases)
 // ---------------------------------------------------------------------------
 
-/** Collapse hypotheses with >70% overlap in pattern_ids + tension_ids or tension_ids alone. */
+/** Collapse hypotheses with >70% overlap in pattern_ids + tension_ids, tension_ids alone, or normalised title. */
 function deduplicateHypotheses(hypotheses: Hypothesis[]): Hypothesis[] {
   const result: Hypothesis[] = [];
   for (const hyp of hypotheses) {
     const allIds = [...hyp.pattern_ids, ...hyp.tension_ids];
+    const hypTitleNorm = normalise(hyp.title);
+
     const isDuplicate = result.some(existing => {
       const existingIds = [...existing.pattern_ids, ...existing.tension_ids];
 
-      // Check full ID overlap (pattern_ids + tension_ids)
+      // Check 1: full ID overlap (pattern_ids + tension_ids)
       const overlapCount = allIds.filter(id => existingIds.includes(id)).length;
       const maxLen = Math.max(allIds.length, existingIds.length);
       if (maxLen > 0 && overlapCount / maxLen > 0.7) return true;
 
-      // Also check tension-only overlap (catches tension-subset cases where
-      // a pattern-boosted hypothesis already covers the same tensions)
+      // Check 2: tension-only overlap
       if (hyp.tension_ids.length > 0 && existing.tension_ids.length > 0) {
         const tensionOverlap = hyp.tension_ids.filter(
           id => existing.tension_ids.includes(id),
@@ -1280,6 +1235,17 @@ function deduplicateHypotheses(hypotheses: Hypothesis[]): Hypothesis[] {
           existing.tension_ids.length,
         );
         if (tensionOverlap / maxTensions > 0.7) return true;
+      }
+
+      // Check 3: normalised title word overlap (Phase 9B)
+      // Catches semantically similar hypotheses from different trigger paths
+      const existingTitleNorm = normalise(existing.title);
+      const hypWords = hypTitleNorm.split(/\s+/).filter(w => w.length >= 3);
+      const existingWords = existingTitleNorm.split(/\s+/).filter(w => w.length >= 3);
+      if (hypWords.length > 0 && existingWords.length > 0) {
+        const wordOverlap = hypWords.filter(w => existingWords.includes(w)).length;
+        const maxWords = Math.max(hypWords.length, existingWords.length);
+        if (wordOverlap / maxWords > 0.65) return true;
       }
 
       return false;
@@ -1307,29 +1273,32 @@ export function generateHypotheses(
   const companyId =
     patterns[0]?.company_id ?? tensions[0].company_id;
 
+  // Extract company context for template interpolation
+  const ctx = extractCompanyContext(signals, tensions, patterns);
+
   // Phase 1: Pattern-boosted hypotheses (original templates — fire when patterns match)
   const patternBoosted = [
-    hypothesizeAutomationCompensation(patterns, tensions, signals, companyId),
-    hypothesizeStructuralOnboarding(patterns, tensions, signals, companyId),
-    hypothesizeIntentionalServicesGTM(patterns, tensions, signals, companyId),
-    hypothesizeHiringRevealsStrategy(patterns, tensions, signals, companyId),
-    hypothesizeWideningGap(patterns, tensions, signals, companyId),
-    hypothesizeAspirationalPositioning(patterns, tensions, signals, companyId),
-    hypothesizeCredibilityWhileBuildingTraction(patterns, tensions, signals, companyId),
-    hypothesizeFounderDependentCredibility(patterns, tensions, signals, companyId),
-    hypothesizeEmergingInstitutionalLeadership(patterns, tensions, signals, companyId),
+    hypothesizeAutomationCompensation(patterns, tensions, signals, companyId, ctx),
+    hypothesizeStructuralOnboarding(patterns, tensions, signals, companyId, ctx),
+    hypothesizeIntentionalServicesGTM(patterns, tensions, signals, companyId, ctx),
+    hypothesizeHiringRevealsStrategy(patterns, tensions, signals, companyId, ctx),
+    hypothesizeWideningGap(patterns, tensions, signals, companyId, ctx),
+    hypothesizeAspirationalPositioning(patterns, tensions, signals, companyId, ctx),
+    hypothesizeCredibilityWhileBuildingTraction(patterns, tensions, signals, companyId, ctx),
+    hypothesizeFounderDependentCredibility(patterns, tensions, signals, companyId, ctx),
+    hypothesizeEmergingInstitutionalLeadership(patterns, tensions, signals, companyId, ctx),
   ].filter((h): h is Hypothesis => h !== null);
 
-  // Phase 2: Tension-driven hypotheses (new — no pattern requirement)
+  // Phase 2: Tension-driven hypotheses (no pattern requirement)
   const tensionDriven = [
-    hypothesizeDeliveryReality(patterns, tensions, signals, companyId),
-    hypothesizePositioningAspiration(patterns, tensions, signals, companyId),
-    hypothesizeAmbitionEvidenceGap(patterns, tensions, signals, companyId),
-    hypothesizeFounderConcentration(patterns, tensions, signals, companyId),
-    hypothesizeOrganizationalScaling(patterns, tensions, signals, companyId),
-    hypothesizeStructuralTransition(patterns, tensions, signals, companyId),
-    hypothesizeActualSegmentStrength(patterns, tensions, signals, companyId),
-    hypothesizeCustomerValueDivergence(patterns, tensions, signals, companyId),
+    hypothesizeDeliveryReality(patterns, tensions, signals, companyId, ctx),
+    hypothesizePositioningAspiration(patterns, tensions, signals, companyId, ctx),
+    hypothesizeAmbitionEvidenceGap(patterns, tensions, signals, companyId, ctx),
+    hypothesizeFounderConcentration(patterns, tensions, signals, companyId, ctx),
+    hypothesizeOrganizationalScaling(patterns, tensions, signals, companyId, ctx),
+    hypothesizeStructuralTransition(patterns, tensions, signals, companyId, ctx),
+    hypothesizeActualSegmentStrength(patterns, tensions, signals, companyId, ctx),
+    hypothesizeCustomerValueDivergence(patterns, tensions, signals, companyId, ctx),
   ].filter((h): h is Hypothesis => h !== null);
 
   // Pattern-boosted first so they win deduplication over tension-driven equivalents
