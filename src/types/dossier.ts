@@ -163,6 +163,19 @@ export interface RiskObservation {
   evidence_ids: string[];
 }
 
+export type HypothesisCategory = 'positioning' | 'gtm' | 'product' | 'competitive' | 'market';
+
+export interface StrategicHypothesis {
+  hypothesis: string;
+  category: HypothesisCategory;
+  falsification_criteria: string;
+  time_horizon: string;
+  assumptions: string[];
+  counter_signals?: string[];
+  evidence_ids: string[];
+  confidence: Confidence;
+}
+
 // --- Evidence summary (Phase 6 MK2B) ---
 
 export interface BySourceTier {
@@ -325,6 +338,7 @@ export interface StrategicRisks {
   market_risks: string[];
   dependency_risks: string[];
   risk_observations: RiskObservation[];
+  strategic_hypotheses: StrategicHypothesis[];
   confidence: Confidence;
 }
 

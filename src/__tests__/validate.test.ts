@@ -1184,6 +1184,144 @@ describe('validate', () => {
     });
   });
 
+  // --- MK3 Phase 7: Strategic hypotheses ---
+
+  describe('strategic_hypotheses schema', () => {
+    function makeDossierWithHypotheses(hypotheses: unknown[]) {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const src = makeSource('src_001');
+      const ev = makeEvidence('ev_001', 'src_001');
+      (dossier as Record<string, unknown>).sources = [src];
+      (dossier as Record<string, unknown>).evidence = [ev];
+      (dossier.strategic_risks as Record<string, unknown>).strategic_hypotheses = hypotheses;
+      return dossier;
+    }
+
+    it('accepts a valid strategic hypothesis entry', () => {
+      const dossier = makeDossierWithHypotheses([
+        {
+          hypothesis: 'Enterprise revenue will plateau within 12 months if SMB-only proof points persist',
+          category: 'positioning',
+          falsification_criteria: 'Signed enterprise case study with >1000 seat deployment published',
+          time_horizon: '6-12 months',
+          assumptions: ['Enterprise buyers require peer proof before purchase', 'Current SMB case studies do not transfer'],
+          evidence_ids: ['ev_001'],
+          confidence: 'medium',
+        },
+      ]);
+      const path = writeDossier('hyp-valid', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+      expect(report.valid).toBe(true);
+    });
+
+    it('rejects invalid category enum', () => {
+      const dossier = makeDossierWithHypotheses([
+        {
+          hypothesis: 'Some claim',
+          category: 'financial',
+          falsification_criteria: 'Some criteria',
+          time_horizon: '6 months',
+          assumptions: [],
+          evidence_ids: ['ev_001'],
+          confidence: 'low',
+        },
+      ]);
+      const path = writeDossier('hyp-bad-category', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects extra properties on hypothesis items', () => {
+      const dossier = makeDossierWithHypotheses([
+        {
+          hypothesis: 'Some claim',
+          category: 'gtm',
+          falsification_criteria: 'Some criteria',
+          time_horizon: '6 months',
+          assumptions: [],
+          evidence_ids: ['ev_001'],
+          confidence: 'low',
+          bonus_field: 'should not be here',
+        },
+      ]);
+      const path = writeDossier('hyp-extra-prop', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('fails schema when strategic_hypotheses is missing from strategic_risks', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const sr = { ...(dossier.strategic_risks as Record<string, unknown>) };
+      delete sr.strategic_hypotheses;
+      (dossier as Record<string, unknown>).strategic_risks = sr;
+      const path = writeDossier('hyp-missing', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('errors when hypothesis references non-existent evidence', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      (dossier.strategic_risks as Record<string, unknown>).strategic_hypotheses = [
+        {
+          hypothesis: 'Some claim',
+          category: 'product',
+          falsification_criteria: 'Some criteria',
+          time_horizon: '3 months',
+          assumptions: [],
+          evidence_ids: ['ev_777'],
+          confidence: 'low',
+        },
+      ];
+      const path = writeDossier('hyp-broken-ev', dossier);
+      const report = validate(path);
+
+      expect(report.valid).toBe(false);
+      expect(report.errors.some((e) => e.includes('ev_777'))).toBe(true);
+    });
+
+    it('accepts counter_signals as optional and valid when present', () => {
+      const dossier = makeDossierWithHypotheses([
+        {
+          hypothesis: 'Self-serve will outpace sales-led within 18 months',
+          category: 'gtm',
+          falsification_criteria: 'Sales-led revenue grows faster than self-serve for 2 consecutive quarters',
+          time_horizon: '12-18 months',
+          assumptions: ['Product-led onboarding is functional', 'Pricing supports self-serve adoption'],
+          counter_signals: ['Enterprise deals still require 3-month sales cycles', 'No self-serve pricing page exists'],
+          evidence_ids: ['ev_001'],
+          confidence: 'low',
+        },
+      ]);
+      const path = writeDossier('hyp-with-counter', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+      expect(report.valid).toBe(true);
+    });
+  });
+
+  describe('empty dossier strategic_hypotheses', () => {
+    it('includes strategic_hypotheses as empty array', () => {
+      const dossier = createEmptyDossier('Test', 'test.com');
+      expect(dossier.strategic_risks.strategic_hypotheses).toEqual([]);
+    });
+
+    it('passes full validation with strategic_hypotheses', () => {
+      const dossier = createEmptyDossier('Test', 'test.com');
+      const path = writeDossier('hyp-empty-valid', dossier);
+      const report = validate(path);
+
+      expect(report.valid).toBe(true);
+      expect(report.schema_valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+  });
+
   describe('Phase 5 evidence_ids resolution', () => {
     it('errors when negative_signal references non-existent evidence', () => {
       const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;

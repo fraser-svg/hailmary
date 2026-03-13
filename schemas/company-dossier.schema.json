@@ -432,7 +432,7 @@
     },
     "strategic_risks": {
       "type": "object",
-      "required": ["positioning_risks", "gtm_risks", "competitive_risks", "market_risks", "dependency_risks", "risk_observations", "confidence"],
+      "required": ["positioning_risks", "gtm_risks", "competitive_risks", "market_risks", "dependency_risks", "risk_observations", "strategic_hypotheses", "confidence"],
       "additionalProperties": false,
       "properties": {
         "positioning_risks": { "type": "array", "items": { "type": "string" } },
@@ -451,6 +451,27 @@
               "severity": { "$ref": "#/$defs/confidence" },
               "is_inferred": { "type": "boolean" },
               "evidence_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "strategic_hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["hypothesis", "category", "falsification_criteria", "time_horizon", "assumptions", "evidence_ids", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "hypothesis": { "type": "string" },
+              "category": {
+                "type": "string",
+                "enum": ["positioning", "gtm", "product", "competitive", "market"]
+              },
+              "falsification_criteria": { "type": "string" },
+              "time_horizon": { "type": "string" },
+              "assumptions": { "type": "array", "items": { "type": "string" } },
+              "counter_signals": { "type": "array", "items": { "type": "string" } },
+              "evidence_ids": { "type": "array", "items": { "type": "string" } },
+              "confidence": { "$ref": "#/$defs/confidence" }
             }
           }
         },

@@ -170,6 +170,7 @@ export function createEmptyDossier(
       market_risks: [],
       dependency_risks: [],
       risk_observations: [],
+      strategic_hypotheses: [],
       confidence: 'low',
     },
     confidence_and_gaps: {

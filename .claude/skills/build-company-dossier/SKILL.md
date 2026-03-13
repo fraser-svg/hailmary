@@ -200,7 +200,36 @@ Rules:
 For these sections, populate if you have evidence from earlier research. Otherwise stub with empty arrays and `"confidence": "low"`:
 - `market_and_macro`
 - `signals` (populate funding if found during research)
-- `strategic_risks`
+
+### Step 8b: Strategic Risks and Hypotheses
+
+**Goal:** Derive testable strategic hypotheses from evidence collected in Steps 1-7. Do NOT introduce general industry speculation.
+
+Populate `strategic_risks` with:
+- `positioning_risks`, `gtm_risks`, `competitive_risks`, `market_risks`, `dependency_risks` — from evidence already collected
+- `risk_observations` — structured observations with severity and evidence linking
+- `strategic_hypotheses` — see below
+
+#### Strategic Hypotheses Requirements
+
+Each hypothesis in `strategic_hypotheses` must satisfy all of:
+
+1. **Derived from dossier evidence.** Must originate from one of:
+   - A narrative gap identified in Step 7
+   - A value alignment divergence (company_only or divergent)
+   - A negative signal cluster from Step 4b
+   - A strategic risk pattern visible across multiple evidence records
+   The `evidence_ids` must reference the specific evidence that generated the hypothesis. Do not cite general background knowledge.
+
+2. **Falsifiable from public sources.** `falsification_criteria` must describe something an outside observer can verify within the `time_horizon` using public data (filings, review sites, job boards, product pages, press). Avoid criteria requiring internal metrics ("churn rate", "NPS", "win rate") — use a public proxy instead and note the limitation.
+
+3. **Counter-balanced.** Every hypothesis must include at least 1 `counter_signal` — a specific piece of evidence or reasoning that challenges the hypothesis. Empty `counter_signals` arrays are not acceptable.
+
+4. **Company-specific.** Must name a mechanism specific to THIS company. Generic framings are banned unless tied to a company-specific mechanism and evidence. See `references/strategic-hypothesis-quality.md` for anti-patterns and examples.
+
+5. **Time-bounded.** `time_horizon` must be a specific range (e.g., "6-12 months", "12-18 months"). No unbounded horizons ("eventually", "long-term").
+
+Target 3-5 hypotheses per dossier. Fewer is fine if evidence is thin — do not pad with speculation.
 
 ### Step 9: Assemble Confidence and Gaps
 
@@ -229,7 +258,7 @@ Build the complete JSON object with all 16 top-level fields:
 10. `market_and_macro`: from Step 8 (stub if needed)
 11. `signals`: from Step 8 (stub if needed)
 12. `narrative_intelligence`: from Steps 6-7
-13. `strategic_risks`: from Step 8 (stub if needed)
+13. `strategic_risks`: from Step 8b
 14. `confidence_and_gaps`: from Step 9
 15. `sources`: all source records collected
 16. `evidence`: all evidence records collected
