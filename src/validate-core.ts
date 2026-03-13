@@ -329,6 +329,79 @@ export function validate(dossierPath: string): ValidationReport {
     }
   }
 
+  // --- Phase 4: Narrative gap traceability warnings ---
+
+  const COMPANY_EVIDENCE_TYPES = new Set([
+    'company_claim_record', 'positioning_record', 'content_record',
+  ]);
+  const GAP_CUSTOMER_EVIDENCE_TYPES = new Set([
+    'testimonial_record', 'review_record', 'customer_language_record', 'customer_value_record',
+  ]);
+
+  if (narrativeIntelligence) {
+    const gaps = (narrativeIntelligence.narrative_gaps as Array<Record<string, unknown>>) ?? [];
+    for (const gap of gaps) {
+      const gapName = gap.gap_name as string;
+      const gapEvIds = (gap.evidence_ids as string[]) ?? [];
+      const companyLang = (gap.company_language as string[]) ?? [];
+      const customerLang = (gap.customer_language as string[]) ?? [];
+
+      const gapEvRecords = gapEvIds
+        .map((evId) => evidenceById.get(evId))
+        .filter((ev): ev is Record<string, unknown> => ev !== undefined);
+
+      // 18. Gap company evidence link
+      const hasCompanyEvidence = gapEvRecords.some((ev) =>
+        COMPANY_EVIDENCE_TYPES.has(ev.evidence_type as string));
+      if (!hasCompanyEvidence) {
+        warnings.push(`Narrative gap "${gapName}": narrative gap missing company-side evidence`);
+      }
+
+      // 19. Gap customer evidence link
+      const customerEvCount = gapEvRecords.filter((ev) =>
+        GAP_CUSTOMER_EVIDENCE_TYPES.has(ev.evidence_type as string)).length;
+      if (customerEvCount < 2) {
+        warnings.push(`Narrative gap "${gapName}": narrative gap missing sufficient customer evidence`);
+      }
+
+      // 20. Gap language traceability
+      const allExcerpts = gapEvRecords.map((ev) => (ev.excerpt as string).toLowerCase());
+      const allLangStrings = [...companyLang, ...customerLang];
+      for (const lang of allLangStrings) {
+        const langLower = lang.toLowerCase();
+        if (!allExcerpts.some((excerpt) => excerpt.includes(langLower))) {
+          warnings.push(`Narrative gap "${gapName}": narrative gap language not traceable to evidence excerpts`);
+          break; // one warning per gap is sufficient
+        }
+      }
+
+      // 21. Gap evidence role separation
+      const companyEvIds = new Set(
+        gapEvRecords
+          .filter((ev) => allExcerpts.length > 0) // only check if we have excerpts
+          .filter((ev) => {
+            const excerpt = (ev.excerpt as string).toLowerCase();
+            return companyLang.some((lang) => excerpt.includes(lang.toLowerCase()));
+          })
+          .map((ev) => ev.evidence_id as string),
+      );
+      const customerEvIds = new Set(
+        gapEvRecords
+          .filter((ev) => {
+            const excerpt = (ev.excerpt as string).toLowerCase();
+            return customerLang.some((lang) => excerpt.includes(lang.toLowerCase()));
+          })
+          .map((ev) => ev.evidence_id as string),
+      );
+      if (companyEvIds.size > 0 && customerEvIds.size > 0) {
+        const overlap = [...companyEvIds].some((id) => customerEvIds.has(id));
+        if (overlap) {
+          warnings.push(`Narrative gap "${gapName}": narrative gap contradiction supported by same evidence source`);
+        }
+      }
+    }
+  }
+
   // 17. Section stats
   let sectionsPopulated = 0;
   let sectionsEmpty = 0;

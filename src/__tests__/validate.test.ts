@@ -645,4 +645,203 @@ describe('validate', () => {
       expect(report.warnings.some((w) => w.includes('Source-quality'))).toBe(false);
     });
   });
+
+  // --- Phase 4: Narrative gap traceability warnings ---
+
+  describe('narrative gap traceability warnings', () => {
+    /** Helper to build a dossier with a narrative gap and specific evidence records. */
+    function makeDossierWithGapEvidence(opts: {
+      gapName?: string;
+      companyLanguage?: string[];
+      customerLanguage?: string[];
+      evidenceRecords: Array<{ id: string; sourceId: string; type: string; excerpt: string; tier?: number }>;
+      gapEvidenceIds?: string[];
+    }) {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const sourceMap = new Map<string, Record<string, unknown>>();
+      const evidenceArr: Record<string, unknown>[] = [];
+
+      for (const rec of opts.evidenceRecords) {
+        if (!sourceMap.has(rec.sourceId)) {
+          sourceMap.set(rec.sourceId, makeSource(rec.sourceId, rec.tier ?? 1));
+        }
+        evidenceArr.push({
+          ...makeEvidence(rec.id, rec.sourceId, rec.type),
+          excerpt: rec.excerpt,
+        });
+      }
+
+      (dossier as Record<string, unknown>).sources = [...sourceMap.values()];
+      (dossier as Record<string, unknown>).evidence = evidenceArr;
+
+      const gapEvIds = opts.gapEvidenceIds ?? opts.evidenceRecords.map((r) => r.id);
+      (dossier.narrative_intelligence as Record<string, unknown>).narrative_gaps = [
+        {
+          gap_name: opts.gapName ?? 'test gap',
+          company_language: opts.companyLanguage ?? ['we are innovative'],
+          customer_language: opts.customerLanguage ?? ['easy to use', 'simple deploys'],
+          gap_description: 'messaging mismatch',
+          likely_business_impact: ['lost conversions'],
+          suggested_repositioning_direction: 'emphasize simplicity',
+          evidence_ids: gapEvIds,
+          confidence: 'medium',
+        },
+      ];
+
+      return dossier;
+    }
+
+    describe('gap company evidence link', () => {
+      it('warns when gap has no company-side evidence', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'testimonial_record', excerpt: 'easy to use' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'review_record', excerpt: 'simple deploys' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-no-company-ev', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('company-side evidence'))).toBe(true);
+        expect(report.valid).toBe(true); // warning only
+      });
+
+      it('does not warn when gap has company-side evidence', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'easy to use' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'simple deploys' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-has-company-ev', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('company-side evidence'))).toBe(false);
+      });
+    });
+
+    describe('gap customer evidence link', () => {
+      it('warns when gap has fewer than 2 customer-side evidence records', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'easy to use' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-few-customer-ev', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('customer evidence'))).toBe(true);
+        expect(report.valid).toBe(true);
+      });
+
+      it('does not warn when gap has 2+ customer-side evidence records', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'easy to use' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'simple deploys' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-enough-customer-ev', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('customer evidence'))).toBe(false);
+      });
+    });
+
+    describe('gap language traceability', () => {
+      it('warns when company_language not found in evidence excerpts', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'something unrelated' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'easy to use' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'simple deploys' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-lang-not-traceable', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('language not traceable'))).toBe(true);
+        expect(report.valid).toBe(true);
+      });
+
+      it('does not warn when all language strings appear in evidence excerpts (case-insensitive)', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'We Are Innovative and forward-thinking' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'The product is Easy To Use and intuitive' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'Simple Deploys with zero downtime' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-lang-traceable', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('language not traceable'))).toBe(false);
+      });
+
+      it('warns when customer_language not found in evidence excerpts', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'love the dashboard' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'great analytics' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-customer-lang-not-traceable', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('language not traceable'))).toBe(true);
+      });
+    });
+
+    describe('gap evidence role separation', () => {
+      it('warns when same evidence supports both company and customer language', () => {
+        // Single evidence record that contains both company and customer language
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative and easy to use and simple deploys' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-same-evidence-both', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('same evidence source'))).toBe(true);
+        expect(report.valid).toBe(true);
+      });
+
+      it('does not warn when company and customer language come from different evidence', () => {
+        const dossier = makeDossierWithGapEvidence({
+          evidenceRecords: [
+            { id: 'ev_001', sourceId: 'src_001', type: 'company_claim_record', excerpt: 'we are innovative leaders' },
+            { id: 'ev_002', sourceId: 'src_002', type: 'testimonial_record', excerpt: 'easy to use product' },
+            { id: 'ev_003', sourceId: 'src_003', type: 'review_record', excerpt: 'simple deploys every time' },
+          ],
+          companyLanguage: ['we are innovative'],
+          customerLanguage: ['easy to use', 'simple deploys'],
+        });
+        const path = writeDossier('gap-separate-evidence', dossier);
+        const report = validate(path);
+
+        expect(report.warnings.some((w) => w.includes('same evidence source'))).toBe(false);
+      });
+    });
+  });
 });
