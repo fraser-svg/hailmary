@@ -31,6 +31,7 @@ import {
   generateHypotheses,
   generateImplications,
   planReport,
+  writeReport,
 } from '../stubs/stages.js';
 
 // ---------------------------------------------------------------------------
@@ -122,6 +123,26 @@ async function runFixture(fixtureId: string): Promise<FixtureResult> {
   console.log(`  Selected implications: ${plan.implication_ids.length}`);
   console.log(`  Sections: ${plan.section_plan.length}`);
   console.log(`  Tone: ${plan.tone_profile.style} / directness=${plan.tone_profile.directness} / skepticism=${plan.tone_profile.skepticism}`);
+
+  // Run write-report (not scored — verify it generates successfully)
+  const reportResult = writeReport(dossier);
+  console.log('\nWrite Report:');
+  if (reportResult.errors.length > 0) {
+    console.log('  VALIDATION ERRORS:');
+    for (const err of reportResult.errors) {
+      console.log(`    [${err.check}] ${err.message}`);
+    }
+  } else {
+    const report = reportResult.report!;
+    console.log(`  Sections: ${report.sections.length}`);
+    console.log(`  Summary length: ${report.summary.length} chars`);
+    console.log(`  Markdown length: ${reportResult.markdown.length} chars`);
+    for (const sec of report.sections) {
+      const lineageCount = sec.hypothesis_ids.length + sec.pattern_ids.length +
+        sec.tension_ids.length + sec.signal_ids.length;
+      console.log(`    ${sec.section_id}: ${sec.title} (${sec.markdown.length} chars, ${lineageCount} lineage refs)`);
+    }
+  }
 
   // Score each stage
   const stages: StageScore[] = [

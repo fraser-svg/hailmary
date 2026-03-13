@@ -13,16 +13,14 @@ Company name + domain
   -> Evidence extraction with source tier tagging
   -> runs/<slug>/dossier.json (16 required top-level fields, evidence inline)
   -> TypeScript validator (schema + evidence-link checking)
-  -> Report Engine pipeline (7 deterministic stages over dossier)
+  -> Report Engine pipeline (8 stages: 7 deterministic + 1 hybrid writer)
 ```
 
-Report Engine pipeline:
+Report Engine pipeline (complete):
 ```
 extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
-  -> stress-test-hypotheses -> generate-implications -> plan-report
+  -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report
 ```
-
-One more stage planned: `write-report`.
 
 Errors = structural integrity (fail validation). Warnings = trust/quality (never fail).
 
@@ -36,7 +34,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **MK3 (complete, Phase 7 + 7b):** Strategic hypotheses in dossier schema. SKILL.md refined for hypothesis quality (specificity, falsifiability, counter-signals).
 
-**Report Engine (complete through Phase 14):** Eval harness + 7 pipeline stages implemented. Three eval fixtures passing.
+**Report Engine (complete, Phases 5-15):** Eval harness + 8 pipeline stages implemented. Three eval fixtures passing. Full pipeline operational.
 
 # Phase Status
 
@@ -60,6 +58,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | 12 (RE) | Eval Fixture 003 | CatalystIQ: founder credibility vs institutional depth |
 | 13 (RE) | Pipeline Generalization for Fixture 003 | 6 stages generalized, all 3 fixtures pass |
 | 14 (RE) | plan-report | Deterministic report planning: thesis, findings, section structure |
+| 15 (RE) | write-report | Hybrid deterministic + LLM adapter: report generation with validation |
 
 106 tests across 4 test files via vitest. 0 regressions.
 
@@ -102,13 +101,14 @@ src/report/pipeline/                    # Stage implementations
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
   generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[] (17 templates)
   plan-report.ts                        # Stage 7: upstream objects -> ReportPlan (deterministic)
+  write-report.ts                       # Stage 8: ReportPlan + upstream -> Report + markdown
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
   fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
   fixtures/003-founder-credibility-gap/ # Fixture 3: founder-anchored credibility vs institutional depth
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + keyword-overlap matcher
-  stubs/stages.ts                       # Adapter: 7 real impls + downstream stubs
+  stubs/stages.ts                       # Adapter: 8 real impls wired through full pipeline
   types/                                # Fixture and eval result types
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
@@ -119,21 +119,29 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 14 (plan-report) complete. All three eval fixtures pass all 7 pipeline stages:
+Report Engine Phase 15 (write-report) complete. All eight pipeline stages operational. All three eval fixtures pass:
 
 ```
-Fixture 001-ai-services:       scored stages PASS, plan-report runs (2 primary, 5 findings, 6 sections)
-Fixture 002-enterprise-proof:  scored stages PASS, plan-report runs (2 primary, 5 findings, 6 sections)
-Fixture 003-founder-credibility: scored stages PASS, plan-report runs (3 primary, 5 findings, 6 sections)
+Fixture 001-ai-services:       scored stages PASS, write-report generates (6 sections, 15648 chars)
+Fixture 002-enterprise-proof:  scored stages PASS, write-report generates (6 sections, 14125 chars)
+Fixture 003-founder-credibility: scored stages PASS, write-report generates (6 sections, 20077 chars)
 ```
 
-Plan-report stage produces a `ReportPlan` with: core thesis (derived from dominant pattern + primary hypothesis), 3-5 key findings, primary/supporting/weak hypothesis partitioning, ranked implication selection (top 8), 6-section structure, and tone profile. Deterministic — no LLM calls.
+Write-report stage architecture:
+- **Deterministic layer**: section input assembly, lineage resolution, post-generation validation (7 checks)
+- **Writer adapter**: V1 uses template-based prose generation (placeholder for future LLM integration)
+- **Validation checks**: required sections, no discarded hypotheses, weak-only-in-uncertainty, no em dashes, no banned phrases, non-empty sections, lineage populated
+- **Text sanitisation**: em dashes from upstream objects replaced before validation
+
+Full pipeline is now: extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report.
 
 # Next Step
 
-**Report Engine Phase 15 -- write-report**
-- Spec: `docs/specs/report-specs/009-write-report.md`
-- Final pipeline stage: produces the intelligence report from the ReportPlan
+The report engine pipeline is complete. Possible next directions:
+- LLM adapter integration (replace template prose with Claude-generated sections)
+- Report quality scoring in eval harness
+- End-to-end CLI command for report generation from dossier
+- Report export formats (PDF, HTML)
 
 # Known Constraints
 
@@ -153,8 +161,8 @@ Plan-report stage produces a `ReportPlan` with: core thesis (derived from domina
 
 # Files Modified Recently
 
-**Report Engine Phase 14 (this session):**
-- `src/report/pipeline/plan-report.ts` -- new stage: deterministic report planning (240 lines)
-- `src/report/evals/stubs/stages.ts` -- added `planReport` adapter wiring
-- `src/report/evals/runner/run-fixture.ts` -- calls plan-report after implications, prints summary
-- `docs/handoffs/current.md` -- updated with Phase 14 completion
+**Report Engine Phase 15 (this session):**
+- `src/report/pipeline/write-report.ts` -- new stage: hybrid report writer (480 lines)
+- `src/report/evals/stubs/stages.ts` -- added `writeReport` adapter wiring
+- `src/report/evals/runner/run-fixture.ts` -- calls write-report after plan-report, prints section summary
+- `docs/handoffs/current.md` -- updated with Phase 15 completion

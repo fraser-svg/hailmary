@@ -14,7 +14,9 @@ import { generateHypotheses as realGenerateHypotheses } from '../../pipeline/gen
 import { stressTestHypotheses as realStressTestHypotheses } from '../../pipeline/stress-test-hypotheses.js';
 import { generateImplications as realGenerateImplications } from '../../pipeline/generate-implications.js';
 import { planReport as realPlanReport } from '../../pipeline/plan-report.js';
+import { writeReport as realWriteReport } from '../../pipeline/write-report.js';
 import type { ReportPlan } from '../../pipeline/plan-report.js';
+import type { WriteReportResult } from '../../pipeline/write-report.js';
 
 export function extractSignals(dossier: Dossier): StageOutputItem[] {
   return realExtractSignals(dossier).map(signal => ({
@@ -91,4 +93,17 @@ export function planReport(dossier: Dossier): ReportPlan {
   const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
   const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
   return realPlanReport(implications, stressTested, patterns, tensions, signals);
+}
+
+// --- Real implementation wired in (write-report) ---
+
+export function writeReport(dossier: Dossier): WriteReportResult {
+  const signals = realExtractSignals(dossier);
+  const tensions = realDetectTensions(signals);
+  const patterns = realDetectPatterns(tensions, signals);
+  const hypotheses = realGenerateHypotheses(patterns, tensions, signals);
+  const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
+  const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
+  const plan = realPlanReport(implications, stressTested, patterns, tensions, signals);
+  return realWriteReport(plan, implications, stressTested, patterns, tensions, signals);
 }
