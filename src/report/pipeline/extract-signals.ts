@@ -100,8 +100,9 @@ function makeSignal(
 // ---------------------------------------------------------------------------
 
 /**
- * Pass 1: Narrative gap — company automation claims vs customer delivery experience.
+ * Pass 1: Narrative gap — company claims vs customer evidence divergence.
  * Looks at narrative_intelligence for divergence between claimed and expressed value.
+ * Generalized: uses actual gap language from the dossier, not hardcoded themes.
  */
 function extractNarrativeGapSignals(dossier: Dossier, companyId: string): Signal[] {
   const ni = dossier.narrative_intelligence;
@@ -113,15 +114,15 @@ function extractNarrativeGapSignals(dossier: Dossier, companyId: string): Signal
   for (const gap of ni.narrative_gaps) {
     if (gap.company_language.length === 0 || gap.customer_language.length === 0) continue;
 
-    const companyExamples = ni.company_claimed_value.flatMap(c => c.language_examples);
-    const customerExamples = ni.customer_expressed_value.flatMap(c => c.language_examples);
+    const companyTheme = ni.company_claimed_value[0]?.theme ?? 'Company';
+    const customerTheme = ni.customer_expressed_value[0]?.theme ?? 'customer evidence';
     const claimEvidence = ni.company_claimed_value.flatMap(c => c.evidence_ids);
     const customerEvidence = ni.customer_expressed_value.flatMap(c => c.evidence_ids);
 
     signals.push(makeSignal(companyId, dossier, {
       kind: 'positioning',
-      title: `${ni.company_claimed_value[0]?.theme ?? 'Company'} narrative stronger than observable delivery automation`,
-      statement: `Marketing materials emphasize ${companyExamples[0] ?? 'automation'}, but customer feedback describes ${customerExamples[0]?.toLowerCase() ?? 'human involvement'} during implementation and setup.`,
+      title: `${companyTheme} narrative stronger than ${customerTheme} evidence`,
+      statement: `${gap.gap_description}. Company language emphasizes ${gap.company_language.slice(0, 2).join(', ')}, while customer language describes ${gap.customer_language.slice(0, 2).join(', ')}.`,
       evidence_ids: [...claimEvidence, ...customerEvidence],
       claim_ids: claimEvidence,
       inference_label: 'light_inference',
@@ -129,7 +130,7 @@ function extractNarrativeGapSignals(dossier: Dossier, companyId: string): Signal
       relevance: 'high',
       novelty: 'medium',
       polarity: 'mixed',
-      tags: ['narrative_gap', 'automation', 'positioning'],
+      tags: ['narrative_gap', 'positioning', 'positioning_gap'],
     }));
   }
 
@@ -139,6 +140,7 @@ function extractNarrativeGapSignals(dossier: Dossier, companyId: string): Signal
 /**
  * Pass 2: Customer language patterns — what customers credit for value.
  * Looks at customer_expressed_value and customer_language_patterns.
+ * Generalized: uses actual pattern text from the dossier to build the signal.
  */
 function extractCustomerLanguageSignals(dossier: Dossier, companyId: string): Signal[] {
   const ni = dossier.narrative_intelligence;
@@ -146,22 +148,32 @@ function extractCustomerLanguageSignals(dossier: Dossier, companyId: string): Si
 
   const signals: Signal[] = [];
 
-  // Customer attribution pattern
   for (const pattern of ni.customer_language_patterns) {
     const custEvidence = ni.customer_expressed_value.flatMap(v => v.evidence_ids);
     const allEvidence = unique([...pattern.evidence_ids, ...custEvidence]);
+    const customerTheme = ni.customer_expressed_value[0]?.theme ?? 'customer perception';
+
+    // Determine tags dynamically based on pattern content
+    const patternText = pattern.pattern.toLowerCase();
+    const tags: string[] = ['customer_voice', 'buyer_language'];
+    if (/human|support|consult|onboarding/i.test(patternText)) {
+      tags.push('service_dependency');
+    }
+    if (/small.team|smb|not.*(enterprise|platform)|startup/i.test(patternText)) {
+      tags.push('segment_perception', 'positioning_gap');
+    }
 
     signals.push(makeSignal(companyId, dossier, {
       kind: 'customer',
-      title: 'Customer language credits human support over product automation',
-      statement: `Across multiple review platforms, customers attribute value to onboarding specialists and human consultants rather than to autonomous product capability. ${pattern.pattern}.`,
+      title: `Customer language diverges from company positioning toward ${customerTheme}`,
+      statement: `${pattern.interpretation}. Customer language patterns suggest a different value perception than the company narrative implies.`,
       evidence_ids: allEvidence,
       inference_label: 'direct',
       confidence: 'medium',
       relevance: 'high',
       novelty: 'medium',
       polarity: 'mixed',
-      tags: ['customer_voice', 'service_dependency', 'buyer_language'],
+      tags,
     }));
   }
 
@@ -385,6 +397,165 @@ function extractServicesRevenueSignals(dossier: Dossier, companyId: string): Sig
   })];
 }
 
+/**
+ * Pass 9: Customer segment concentration.
+ * Detects when observable customer evidence clusters in a narrow segment.
+ * Examines case_study_signals, case_study_record evidence, and review_record evidence.
+ */
+function extractCustomerSegmentSignals(dossier: Dossier, companyId: string): Signal[] {
+  const csSignals = dossier.customer_and_personas.case_study_signals;
+  const customerEvidence = dossier.evidence.filter(e =>
+    e.evidence_type === 'case_study_record' ||
+    e.evidence_type === 'review_record' ||
+    e.evidence_type === 'testimonial_record'
+  );
+  if (customerEvidence.length === 0) return [];
+
+  // Look for customer size data in normalized_fields
+  const sizes: number[] = [];
+  const evidenceIds: string[] = [];
+  for (const ev of customerEvidence) {
+    const size = ev.normalized_fields?.['customer_size']
+      ?? ev.normalized_fields?.['reviewer_team_size']
+      ?? ev.normalized_fields?.['reviewer_company_size'];
+    if (typeof size === 'number') {
+      sizes.push(size);
+      evidenceIds.push(ev.evidence_id);
+    }
+  }
+
+  if (sizes.length < 2) return [];
+
+  // Check if all observable customers are small (under a threshold)
+  const maxSize = Math.max(...sizes);
+  const avgSize = sizes.reduce((a, b) => a + b, 0) / sizes.length;
+
+  if (maxSize > 50) return []; // Not a clear small-org concentration
+
+  const sizeDescriptions = sizes.sort((a, b) => a - b).join(', ');
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'customer',
+    title: 'Customer base skewed toward small organizations',
+    statement: `All identifiable customers are small organizations with team sizes of ${sizeDescriptions} employees (average ${Math.round(avgSize)}). No customer with more than ${maxSize} employees is observable in available evidence.`,
+    evidence_ids: unique(evidenceIds),
+    inference_label: 'direct',
+    confidence: sizes.length >= 3 ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['customer_concentration', 'segment_evidence', 'smb_signal'],
+  })];
+}
+
+/**
+ * Pass 10: Pricing-segment alignment.
+ * Detects when pricing_signals reveal market segment targeting.
+ * Looks at pricing_signals for segment indicators (SMB, mid-market, enterprise).
+ */
+function extractPricingSegmentSignals(dossier: Dossier, companyId: string): Signal[] {
+  const pricingSignals = dossier.product_and_offer.pricing_signals;
+  if (pricingSignals.length === 0) return [];
+
+  // Look for segment-indicating patterns in pricing signals
+  const segmentIndicators = pricingSignals.filter(s =>
+    /small.team|smb|mid.market|self.serve|low.entry|user.cap|starter/i.test(s)
+  );
+
+  if (segmentIndicators.length === 0) return [];
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'pricing',
+    title: 'Pricing tiers align with SMB or mid-market adoption',
+    statement: `Pricing structure indicates targeting of smaller organizations. ${segmentIndicators.join('. ')}.`,
+    evidence_ids: dossier.product_and_offer.pricing_model.evidence_ids,
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['pricing', 'segment_alignment', 'smb_signal'],
+  })];
+}
+
+/**
+ * Pass 11: Hiring-segment signal.
+ * Detects when hiring signals explicitly target a specific market segment,
+ * particularly when the segment differs from positioning.
+ */
+function extractHiringSegmentSignals(dossier: Dossier, companyId: string): Signal[] {
+  const hiring = dossier.gtm_model.hiring_signals;
+  if (hiring.length === 0) return [];
+
+  // Look for explicit segment labels in hiring signals
+  const segmentRoles = hiring.filter(h => {
+    const text = `${h.role_title} ${h.signal} ${h.department}`;
+    return /smb|small.business|mid.market|velocity|high.volume/i.test(text);
+  });
+
+  if (segmentRoles.length === 0) return [];
+
+  const allEvidence = unique(segmentRoles.flatMap(h => h.evidence_ids));
+  const roleDescriptions = segmentRoles.map(h => h.signal).join('. ');
+
+  // Look for deal size or portfolio data
+  let dealContext = '';
+  for (const evId of allEvidence) {
+    const ev = dossier.evidence.find(e => e.evidence_id === evId);
+    if (ev?.normalized_fields?.['deal_size_range']) {
+      dealContext += ` Deal sizes target ${ev.normalized_fields['deal_size_range']}.`;
+    }
+    if (ev?.normalized_fields?.['portfolio_size']) {
+      dealContext += ` Account portfolios of ${ev.normalized_fields['portfolio_size']} suggest high-volume model.`;
+    }
+  }
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'talent',
+    title: 'Hiring signals emphasize SMB sales motion',
+    statement: `Sales and customer success hiring explicitly targets SMB segment. ${roleDescriptions}.${dealContext}`,
+    evidence_ids: allEvidence,
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['hiring_signal', 'segment_alignment', 'smb_signal'],
+  })];
+}
+
+/**
+ * Pass 12: Positioning-evidence credibility gap.
+ * Detects absence of proof for positioning claims using value_alignment_summary.
+ */
+function extractPositioningCredibilityGapSignals(dossier: Dossier, companyId: string): Signal[] {
+  const ni = dossier.narrative_intelligence;
+  const vas = ni.value_alignment_summary ?? [];
+  if (vas.length === 0) return [];
+
+  // Look for divergent alignment themes
+  const divergent = vas.filter(v => v.alignment === 'divergent' || v.alignment === 'company_only');
+  if (divergent.length === 0) return [];
+
+  const allEvidence = unique(divergent.flatMap(v => v.evidence_ids));
+  const themes = divergent.map(v =>
+    `Company says ${v.company_language.slice(0, 2).join(', ')} but customers say ${v.customer_language.slice(0, 2).join(', ')}`
+  );
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'credibility',
+    title: 'Positioning claims lack supporting customer evidence',
+    statement: `Value alignment analysis reveals divergence between company positioning and customer perception. ${themes.join('. ')}.`,
+    evidence_ids: allEvidence,
+    inference_label: 'light_inference',
+    confidence: 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'negative',
+    tags: ['positioning_gap', 'credibility', 'segment_evidence'],
+  })];
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -418,6 +589,10 @@ export function extractSignals(dossier: Dossier): Signal[] {
     ...extractInternalPerceptionSignals(dossier, companyId),
     ...extractFundingHiringMismatchSignals(dossier, companyId),
     ...extractServicesRevenueSignals(dossier, companyId),
+    ...extractCustomerSegmentSignals(dossier, companyId),
+    ...extractPricingSegmentSignals(dossier, companyId),
+    ...extractHiringSegmentSignals(dossier, companyId),
+    ...extractPositioningCredibilityGapSignals(dossier, companyId),
   ];
 
   return deduplicateSignals(raw);

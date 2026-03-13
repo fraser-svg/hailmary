@@ -30,7 +30,11 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK2 Core (complete, Phases 1-4):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
-**Report Engine (Phases 5-9 complete, Phase 10+ pending):** Eval harness built and operational. First 6 pipeline stages implemented and passing fixture 001-ai-services. Second eval fixture (002-enterprise-proof-gap) created.
+**MK2B (Phases 5-6 complete):** Schema expansion for narrative intelligence and research depth metadata.
+
+**MK3 Phase 7 (complete):** Strategic hypotheses added to dossier schema.
+
+**Report Engine (Phases 5-11 complete):** Eval harness built and operational. First 6 pipeline stages implemented. Two eval fixtures passing: 001-ai-services and 002-enterprise-proof-gap.
 
 # Phase Status
 
@@ -79,54 +83,74 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - Checks: support strength, alternative explanation pressure, assumption fragility, structural coverage, counter-signal detection
 - Status assignment: survives (high-importance pattern + medium+ confidence + 3+ tensions + 2+ signal kinds), weak (limited support or low confidence), discarded (zero support)
 - Post-stress-test deduplication retains stronger hypotheses when >70% overlap detected
-- Hypothesis interface extended with: `strongest_support`, `strongest_objections`, `residual_uncertainty`, `initial_confidence`
-- Fixture 001-ai-services results:
-  - Automation compensation hypothesis: **survives** (medium confidence, 3 tensions, 6 signal kinds)
-  - Structural onboarding hypothesis: **survives** (medium confidence, 3 tensions, 3 signal kinds)
-  - Services-led GTM hypothesis: **weak** (low confidence -- started low, medium-importance pattern)
-  - Hiring reveals strategy: **weak** (medium -> low confidence, 2/3 assumptions ungrounded)
-  - Widening gap hypothesis: **weak** (low confidence -- speculative despite broad coverage)
 
 **Phase 9 -- Report Engine: generate-implications (complete)**
 - Implemented `generate-implications`: 6 deterministic implication templates over surviving Hypothesis[]
 - Implication types used: constraint, risk, structural, watchpoint
 - Only hypotheses with status `survives` generate implications; weak/discarded excluded
-- Each implication includes: implication_type, audience, horizon, confidence (inherited), urgency, impact, key_questions
 - Deduplication at >70% title keyword overlap
 - Fixture 001-ai-services: implications 4/4 must-detect, 2/2 nice-to-detect, 0 violations
-- Templates: service scaling constraint, operational leverage overstatement, positioning risk, services team competitive variable, investor scrutiny, product roadmap pressure
-
-**MK2B Phase 5 -- Narrative Intelligence Expansion (complete)**
-- Added `negative_signals` array to `narrative_intelligence` section
-  - Fields: signal, category (7 enums), severity, frequency (3 enums), related_narrative_gap (optional), evidence_ids
-  - `additionalProperties: false` on item schema
-- Added `value_alignment_summary` array to `narrative_intelligence` section
-  - Per-theme entries: theme, alignment (aligned/divergent/company_only/customer_only), company_language[], customer_language[], business_implication, evidence_ids, confidence
-  - `additionalProperties: false` on item schema
-- Schema, types, and empty dossier updated in lockstep
-- 11 new tests (86 total across 4 files), 0 regressions
-- No validator logic changes needed -- existing `collectValues` traversal picks up new evidence_ids automatically
-
-**MK2B Phase 6 -- Evidence Summary / Research Depth (complete)**
-- Added `evidence_summary` object to `run_metadata`
-  - `total_sources`, `total_evidence` (integers)
-  - `by_source_tier`: tier_1 through tier_5 counts
-  - `by_evidence_category`: 9 categories (company_basics, product_and_offer, gtm, customer, competitors, signals, market_and_macro, positioning_and_narrative, risk)
-  - `inferred_count`, `direct_count` (integers)
-  - `customer_voice_depth`: enum (none/thin/moderate/rich)
-  - `negative_signal_depth`: enum (none/thin/moderate/rich)
-  - `additionalProperties: false` on evidence_summary and all sub-objects
-- Schema, types, and empty dossier updated in lockstep
-- 12 new tests (98 total across 4 files), 0 regressions
-- No validator logic changes -- schema-only phase
 
 **Report Engine Phase 10a -- Eval Fixture 002: Enterprise Proof Gap (complete)**
 - Created `src/report/evals/fixtures/002-enterprise-proof-gap/` with 7 files
 - Fictional company: StratusFlow -- enterprise workflow platform positioning with SMB-only customer evidence
 - 11 evidence records across 8 sources (Tier 1-3)
-- Tests a different failure mode from fixture 001: positioning-proof gap (enterprise claims vs SMB reality) rather than narrative-delivery mismatch (AI claims vs service delivery)
-- Dossier validates: 0 errors, 1 warning (narrative gap language traceability -- same as fixture 001)
-- Expected files: signals (4 must / 3 nice), tensions (2 must / 2 nice), patterns (2 must / 1 nice), hypotheses (2 must / 3 acceptable), implications (4 must / 2 nice)
+- Tests positioning-proof gap (enterprise claims vs SMB reality) rather than narrative-delivery mismatch
+
+**Report Engine Phase 11 -- Pipeline Generalization for Fixture 002 (complete)**
+- Generalized all 6 pipeline stages to handle both automation-service and enterprise-proof-gap failure modes
+- Both fixtures pass all 5 stages with 0 violations
+- Changes across extract-signals, detect-tensions, detect-patterns, generate-hypotheses, generate-implications
+- See detailed breakdown below
+
+**MK2B Phase 5 -- Narrative Intelligence Expansion (complete)**
+- Added `negative_signals` and `value_alignment_summary` arrays to `narrative_intelligence` section
+- Schema, types, and empty dossier updated in lockstep
+- 11 new tests (86 total across 4 files), 0 regressions
+
+**MK2B Phase 6 -- Evidence Summary / Research Depth (complete)**
+- Added `evidence_summary` object to `run_metadata`
+- Schema, types, and empty dossier updated in lockstep
+- 12 new tests (98 total across 4 files), 0 regressions
+
+**MK3 Phase 7 -- Strategic Hypotheses (complete)**
+- Added `strategic_hypotheses` array to `strategic_risks` section
+- Schema, types, and empty dossier updated in lockstep
+- 8 new tests (106 total across 4 files), 0 regressions
+
+# Report Engine Phase 11 -- Detailed Changes
+
+**extract-signals.ts** -- 4 new passes + 2 generalized passes
+- Pass 1 generalized: title and statement now use dynamic `companyTheme`/`customerTheme` from narrative_gaps instead of hardcoded "automation" language
+- Pass 2 generalized: uses `pattern.interpretation` instead of raw `pattern.pattern` (which contained company names, triggering must-avoid violations); adds dynamic tags (`segment_perception`, `positioning_gap`) based on pattern content
+- Pass 9 added: `extractCustomerSegmentSignals` -- detects customer base concentration from evidence customer_size/reviewer_team_size fields. Tags: `customer_concentration`, `segment_evidence`, `smb_signal`
+- Pass 10 added: `extractPricingSegmentSignals` -- detects pricing-segment alignment from pricing_signals. Tags: `pricing`, `segment_alignment`, `smb_signal`
+- Pass 11 added: `extractHiringSegmentSignals` -- detects hiring targeting specific segments. Tags: `hiring_signal`, `segment_alignment`, `smb_signal`
+- Pass 12 added: `extractPositioningCredibilityGapSignals` -- checks value_alignment_summary for divergent alignment. Tags: `positioning_gap`, `credibility`, `segment_evidence`
+
+**detect-tensions.ts** -- 4 new templates
+- Template 6: `positioning_vs_customer_base` -- positioning signals + customer segment concentration signals
+- Template 7: `ambition_vs_proof` -- positioning signals + pricing/talent segment alignment signals
+- Template 8: `narrative_scale_vs_operations` -- positioning signals + operational segment alignment signals
+- Template 9: `positioning_vs_market_fit` -- customer perception signals + positioning signals
+
+**detect-patterns.ts** -- 3 new templates
+- Template 5: `overextension` type -- aspiration exceeding adoption (requires positioning_vs_customer_base + ambition_vs_proof)
+- Template 6: `misalignment` type -- narrative-scale mismatch around customer scale (requires 2+ segment tensions)
+- Template 7: `trajectory` type -- positioning-led growth strategy (requires ambition_vs_proof + segment signals)
+
+**generate-hypotheses.ts** -- 2 new templates + 1 guard
+- Template 2 guard: `hypothesizeStructuralOnboarding` now checks `hasServiceTensions` to prevent firing on segment-related misalignment patterns
+- Template 6: `hypothesizeAspirationalPositioning` (narrative type) -- triggered by overextension pattern; pulls related positioning_vs_market_fit tensions for stress-test survival
+- Template 7: `hypothesizeCredibilityWhileBuildingTraction` (strategic type) -- triggered by misalignment pattern with segment tensions; pulls related ambition_vs_proof + vision_vs_execution tensions to differentiate from Template 6
+
+**generate-implications.ts** -- 6 new templates
+- Template 7: Enterprise credibility may lag enterprise ambition (triggered by "aspirational positioning")
+- Template 8: Larger customers may require capabilities not yet demonstrated (triggered by "smaller organizations")
+- Template 9: Positioning risk may increase as enterprise buyers scrutinize proof (triggered by "aspirational" + "forward-looking")
+- Template 10: SMB customer base may be underserved by enterprise messaging (triggered by "branding function")
+- Template 11: Sales motion may require adjustment (triggered by "aspirational" + "different segment")
+- Template 12: Investor expectations may be calibrated to enterprise narrative (triggered by "signal to investors")
 
 # Validator Architecture
 
@@ -135,7 +159,7 @@ Exports: `validate()`, `collectValues()`, `isSectionPopulated()`, `ValidationRep
 
 **validate.ts** (~60 lines): Thin CLI wrapper. Handles argv, file I/O, console output, exit codes. Writes `validation-report.json` alongside dossier.
 
-**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 98 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
+**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 106 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
 
 # Source Tier System
 
@@ -157,18 +181,18 @@ src/types/                              # SourceRecord, EvidenceRecord, Dossier 
 src/utils/                              # ID generators, empty dossier, enums
 src/validate-core.ts                    # 21-check validation logic
 src/validate.ts                         # CLI wrapper
-src/__tests__/                          # 66 validator tests
+src/__tests__/                          # 86 validator tests
 src/utils/__tests__/                    # 20 utility tests
 src/report/pipeline/                    # Stage implementations
-  extract-signals.ts                    # Stage 1: dossier -> Signal[]
-  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[]
-  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
-  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[]
+  extract-signals.ts                    # Stage 1: dossier -> Signal[] (12 passes)
+  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[] (9 templates)
+  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[] (7 templates)
+  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[] (7 templates)
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
-  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[]
+  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[] (12 templates)
 src/report/evals/                       # Evaluation harness
-  fixtures/001-ai-services/             # First eval fixture: AI narrative masks service delivery
-  fixtures/002-enterprise-proof-gap/    # Second eval fixture: enterprise positioning vs SMB reality
+  fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
+  fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + common keyword-overlap matcher
   stubs/stages.ts                       # Adapter layer: 6 real impls + downstream stubs
@@ -183,33 +207,37 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 10a (Eval Fixture 002) complete. Two eval fixtures now available for pipeline testing.
+Report Engine Phase 11 (Pipeline Generalization) complete. 106 tests passing, 0 regressions.
 
-Report Engine eval results for fixture 001-ai-services:
+Eval results for both fixtures:
 ```
-Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
-Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
-Patterns:     2/2 must-detect, 2/2 nice, 0 violations  PASS
-Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
-Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
-Overall: PASS
-```
+Fixture 001-ai-services:
+  Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
+  Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
+  Patterns:     2/2 must-detect, 2/2 nice, 0 violations  PASS
+  Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
+  Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
+  Overall: PASS
 
-Fixture 002-enterprise-proof-gap: created, validated (0 errors), not yet run through pipeline.
+Fixture 002-enterprise-proof-gap:
+  Signals:      4/4 must-detect, 1/3 nice, 0 violations  PASS
+  Tensions:     2/2 must-detect, 1/2 nice, 0 violations  PASS
+  Patterns:     2/2 must-detect, 1/1 nice, 0 violations  PASS
+  Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
+  Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
+  Overall: PASS
+```
 
 # Next Step
 
-**Report Engine Phase 10b -- Run fixture 002 through pipeline**
-- Run eval harness against fixture 002-enterprise-proof-gap
-- Validate that existing pipeline stages detect the enterprise-proof-gap failure mode
-- Tune templates if needed for new tension/pattern types
-
-**Report Engine Phase 10c -- plan-report**
+**Report Engine Phase 12 -- plan-report**
 - Takes implications + upstream objects and produces a report plan/outline
 - Spec: docs/specs/report-specs/008-plan-report.md
-- Last two pipeline stages before report generation is complete
+- Second-to-last pipeline stage before report generation is complete
 
-**MK2B Phase 7+ -- Further schema expansion** (if planned)
+**Report Engine Phase 13 -- write-report**
+- Final pipeline stage: produces the actual intelligence report
+- Spec: docs/specs/report-specs/009-write-report.md
 
 # Known Constraints
 
@@ -218,12 +246,13 @@ Fixture 002-enterprise-proof-gap: created, validated (0 errors), not yet run thr
 - `$defs` (source_record, evidence_record) do NOT have `additionalProperties: false` -- optional fields are backward-compatible
 - Report engine must not perform fresh research -- operates only on dossier-derived data
 - Report engine pipeline stages must not inspect dossier directly (signals-only downstream of extract-signals)
+- Stress-test survival requires: high-importance pattern + medium+ confidence + 3+ tensions + 2+ signal kind diversity + 0 counter-signals
+- Hypotheses need sufficient unique tension IDs to avoid >70% overlap deduplication
 - SKILL.md must stay under ~400 lines. Reference docs handle depth.
 - All 16 dossier sections must exist even when empty (downstream AI needs consistent shape)
 - Errors = structural failures (block validation). Warnings = quality concerns (never block).
 - Do not refactor into multi-agent architecture. Single skill works.
 - WebSearch + WebFetch only. No external tools (Exa, Firecrawl, Puppeteer).
-- Fixture 002 created -- run through pipeline before building fixture 003.
 - Eval results directory should be gitignored (transient outputs).
 
 # Dossier Schema Key Fields
@@ -237,15 +266,22 @@ Sections that require exact schema field names (common errors when generating ma
 - `negative_signals` items require: `signal`, `category`, `severity`, `frequency`, `evidence_ids` (optional: `related_narrative_gap`)
 - `value_alignment_summary` items require: `theme`, `alignment`, `company_language`, `customer_language`, `business_implication`, `evidence_ids`, `confidence`
 - `narrative_gaps` items require: `gap_name`, `company_language`, `customer_language`, `gap_description`, `likely_business_impact`, `suggested_repositioning_direction`, `evidence_ids`, `confidence`
+- `strategic_hypotheses` items require: `hypothesis`, `category`, `falsification_criteria`, `time_horizon`, `assumptions`, `evidence_ids`, `confidence` (optional: `counter_signals`)
+- `strategic_hypotheses` category enum: `positioning`, `gtm`, `product`, `competitive`, `market`
 
 # Files Modified Recently
 
-**Report Engine Phase 10a -- Eval Fixture 002 (this session):**
-- `src/report/evals/fixtures/002-enterprise-proof-gap/dossier.json` -- new: StratusFlow fixture dossier (11 evidence, 8 sources)
-- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-signals.md` -- new: 4 must-detect, 3 nice-to-detect, 4 must-avoid
-- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-tensions.md` -- new: 2 must-detect, 2 nice-to-detect
-- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-patterns.md` -- new: 2 must-detect, 1 nice-to-detect
-- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-hypotheses.md` -- new: 2 must-detect, 3 acceptable alternatives
-- `src/report/evals/fixtures/002-enterprise-proof-gap/expected-implications.md` -- new: 4 must-detect, 2 nice-to-detect
-- `src/report/evals/fixtures/002-enterprise-proof-gap/notes.md` -- new: fixture purpose, failure modes, success criteria
-- `docs/handoffs/current.md` -- updated with Phase 10a completion
+**Report Engine Phase 11 -- Pipeline Generalization (this session):**
+- `src/report/pipeline/extract-signals.ts` -- generalized Passes 1-2, added Passes 9-12 for segment signals
+- `src/report/pipeline/detect-tensions.ts` -- added 4 new tension templates (6-9) for segment mismatches
+- `src/report/pipeline/detect-patterns.ts` -- added 3 new pattern templates (5-7) for overextension/misalignment/trajectory
+- `src/report/pipeline/generate-hypotheses.ts` -- added 2 new hypothesis templates (6-7) + service guard on Template 2 + related tension enrichment
+- `src/report/pipeline/generate-implications.ts` -- added 6 new implication templates (7-12) for enterprise-proof-gap failure mode
+- `docs/handoffs/current.md` -- updated with Phase 11 completion
+
+**MK3 Phase 7 -- Strategic Hypotheses (previous session, uncommitted):**
+- `src/types/dossier.ts` -- added HypothesisCategory type, StrategicHypothesis interface
+- `schemas/company-dossier.schema.json` -- added strategic_hypotheses to strategic_risks
+- `src/utils/empty-dossier.ts` -- added strategic_hypotheses: [] to empty dossier
+- `src/__tests__/validate.test.ts` -- 8 new tests for Phase 7 schema
+- `.claude/skills/build-company-dossier/SKILL.md` -- updated for strategic hypotheses

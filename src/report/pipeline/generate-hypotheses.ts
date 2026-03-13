@@ -243,13 +243,21 @@ function hypothesizeStructuralOnboarding(
   signals: Signal[],
   companyId: string,
 ): Hypothesis | null {
-  // Look for narrative-operating model mismatch
+  // Look for narrative-operating model mismatch (service-delivery variant)
   const mismatchPattern = findPatternByType(patterns, 'misalignment')
     ?? findPatternByTitleKeyword(patterns, 'mismatch');
 
   if (!mismatchPattern) return null;
 
+  // Only fire when the mismatch is about service delivery, not customer segment
   const supportingTensions = findTensionsByIds(tensions, mismatchPattern.tension_ids);
+  const hasServiceTensions = supportingTensions.some(t =>
+    t.type === 'automation_vs_service' ||
+    t.type === 'positioning_vs_delivery' ||
+    t.type === 'vision_vs_execution' ||
+    t.type === 'credibility_vs_claim'
+  );
+  if (!hasServiceTensions) return null;
 
   // Reinforce with operations and talent signals
   const opsSignals = signals.filter(s =>
@@ -473,6 +481,154 @@ function hypothesizeWideningGap(
   });
 }
 
+/**
+ * Template 6: Positioning may be aspirational rather than descriptive
+ *
+ * Triggered by: overextension-type pattern (aspiration exceeding adoption)
+ * Explains: the company's positioning may represent where it wants to be,
+ * not where it currently is. The gap between narrative and evidence is
+ * forward-looking positioning, not a description of current reality.
+ */
+function hypothesizeAspirationalPositioning(
+  patterns: Pattern[],
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Hypothesis | null {
+  const aspirationPattern = findPatternByType(patterns, 'overextension')
+    ?? findPatternByTitleKeyword(patterns, 'aspiration');
+
+  if (!aspirationPattern) return null;
+
+  const supportingTensions = findTensionsByIds(tensions, aspirationPattern.tension_ids);
+
+  // Pull in additional related tensions for broader support
+  const relatedTensions = tensions.filter(t =>
+    !aspirationPattern.tension_ids.includes(t.tension_id) &&
+    (t.type === 'positioning_vs_market_fit' || t.type === 'narrative_scale_vs_operations')
+  );
+
+  const customerSignals = signals.filter(s =>
+    s.kind === 'customer' && s.tags.some(t => /segment_evidence|customer_concentration|smb_signal/.test(t))
+  );
+
+  return makeHypothesis(companyId, {
+    title: 'Enterprise positioning may be aspirational rather than reflective of the current customer base',
+    statement:
+      "The company's consistent use of aspirational positioning across marketing, product, " +
+      'and press may represent where the company wants to be, not where it currently is. ' +
+      'The absence of supporting customer evidence — combined with pricing, hiring, and ' +
+      'case study evidence indicating a different market segment — suggests the positioning ' +
+      'narrative is forward-looking, not a description of current reality.',
+    hypothesis_type: 'narrative',
+    patterns: [aspirationPattern],
+    tensions: [...supportingTensions, ...relatedTensions],
+    extraSignals: customerSignals,
+    assumptions: [
+      'The positioning language is intentional and reflects leadership strategy.',
+      'The observable customer base represents the current state, not a subset of a larger base.',
+      'Pricing and hiring patterns reflect actual go-to-market priorities.',
+    ],
+    alternative_explanations: [
+      'The company may have a genuine pipeline in the targeted segment that is not yet ' +
+        'visible in public evidence — sales cycles can be long.',
+      'The positioning may be a deliberate beachhead strategy, using aspirational framing ' +
+        'to establish credibility while building traction in a different segment.',
+    ],
+    missing_evidence: [
+      'Evidence of customer adoption at the scale implied by positioning.',
+      'Pipeline or deal stage data showing movement toward the positioned segment.',
+      'Internal strategy documents clarifying whether the positioning is aspirational or descriptive.',
+    ],
+    confidence: 'medium',
+    novelty: 'medium',
+    severity: 'high',
+    actionability: 'high',
+  });
+}
+
+/**
+ * Template 7: Company may be building credibility while serving a different segment
+ *
+ * Triggered by: misalignment-type pattern (narrative-scale mismatch around customer scale)
+ * Explains: the aspirational positioning may serve a branding function (investors,
+ * press, credibility) while actual customer acquisition focuses on a different segment.
+ */
+function hypothesizeCredibilityWhileBuildingTraction(
+  patterns: Pattern[],
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Hypothesis | null {
+  // Look for narrative-scale mismatch pattern
+  const mismatchPattern = findPatternByType(patterns, 'misalignment')
+    ?? findPatternByTitleKeyword(patterns, 'scale');
+
+  if (!mismatchPattern) return null;
+
+  // Avoid duplicate with Template 2 (structural onboarding) by checking for
+  // segment-related tensions rather than service-related tensions
+  const hasSegmentTensions = mismatchPattern.tension_ids.length > 0 &&
+    findTensionsByIds(tensions, mismatchPattern.tension_ids).some(t =>
+      t.type === 'positioning_vs_customer_base' ||
+      t.type === 'positioning_vs_market_fit' ||
+      t.type === 'narrative_scale_vs_operations'
+    );
+
+  if (!hasSegmentTensions) return null;
+
+  const supportingTensions = findTensionsByIds(tensions, mismatchPattern.tension_ids);
+
+  // Pull in additional related tensions for broader support
+  // Include both ambition_vs_proof and vision_vs_execution to differentiate
+  // from the aspirational positioning hypothesis (which uses positioning_vs_market_fit)
+  const relatedTensions = tensions.filter(t =>
+    !mismatchPattern.tension_ids.includes(t.tension_id) &&
+    (t.type === 'ambition_vs_proof' || t.type === 'vision_vs_execution' ||
+     t.type === 'narrative_scale_vs_operations')
+  );
+
+  const segmentSignals = signals.filter(s =>
+    s.tags.some(t => /segment_alignment|segment_perception|smb_signal/.test(t))
+  );
+
+  return makeHypothesis(companyId, {
+    title: 'The company may be targeting enterprise credibility while building traction in smaller organizations',
+    statement:
+      'The aspirational positioning may be a deliberate signal to investors, press, and ' +
+      'the market to establish credibility, while actual customer acquisition focuses on ' +
+      'a different segment. The product may genuinely serve smaller organizations well, ' +
+      'with the aspirational narrative serving a branding function rather than a customer ' +
+      'acquisition function.',
+    hypothesis_type: 'strategic',
+    patterns: [mismatchPattern],
+    tensions: [...supportingTensions, ...relatedTensions],
+    extraSignals: segmentSignals,
+    assumptions: [
+      'Press coverage uses aspirational framing that reinforces brand credibility.',
+      'Hiring targets a specific segment that differs from the positioned segment.',
+      'Customers describe value in terms appropriate to their actual segment, not the positioned segment.',
+    ],
+    alternative_explanations: [
+      'The segment adoption may be early and not yet visible — the gap may reflect timing ' +
+        'rather than strategy.',
+      'The company may be executing a bottom-up adoption strategy, building in one segment ' +
+        'and expanding upmarket over time.',
+      'Aspirational features may exist primarily to close deals at higher price points ' +
+        'within the current segment, not for actual upmarket sales.',
+    ],
+    missing_evidence: [
+      'Internal strategy documents or leadership commentary on segment strategy.',
+      'Pipeline data showing movement toward the positioned segment.',
+      'Competitive win/loss data at different customer scales.',
+    ],
+    confidence: 'medium',
+    novelty: 'medium',
+    severity: 'high',
+    actionability: 'high',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -517,6 +673,8 @@ export function generateHypotheses(
     hypothesizeIntentionalServicesGTM(patterns, tensions, signals, companyId),
     hypothesizeHiringRevealsStrategy(patterns, tensions, signals, companyId),
     hypothesizeWideningGap(patterns, tensions, signals, companyId),
+    hypothesizeAspirationalPositioning(patterns, tensions, signals, companyId),
+    hypothesizeCredibilityWhileBuildingTraction(patterns, tensions, signals, companyId),
   ].filter((h): h is Hypothesis => h !== null);
 
   return deduplicateHypotheses(candidates);

@@ -370,6 +370,235 @@ function implyProductRoadmapPressure(
   });
 }
 
+/**
+ * Template 7: Enterprise credibility lag
+ *
+ * Triggered by hypotheses about aspirational positioning.
+ * If the positioning is aspirational, enterprise buyers doing due diligence
+ * may find the absence of enterprise references to be a credibility gap.
+ */
+function implyEnterpriseCredibilityLag(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must be about aspirational positioning
+  if (!textContains(text, ['aspirational positioning', 'aspirational rather than'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Enterprise credibility may lag enterprise ambition',
+    statement:
+      'If the positioning is aspirational, enterprise buyers conducting due diligence ' +
+      'may find the absence of enterprise references, case studies, and large-scale ' +
+      'deployments to be a credibility gap. The more aggressive the enterprise narrative, ' +
+      'the more conspicuous the lack of enterprise proof becomes. Credibility may lag ' +
+      'ambition until the customer base catches up with the positioning.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'high',
+    impact: 'high',
+    key_questions: [
+      'How many reference customers exist at the scale implied by positioning?',
+      'What do enterprise prospects find when they conduct due diligence?',
+      'Does the company have case studies demonstrating enterprise-scale deployments?',
+    ],
+  });
+}
+
+/**
+ * Template 8: Larger customers may require undemonstrated capabilities
+ *
+ * Triggered by hypotheses about building traction in smaller organizations.
+ * If the customer base is primarily smaller organizations, the product's
+ * fitness for larger organizations is unproven.
+ */
+function implyLargerCustomerCapabilityGap(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must reference smaller organizations or traction in a different segment
+  if (!textContains(text, [
+    'smaller organizations',
+    'traction in smaller',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Larger customers may require capabilities not yet demonstrated',
+    statement:
+      'If the current customer base is primarily smaller organizations, the product\'s ' +
+      'fitness for larger buyers is unproven. Larger customers typically require advanced ' +
+      'permissioning, complex workflow orchestration, multi-team governance, and deep ' +
+      'integration capabilities that may exceed what the product has demonstrated in ' +
+      'practice with its current customer base.',
+    implication_type: 'risk',
+    audience: 'founder',
+    horizon: 'mid_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'What capabilities do larger buyers require that the current product has not demonstrated?',
+      'Has the product been tested in environments with the complexity larger buyers demand?',
+      'What is the gap between current product capabilities and larger buyer requirements?',
+    ],
+  });
+}
+
+/**
+ * Template 9: Positioning risk with enterprise scrutiny
+ *
+ * Triggered by hypotheses about aspirational forward-looking positioning.
+ * If the company actively pursues enterprise deals, prospects will seek
+ * reference customers — and the gap may create friction.
+ */
+function implyPositioningScrutinyRisk(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must be about aspirational/forward-looking positioning with evidence gap
+  if (!textContains(text, ['aspirational'])) return null;
+  if (!textContains(text, ['forward-looking', 'absence of supporting'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Positioning risk may increase as enterprise buyers scrutinize proof',
+    statement:
+      'If the company actively pursues larger deals, prospects may seek reference ' +
+      'accounts of similar size and industry. The gap between the positioning narrative ' +
+      'and observable proof points may create sales cycle friction, extended ' +
+      'evaluation periods, or lost opportunities. Scrutiny of proof intensifies as ' +
+      'buyers become more sophisticated and the stakes of each deal increase.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'high',
+    impact: 'high',
+    key_questions: [
+      'What happens when enterprise prospects request reference customers at their scale?',
+      'How long are enterprise sales cycles, and does proof availability affect close rates?',
+      'Does the company have a strategy for bridging the reference gap in enterprise deals?',
+    ],
+  });
+}
+
+/**
+ * Template 10: SMB underserved by enterprise messaging
+ *
+ * Triggered by hypotheses about credibility/branding function targeting
+ * a different segment than the actual customer base.
+ * If the actual customers are smaller organizations, enterprise messaging
+ * may alienate the best customers.
+ */
+function implySMBUnderservedByEnterpriseMessaging(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must be about branding/credibility function serving a different segment
+  if (!textContains(text, ['branding function', 'actual customer acquisition focuses'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'SMB customer base may be underserved by enterprise messaging',
+    statement:
+      'If the actual customer base consists of smaller organizations, the enterprise-heavy ' +
+      'marketing may be creating a positioning mismatch for the company\'s best customers. ' +
+      'Smaller buyers may feel the product is not designed for them, or may have different ' +
+      'expectations about support, pricing, and complexity based on the enterprise framing. ' +
+      'The customers who drive current revenue may be underserved by messaging that targets ' +
+      'a different buyer profile.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'How do current customers describe the product — using enterprise language or simpler terms?',
+      'Are smaller buyers confused or deterred by the enterprise positioning?',
+      'Does the messaging accurately reflect the value proposition for the actual customer base?',
+    ],
+  });
+}
+
+/**
+ * Template 11: Sales motion adjustment risk (nice to detect)
+ *
+ * Triggered by hypotheses about aspirational positioning with different
+ * market segment evidence. If enterprise proof remains thin, the current
+ * sales motion may not be equipped for enterprise cycles.
+ */
+function implySalesMotionAdjustment(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must reference aspirational positioning and different market segment
+  if (!textContains(text, ['aspirational'])) return null;
+  if (!textContains(text, ['different market segment', 'different segment'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Sales motion may require adjustment if enterprise proof remains thin',
+    statement:
+      'If the company attempts to move upmarket without building enterprise proof, ' +
+      'the current sales team — structured for shorter cycles and smaller deals — may ' +
+      'not be equipped for enterprise sales cycles that typically span longer periods ' +
+      'with multiple stakeholders. The sales motion may require adjustment to bridge ' +
+      'the gap between current capability and enterprise buyer expectations.',
+    implication_type: 'watchpoint',
+    audience: 'operator',
+    horizon: 'mid_term',
+    urgency: 'medium',
+    impact: 'medium',
+    key_questions: [
+      'Is the current sales team structured for the deal sizes and cycles the positioning implies?',
+      'What is the average sales cycle length, and how does it compare to enterprise benchmarks?',
+      'Does the company have enterprise sales experience or playbooks?',
+    ],
+  });
+}
+
+/**
+ * Template 12: Investor expectations calibration (nice to detect)
+ *
+ * Triggered by hypotheses about positioning as a signal to investors.
+ * If investors funded an enterprise thesis, they may expect enterprise metrics.
+ */
+function implyInvestorExpectationsCalibration(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  // Must be about signaling to investors / establishing credibility
+  if (!textContains(text, ['signal to investors', 'establish credibility'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Investor expectations may be calibrated to enterprise narrative',
+    statement:
+      'If capital was raised on an enterprise thesis, investors may expect enterprise ' +
+      'metrics — net revenue retention above benchmarks, expansion revenue, and large ' +
+      'logo acquisition. If the company\'s actual trajectory serves a different segment, ' +
+      'there may be a future disconnect between investor expectations and operational ' +
+      'reality. The enterprise narrative may set expectations that the current operating ' +
+      'model cannot fulfill.',
+    implication_type: 'risk',
+    audience: 'investor',
+    horizon: 'mid_term',
+    urgency: 'medium',
+    impact: 'medium',
+    key_questions: [
+      'Was the most recent funding round positioned around an enterprise thesis?',
+      'What metrics are investors tracking — and do they align with the actual customer base?',
+      'Is there a gap between investor expectations and operational trajectory?',
+    ],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -422,6 +651,12 @@ export function generateImplications(
     implyServicesTeamCompetitiveVariable,
     implyInvestorScrutiny,
     implyProductRoadmapPressure,
+    implyEnterpriseCredibilityLag,
+    implyLargerCustomerCapabilityGap,
+    implyPositioningScrutinyRisk,
+    implySMBUnderservedByEnterpriseMessaging,
+    implySalesMotionAdjustment,
+    implyInvestorExpectationsCalibration,
   ];
 
   // Apply each template to each surviving hypothesis

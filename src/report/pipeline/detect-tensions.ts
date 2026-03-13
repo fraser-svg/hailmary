@@ -27,6 +27,9 @@ export type TensionType =
   | 'automation_vs_service'
   | 'vision_vs_execution'
   | 'credibility_vs_claim'
+  | 'positioning_vs_customer_base'
+  | 'narrative_scale_vs_operations'
+  | 'positioning_vs_market_fit'
   | 'other';
 
 export interface Tension {
@@ -260,6 +263,142 @@ function detectCredibilityVsClaim(signals: Signal[], companyId: string): Tension
   });
 }
 
+/**
+ * Template 6: positioning_vs_customer_base
+ * Company positioning targets one market segment, but observable customer
+ * evidence concentrates in a different segment.
+ * Triggered by: positioning signals + customer segment concentration signals.
+ */
+function detectPositioningVsCustomerBase(signals: Signal[], companyId: string): Tension | null {
+  const positioningSignals = signals.filter(s =>
+    s.kind === 'positioning' && hasAnyTag(s, ['positioning_gap', 'narrative_gap'])
+  );
+  const customerSegmentSignals = signals.filter(s =>
+    hasAnyTag(s, ['customer_concentration', 'segment_evidence', 'smb_signal']) &&
+    (s.kind === 'customer' || s.kind === 'credibility')
+  );
+
+  if (positioningSignals.length === 0 || customerSegmentSignals.length === 0) return null;
+
+  const constituentSignals = [...positioningSignals, ...customerSegmentSignals];
+
+  return makeTension(companyId, {
+    type: 'positioning_vs_customer_base',
+    title: 'Enterprise positioning vs customer reality',
+    statement:
+      'The company positions itself for a market segment that does not match its observable ' +
+      'customer base. Positioning language targets one segment, but customer evidence — ' +
+      'case studies, reviews, and testimonials — consistently indicates adoption by a ' +
+      'different segment.',
+    signals: constituentSignals,
+    confidence: constituentSignals.length >= 3 ? 'high' : 'medium',
+    severity: 'high',
+    strategic_relevance: 'high',
+  });
+}
+
+/**
+ * Template 7: ambition_vs_proof
+ * Company ambition (visible in marketing, press, product emphasis) outpaces
+ * observable proof (customer evidence, deal sizes, deployments).
+ * Triggered by: positioning signals + pricing/hiring segment alignment signals.
+ */
+function detectAmbitionVsProof(signals: Signal[], companyId: string): Tension | null {
+  const ambitionSignals = signals.filter(s =>
+    s.kind === 'positioning' && hasAnyTag(s, ['positioning_gap', 'narrative_gap', 'positioning'])
+  );
+  const proofSignals = signals.filter(s =>
+    hasAnyTag(s, ['segment_alignment', 'smb_signal']) &&
+    (s.kind === 'pricing' || s.kind === 'talent')
+  );
+
+  if (ambitionSignals.length === 0 || proofSignals.length === 0) return null;
+
+  const constituentSignals = [...ambitionSignals, ...proofSignals];
+
+  return makeTension(companyId, {
+    type: 'ambition_vs_proof',
+    title: 'Ambition vs proof',
+    statement:
+      "The company's ambition is visible in marketing, press, and product feature emphasis. " +
+      'However, observable evidence — pricing structure, hiring patterns, deal sizes — ' +
+      'does not demonstrate the adoption or scale implied by the positioning. ' +
+      'Ambition outpaces demonstrated capability.',
+    signals: constituentSignals,
+    confidence: constituentSignals.length >= 3 ? 'high' : 'medium',
+    severity: 'high',
+    strategic_relevance: 'high',
+  });
+}
+
+/**
+ * Template 8: narrative_scale_vs_operations
+ * Marketing language speaks to one scale, but operational signals —
+ * hiring, pricing, CS structure — indicate a different scale.
+ * Triggered by: positioning signals + hiring segment + pricing segment signals.
+ */
+function detectNarrativeScaleVsOperations(signals: Signal[], companyId: string): Tension | null {
+  const narrativeSignals = signals.filter(s =>
+    s.kind === 'positioning' && hasAnyTag(s, ['positioning_gap', 'narrative_gap'])
+  );
+  const operationalSignals = signals.filter(s =>
+    hasAnyTag(s, ['segment_alignment', 'hiring_signal']) &&
+    (s.kind === 'talent' || s.kind === 'pricing') &&
+    hasAnyTag(s, ['smb_signal'])
+  );
+
+  if (narrativeSignals.length === 0 || operationalSignals.length === 0) return null;
+
+  const constituentSignals = [...narrativeSignals, ...operationalSignals];
+
+  return makeTension(companyId, {
+    type: 'narrative_scale_vs_operations',
+    title: 'Narrative scale vs operational evidence',
+    statement:
+      'Marketing language targets one scale of customer, but operational signals — ' +
+      'sales team structure, customer success portfolios, pricing tiers, and deal sizes — ' +
+      'are structured for a different scale. The narrative and the operating model ' +
+      'appear to target different market segments.',
+    signals: constituentSignals,
+    confidence: 'medium',
+    severity: 'medium',
+    strategic_relevance: 'high',
+  });
+}
+
+/**
+ * Template 9: positioning_vs_market_fit
+ * Company positions against one competitive set, but customers describe
+ * value in terms that align with a different competitive set.
+ * Triggered by: customer language signals with segment_perception + positioning signals.
+ */
+function detectPositioningVsMarketFit(signals: Signal[], companyId: string): Tension | null {
+  const customerPerceptionSignals = signals.filter(s =>
+    s.kind === 'customer' && hasAnyTag(s, ['segment_perception', 'buyer_language', 'positioning_gap'])
+  );
+  const positioningSignals = signals.filter(s =>
+    s.kind === 'positioning' && hasAnyTag(s, ['positioning_gap', 'narrative_gap'])
+  );
+
+  if (customerPerceptionSignals.length === 0 || positioningSignals.length === 0) return null;
+
+  const constituentSignals = [...customerPerceptionSignals, ...positioningSignals];
+
+  return makeTension(companyId, {
+    type: 'positioning_vs_market_fit',
+    title: 'Positioning vs market fit',
+    statement:
+      "The company's positioning targets one market segment, but customer language " +
+      'describes value in terms that align with a different segment. Customers perceive ' +
+      'the product in a competitive frame that differs from the company\'s intended ' +
+      'positioning, suggesting product-market fit may be in a different segment than claimed.',
+    signals: constituentSignals,
+    confidence: 'medium',
+    severity: 'medium',
+    strategic_relevance: 'high',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -301,6 +440,10 @@ export function detectTensions(signals: Signal[]): Tension[] {
     detectPositioningVsDelivery(signals, companyId),
     detectVisionVsExecution(signals, companyId),
     detectCredibilityVsClaim(signals, companyId),
+    detectPositioningVsCustomerBase(signals, companyId),
+    detectAmbitionVsProof(signals, companyId),
+    detectNarrativeScaleVsOperations(signals, companyId),
+    detectPositioningVsMarketFit(signals, companyId),
   ].filter((t): t is Tension => t !== null);
 
   return deduplicateTensions(candidates);

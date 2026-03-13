@@ -312,6 +312,157 @@ function detectHiringRevealPattern(
   });
 }
 
+/**
+ * Template 5: Aspiration exceeding observable adoption
+ *
+ * Multiple positioning tensions converge: the company projects a market
+ * identity across marketing, product, and press, but no observable
+ * evidence — customers, pricing, hiring — demonstrates adoption at
+ * the claimed scale.
+ *
+ * Requires: positioning_vs_customer_base + ambition_vs_proof
+ * Enriched by: narrative_scale_vs_operations
+ */
+function detectAspirationExceedingAdoptionPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const positioningTensions = tensionsByType(tensions, 'positioning_vs_customer_base');
+  const ambitionTensions = tensionsByType(tensions, 'ambition_vs_proof');
+
+  if (positioningTensions.length === 0 || ambitionTensions.length === 0) return null;
+
+  // Enrich with narrative_scale_vs_operations if present
+  const scaleTensions = tensionsByType(tensions, 'narrative_scale_vs_operations');
+  const allTensions = [...positioningTensions, ...ambitionTensions, ...scaleTensions];
+
+  // Pull in customer and credibility signals
+  const reinforcingSignals = signals.filter(s =>
+    s.kind === 'customer' || s.kind === 'credibility'
+  );
+
+  return makePattern(companyId, {
+    pattern_type: 'overextension',
+    title: 'Enterprise aspiration exceeding observable enterprise adoption',
+    summary:
+      'Multiple tensions converge on the same structural form: the company projects ' +
+      'a market identity across marketing, product features, and press, but observable ' +
+      'evidence across every dimension — buyer profiles, pricing tiers, hiring activity, ' +
+      'published case studies — indicates adoption at a different scale. This is a ' +
+      'recurring structural theme synthesized from several independent tensions, ' +
+      'spanning ambition, proof, and segment alignment.',
+    tensions: allTensions,
+    extraSignals: reinforcingSignals,
+    importance: 'high',
+    confidence: allTensions.length >= 3 ? 'high' : 'medium',
+    strategic_weight: 'high',
+  });
+}
+
+/**
+ * Template 6: Narrative-operating model mismatch around customer scale
+ *
+ * External narrative targets one customer scale, but the operating model
+ * — pricing, sales motion, CS structure — is built for a different scale.
+ *
+ * Requires: positioning_vs_customer_base + positioning_vs_market_fit
+ * Enriched by: narrative_scale_vs_operations
+ */
+function detectNarrativeScaleMismatchPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const customerBaseTensions = tensionsByType(tensions, 'positioning_vs_customer_base');
+  const marketFitTensions = tensionsByType(tensions, 'positioning_vs_market_fit');
+
+  if (customerBaseTensions.length === 0 && marketFitTensions.length === 0) return null;
+  // Need at least 2 relevant tensions
+  const scaleTensions = tensionsByType(tensions, 'narrative_scale_vs_operations');
+  const allTensions = [...customerBaseTensions, ...marketFitTensions, ...scaleTensions];
+  if (allTensions.length < 2) return null;
+
+  // Pull in pricing and talent signals
+  const reinforcingSignals = signals.filter(s =>
+    s.kind === 'pricing' || s.kind === 'talent'
+  );
+
+  return makePattern(companyId, {
+    pattern_type: 'misalignment',
+    title: 'Narrative-operating model mismatch around customer scale',
+    summary:
+      "The company's external narrative targets one customer scale, but its operating " +
+      'model — pricing tiers, sales motion, customer success structure, deal sizes — ' +
+      'is built for a different scale. The mismatch is systematic: marketing and press ' +
+      'all say one thing, while operational structure, hiring, pricing, and customer ' +
+      'evidence all indicate a different market segment.',
+    tensions: allTensions,
+    extraSignals: reinforcingSignals,
+    importance: 'high',
+    confidence: 'medium',
+    strategic_weight: 'high',
+  });
+}
+
+/**
+ * Template 7: Positioning-led growth strategy (nice to detect)
+ *
+ * The company may be using aspirational positioning as a top-of-funnel
+ * credibility signal while serving a different customer base.
+ *
+ * Requires: ambition_vs_proof tension + customer segment signals
+ */
+function detectPositioningLedGrowthPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const ambitionTensions = tensionsByType(tensions, 'ambition_vs_proof');
+  if (ambitionTensions.length === 0) return null;
+
+  // Need customer segment signals and positioning gap signals
+  const segmentSignals = signals.filter(s =>
+    s.tags.some(t => /segment_evidence|customer_concentration|smb_signal/.test(t))
+  );
+  const positioningSignals = signals.filter(s =>
+    s.kind === 'positioning' && s.tags.some(t => /positioning_gap|narrative_gap/.test(t))
+  );
+
+  if (segmentSignals.length === 0 || positioningSignals.length === 0) return null;
+
+  // Find any other tensions these signals participate in
+  const allSignalIds = new Set([
+    ...segmentSignals.map(s => s.signal_id),
+    ...positioningSignals.map(s => s.signal_id),
+  ]);
+  const relevantTensions = tensions.filter(t =>
+    t.signal_ids.some(id => allSignalIds.has(id))
+  );
+  const allTensions = unique([
+    ...ambitionTensions.map(t => t.tension_id),
+    ...relevantTensions.map(t => t.tension_id),
+  ]);
+
+  const tensionObjects = tensions.filter(t => allTensions.includes(t.tension_id));
+
+  return makePattern(companyId, {
+    pattern_type: 'trajectory',
+    title: 'Positioning-led growth strategy',
+    summary:
+      'The company may be using aspirational positioning as a top-of-funnel ' +
+      'credibility signal while serving a different customer segment. This pattern — ' +
+      'leading with aspirational narrative to attract interest, then converting in a ' +
+      'different segment — is a recognizable growth strategy that the evidence supports ' +
+      'but does not confirm.',
+    tensions: tensionObjects,
+    extraSignals: [...segmentSignals, ...positioningSignals],
+    importance: 'medium',
+    confidence: 'medium',
+    strategic_weight: 'medium',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -352,6 +503,9 @@ export function detectPatterns(tensions: Tension[], signals: Signal[]): Pattern[
     detectNarrativeMismatchPattern(tensions, signals, companyId),
     detectCustomerAttributionPattern(tensions, signals, companyId),
     detectHiringRevealPattern(tensions, signals, companyId),
+    detectAspirationExceedingAdoptionPattern(tensions, signals, companyId),
+    detectNarrativeScaleMismatchPattern(tensions, signals, companyId),
+    detectPositioningLedGrowthPattern(tensions, signals, companyId),
   ].filter((p): p is Pattern => p !== null);
 
   return deduplicatePatterns(candidates);
