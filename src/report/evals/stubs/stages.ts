@@ -14,9 +14,13 @@ import { generateHypotheses as realGenerateHypotheses } from '../../pipeline/gen
 import { stressTestHypotheses as realStressTestHypotheses } from '../../pipeline/stress-test-hypotheses.js';
 import { generateImplications as realGenerateImplications } from '../../pipeline/generate-implications.js';
 import { planReport as realPlanReport } from '../../pipeline/plan-report.js';
-import { writeReport as realWriteReport } from '../../pipeline/write-report.js';
+import {
+  writeReport as realWriteReport,
+  exportSkillBundle as realExportSkillBundle,
+} from '../../pipeline/write-report.js';
 import type { ReportPlan } from '../../pipeline/plan-report.js';
-import type { WriteReportResult } from '../../pipeline/write-report.js';
+import type { WriteReportResult, SkillBundleResult } from '../../pipeline/write-report.js';
+import type { SkillSectionResponse, WriterOptions } from '../../writer/types.js';
 
 export function extractSignals(dossier: Dossier): StageOutputItem[] {
   return realExtractSignals(dossier).map(signal => ({
@@ -97,7 +101,10 @@ export function planReport(dossier: Dossier): ReportPlan {
 
 // --- Real implementation wired in (write-report) ---
 
-export function writeReport(dossier: Dossier): WriteReportResult {
+export async function writeReport(
+  dossier: Dossier,
+  options?: WriterOptions,
+): Promise<WriteReportResult> {
   const signals = realExtractSignals(dossier);
   const tensions = realDetectTensions(signals);
   const patterns = realDetectPatterns(tensions, signals);
@@ -105,5 +112,18 @@ export function writeReport(dossier: Dossier): WriteReportResult {
   const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
   const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
   const plan = realPlanReport(implications, stressTested, patterns, tensions, signals);
-  return realWriteReport(plan, implications, stressTested, patterns, tensions, signals);
+  return realWriteReport(plan, implications, stressTested, patterns, tensions, signals, options);
+}
+
+// --- Skill bundle export (Path A) ---
+
+export function exportSkillBundle(dossier: Dossier): SkillBundleResult {
+  const signals = realExtractSignals(dossier);
+  const tensions = realDetectTensions(signals);
+  const patterns = realDetectPatterns(tensions, signals);
+  const hypotheses = realGenerateHypotheses(patterns, tensions, signals);
+  const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
+  const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
+  const plan = realPlanReport(implications, stressTested, patterns, tensions, signals);
+  return realExportSkillBundle(plan, implications, stressTested, patterns, tensions, signals);
 }

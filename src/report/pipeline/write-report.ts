@@ -5,11 +5,18 @@
  * The writer expresses existing analytical insights clearly and precisely.
  * It must not generate new insights or reinterpret evidence.
  *
- * Architecture: hybrid deterministic + LLM.
+ * Architecture: hybrid deterministic + writer adapter.
  *   - Deterministic: section input assembly, lineage resolution, validation
- *   - LLM adapter: prose generation (V1 uses template-based placeholder)
+ *   - Writer adapter: prose generation (template, skill, or LLM mode)
  *
- * V1: Deterministic template-based prose. No LLM calls.
+ * Writer modes:
+ *   - "template" (default): deterministic template-based prose, no LLM calls
+ *   - "skill": prose generated externally by Claude Code / skill layer
+ *   - "llm": LLM-backed prose generation following the report plan
+ *
+ * Skill mode supports two paths:
+ *   A. buildSkillBundle: export section-writing requests for Claude Code
+ *   B. writeReport with skillResponses: assemble report from generated prose
  */
 
 import type { Signal } from './extract-signals.js';
@@ -19,6 +26,14 @@ import type { Hypothesis } from './generate-hypotheses.js';
 import type { Implication } from './generate-implications.js';
 import type { ReportPlan, SectionPlan } from './plan-report.js';
 import type { Confidence } from '../../types/evidence.js';
+import type {
+  SectionInputPack,
+  WriterOptions,
+  SkillWriterBundle,
+  SkillSectionResponse,
+} from '../writer/types.js';
+import { createWriterAdapter } from '../writer/writer-adapter.js';
+import { buildSkillBundle as buildBundle } from '../writer/skill-writer.js';
 
 // ---------------------------------------------------------------------------
 // Report types
@@ -57,18 +72,15 @@ export interface WriteReportResult {
   errors: ValidationError[];
 }
 
+/** Result of Path A: skill bundle export. */
+export interface SkillBundleResult {
+  bundle: SkillWriterBundle;
+  sectionPacks: SectionInputPack[];
+}
+
 // ---------------------------------------------------------------------------
 // Section input packs
 // ---------------------------------------------------------------------------
-
-interface SectionInputPack {
-  sectionPlan: SectionPlan;
-  hypotheses: Hypothesis[];
-  implications: Implication[];
-  patterns: Pattern[];
-  tensions: Tension[];
-  signals: Signal[];
-}
 
 /**
  * Assemble the input pack for each section. Maps section purpose to
@@ -231,284 +243,6 @@ function resolveLineage(pack: SectionInputPack): {
 }
 
 // ---------------------------------------------------------------------------
-// Text sanitisation
-// ---------------------------------------------------------------------------
-
-/** Replace em dashes with comma-separated clauses per style rules. */
-function sanitiseText(text: string): string {
-  return text.replace(/\u2014/g, ',');
-}
-
-// ---------------------------------------------------------------------------
-// Confidence language
-// ---------------------------------------------------------------------------
-
-function confidencePhrase(confidence: Confidence): string {
-  switch (confidence) {
-    case 'high': return 'The evidence strongly suggests';
-    case 'medium': return 'There are signs that';
-    case 'low': return 'This may indicate';
-  }
-}
-
-function confidenceQualifier(confidence: Confidence): string {
-  switch (confidence) {
-    case 'high': return 'consistently';
-    case 'medium': return 'in several instances';
-    case 'low': return 'in limited observations';
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Writer adapter (V1: deterministic template-based prose)
-// ---------------------------------------------------------------------------
-
-/**
- * Generate markdown for the Executive Overview section.
- * Summarises core thesis, key findings, and critical implications.
- */
-function generateExecutiveOverview(
-  plan: ReportPlan,
-  pack: SectionInputPack,
-): string {
-  const lines: string[] = [];
-
-  // Core thesis
-  lines.push(plan.core_thesis);
-  lines.push('');
-
-  // Key findings
-  if (plan.key_findings.length > 0) {
-    lines.push('The analysis identifies several key observations:');
-    lines.push('');
-    for (const finding of plan.key_findings) {
-      lines.push(`- ${finding}`);
-    }
-    lines.push('');
-  }
-
-  // Top implications summary
-  if (pack.implications.length > 0) {
-    const topImp = pack.implications[0];
-    lines.push(
-      `${confidencePhrase(topImp.confidence)} ${topImp.statement.split(/\.\s/)[0].toLowerCase().replace(/\.+$/, '')}.`
-    );
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate markdown for the Evidence section.
- * Presents observable signals and structural patterns.
- */
-function generateEvidenceSection(pack: SectionInputPack): string {
-  const lines: string[] = [];
-
-  // Group signals by kind for structured presentation
-  const kindGroups = new Map<string, typeof pack.signals>();
-  for (const sig of pack.signals) {
-    const existing = kindGroups.get(sig.kind) ?? [];
-    existing.push(sig);
-    kindGroups.set(sig.kind, existing);
-  }
-
-  // Present top signals by relevance
-  const topSignals = [...pack.signals]
-    .sort((a, b) => {
-      const rank: Record<Confidence, number> = { high: 3, medium: 2, low: 1 };
-      return rank[b.relevance] - rank[a.relevance];
-    })
-    .slice(0, 8);
-
-  if (topSignals.length > 0) {
-    for (const sig of topSignals) {
-      lines.push(`**${sig.title}.** ${sig.statement}`);
-      lines.push('');
-    }
-  }
-
-  // Patterns
-  if (pack.patterns.length > 0) {
-    lines.push('Several structural patterns emerge from these observations:');
-    lines.push('');
-    for (const pat of pack.patterns) {
-      lines.push(`**${pat.title}.** ${pat.summary}`);
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate markdown for the Tensions section.
- * Describes structural contradictions and misalignments.
- */
-function generateTensionsSection(pack: SectionInputPack): string {
-  const lines: string[] = [];
-
-  // Sort by severity
-  const sorted = [...pack.tensions].sort((a, b) => {
-    const rank: Record<Confidence, number> = { high: 3, medium: 2, low: 1 };
-    return rank[b.severity] - rank[a.severity];
-  });
-
-  for (const tension of sorted) {
-    lines.push(`**${tension.title}.** ${tension.statement}`);
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate markdown for the Hypotheses section.
- * Presents surviving hypotheses with appropriate confidence language.
- */
-function generateHypothesesSection(pack: SectionInputPack): string {
-  const lines: string[] = [];
-
-  // Separate primary from supporting based on confidence/severity ranking
-  const sorted = [...pack.hypotheses].sort((a, b) => {
-    const rank: Record<Confidence, number> = { high: 3, medium: 2, low: 1 };
-    return (rank[b.confidence] * 3 + rank[b.severity] * 2) -
-           (rank[a.confidence] * 3 + rank[a.severity] * 2);
-  });
-
-  for (const hyp of sorted) {
-    lines.push(`**${hyp.title}.** ${confidencePhrase(hyp.confidence)} ${hyp.statement.charAt(0).toLowerCase()}${hyp.statement.slice(1)}`);
-    lines.push('');
-
-    // Strongest support points if available
-    if (hyp.strongest_support && hyp.strongest_support.length > 0) {
-      lines.push(`This is supported ${confidenceQualifier(hyp.confidence)} by the following:`);
-      lines.push('');
-      for (const support of hyp.strongest_support.slice(0, 3)) {
-        lines.push(`- ${support}`);
-      }
-      lines.push('');
-    }
-
-    // Residual uncertainty
-    if (hyp.residual_uncertainty) {
-      lines.push(`However, ${hyp.residual_uncertainty.charAt(0).toLowerCase()}${hyp.residual_uncertainty.slice(1)}`);
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate markdown for the Implications section.
- * Translates hypotheses into strategic consequences.
- */
-function generateImplicationsSection(pack: SectionInputPack): string {
-  const lines: string[] = [];
-
-  // Sort by impact then urgency
-  const sorted = [...pack.implications].sort((a, b) => {
-    const rank: Record<Confidence, number> = { high: 3, medium: 2, low: 1 };
-    return (rank[b.impact] * 3 + rank[b.urgency] * 2) -
-           (rank[a.impact] * 3 + rank[a.urgency] * 2);
-  });
-
-  for (const imp of sorted) {
-    lines.push(`**${imp.title}.** ${imp.statement}`);
-    lines.push('');
-
-    if (imp.key_questions.length > 0) {
-      lines.push('Key questions:');
-      lines.push('');
-      for (const q of imp.key_questions.slice(0, 3)) {
-        lines.push(`- ${q}`);
-      }
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate markdown for the Uncertainty section.
- * Acknowledges weak hypotheses and evidence gaps.
- */
-function generateUncertaintySection(pack: SectionInputPack): string {
-  const lines: string[] = [];
-
-  if (pack.hypotheses.length === 0) {
-    lines.push('All hypotheses generated by the analysis survived stress testing.');
-    lines.push('No major areas of analytical uncertainty were identified.');
-    lines.push('');
-    return lines.join('\n');
-  }
-
-  lines.push('The following hypotheses did not meet the threshold for confident inclusion in the analysis. They remain plausible but lack sufficient evidence.');
-  lines.push('');
-
-  for (const hyp of pack.hypotheses) {
-    lines.push(`**${hyp.title}.** This may indicate ${hyp.statement.charAt(0).toLowerCase()}${hyp.statement.slice(1)}`);
-    lines.push('');
-
-    if (hyp.missing_evidence && hyp.missing_evidence.length > 0) {
-      lines.push('Evidence that would strengthen or refute this:');
-      lines.push('');
-      for (const missing of hyp.missing_evidence.slice(0, 3)) {
-        lines.push(`- ${missing}`);
-      }
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate section markdown using the appropriate template.
- * V1: deterministic template-based generation.
- * Future: replace with LLM adapter.
- */
-function generateSectionMarkdown(
-  sectionId: string,
-  plan: ReportPlan,
-  pack: SectionInputPack,
-): string {
-  let raw: string;
-  switch (sectionId) {
-    case 'sec_01': raw = generateExecutiveOverview(plan, pack); break;
-    case 'sec_02': raw = generateEvidenceSection(pack); break;
-    case 'sec_03': raw = generateTensionsSection(pack); break;
-    case 'sec_04': raw = generateHypothesesSection(pack); break;
-    case 'sec_05': raw = generateImplicationsSection(pack); break;
-    case 'sec_06': raw = generateUncertaintySection(pack); break;
-    default: raw = ''; break;
-  }
-  return sanitiseText(raw);
-}
-
-/**
- * Generate the executive summary from the report plan.
- * V1: deterministic synthesis from plan fields.
- * Future: replace with LLM adapter.
- */
-function generateExecutiveSummary(plan: ReportPlan): string {
-  const parts: string[] = [];
-  parts.push(plan.core_thesis);
-
-  if (plan.key_findings.length > 0) {
-    parts.push(`The analysis surfaces ${plan.key_findings.length} key findings.`);
-  }
-
-  const sectionCount = plan.section_plan.length;
-  parts.push(`This report is structured in ${sectionCount} sections, progressing from observable evidence through tension analysis and hypothesis formation to strategic implications.`);
-
-  return sanitiseText(parts.join(' '));
-}
-
-// ---------------------------------------------------------------------------
 // Post-generation validation
 // ---------------------------------------------------------------------------
 
@@ -654,37 +388,72 @@ function renderMarkdown(report: Report): string {
 }
 
 // ---------------------------------------------------------------------------
-// Main entry
+// Path A: Export skill bundle
 // ---------------------------------------------------------------------------
 
-export function writeReport(
+/**
+ * Build a SkillWriterBundle from the report plan and upstream data.
+ * This is used when mode is 'skill' and no responses are provided yet.
+ * The bundle is serialisable to JSON for the skill layer to consume.
+ */
+export function exportSkillBundle(
   reportPlan: ReportPlan,
   implications: Implication[],
   hypotheses: Hypothesis[],
   patterns: Pattern[],
   tensions: Tension[],
   signals: Signal[],
-): WriteReportResult {
+): SkillBundleResult {
+  const sectionPacks = assembleSectionInputs(
+    reportPlan, implications, hypotheses, patterns, tensions, signals,
+  );
+  const bundle = buildBundle(reportPlan, sectionPacks);
+  return { bundle, sectionPacks };
+}
+
+// ---------------------------------------------------------------------------
+// Main entry
+// ---------------------------------------------------------------------------
+
+export async function writeReport(
+  reportPlan: ReportPlan,
+  implications: Implication[],
+  hypotheses: Hypothesis[],
+  patterns: Pattern[],
+  tensions: Tension[],
+  signals: Signal[],
+  options?: WriterOptions,
+): Promise<WriteReportResult> {
+  const mode = options?.writerMode ?? 'template';
+
+  const writer = createWriterAdapter(
+    mode,
+    options?.skillResponses,
+    // Summary from skill responses (look for a special 'summary' entry)
+    options?.skillResponses?.find(r => r.section_id === 'summary')?.markdown,
+  );
+
   // 1. Assemble section input packs
   const sectionPacks = assembleSectionInputs(
     reportPlan, implications, hypotheses, patterns, tensions, signals,
   );
 
   // 2. Generate each section
-  const sections: ReportSection[] = sectionPacks.map(pack => {
-    const markdown = generateSectionMarkdown(pack.sectionPlan.section_id, reportPlan, pack);
+  const sections: ReportSection[] = [];
+  for (const pack of sectionPacks) {
+    const markdown = await writer.generateSection(pack.sectionPlan.section_id, reportPlan, pack);
     const lineage = resolveLineage(pack);
 
-    return {
+    sections.push({
       section_id: pack.sectionPlan.section_id,
       title: pack.sectionPlan.title,
       markdown,
       ...lineage,
-    };
-  });
+    });
+  }
 
   // 3. Generate executive summary
-  const summary = generateExecutiveSummary(reportPlan);
+  const summary = await writer.generateSummary(reportPlan);
 
   // 4. Assemble report
   const report: Report = {

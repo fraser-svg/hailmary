@@ -22,6 +22,8 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
   -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report
 ```
 
+Writer modes: `template` (deterministic, default) | `skill` (Claude Code prose) | `llm` (runtime API, placeholder)
+
 Errors = structural integrity (fail validation). Warnings = trust/quality (never fail).
 
 # Development Stage
@@ -34,7 +36,7 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **MK3 (complete, Phase 7 + 7b):** Strategic hypotheses in dossier schema. SKILL.md refined for hypothesis quality (specificity, falsifiability, counter-signals).
 
-**Report Engine (complete, Phases 5-15):** Eval harness + 8 pipeline stages implemented. Three eval fixtures passing. Full pipeline operational.
+**Report Engine (complete, Phases 5-18):** Eval harness + 8 pipeline stages + writer layer with 3 modes + skill prompt system.
 
 # Phase Status
 
@@ -58,7 +60,10 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | 12 (RE) | Eval Fixture 003 | CatalystIQ: founder credibility vs institutional depth |
 | 13 (RE) | Pipeline Generalization for Fixture 003 | 6 stages generalized, all 3 fixtures pass |
 | 14 (RE) | plan-report | Deterministic report planning: thesis, findings, section structure |
-| 15 (RE) | write-report | Hybrid deterministic + LLM adapter: report generation with validation |
+| 15 (RE) | write-report | Hybrid deterministic + writer adapter: template + LLM modes |
+| 16 (RE) | Writer layer refactor | Extracted writer into `src/report/writer/` (types, template, LLM, prompt-builder, adapter) |
+| 17 (RE) | Skill writer mode | `skill` mode: bundle export, response import, validation, assembly |
+| 18 (RE) | Skill prompt system | Master prompt module with 5-layer architecture for report prose |
 
 106 tests across 4 test files via vitest. 0 regressions.
 
@@ -93,22 +98,31 @@ src/validate-core.ts                    # 21-check validation logic
 src/validate.ts                         # CLI wrapper
 src/__tests__/                          # 86 validator tests
 src/utils/__tests__/                    # 20 utility tests
-src/report/pipeline/                    # Stage implementations
-  extract-signals.ts                    # Stage 1: dossier -> Signal[] (18 passes)
-  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[] (13 templates)
-  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[] (10 templates)
-  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[] (9 templates)
+src/report/pipeline/                    # Stage implementations (8 stages)
+  extract-signals.ts                    # Stage 1: dossier -> Signal[]
+  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[]
+  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
+  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[]
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
-  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[] (17 templates)
-  plan-report.ts                        # Stage 7: upstream objects -> ReportPlan (deterministic)
+  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[]
+  plan-report.ts                        # Stage 7: upstream objects -> ReportPlan
   write-report.ts                       # Stage 8: ReportPlan + upstream -> Report + markdown
+src/report/writer/                      # Writer layer (3 modes)
+  types.ts                              # WriterMode, SectionWriter, Skill* contracts
+  template-writer.ts                    # Deterministic template prose
+  llm-writer.ts                         # LLM-backed prose (placeholder)
+  skill-writer.ts                       # Skill bundle builder, response assembler
+  skill-prompts.ts                      # Master prompt system (5-layer architecture)
+  prompt-builder.ts                     # LLM prompt builder
+  writer-adapter.ts                     # Factory + sanitisation wrapper
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
   fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
   fixtures/003-founder-credibility-gap/ # Fixture 3: founder-anchored credibility vs institutional depth
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
+  runner/run-skill-mode.ts              # Skill mode verification: bundle, mock, assemble
   scoring/                              # Per-stage scorers + keyword-overlap matcher
-  stubs/stages.ts                       # Adapter: 8 real impls wired through full pipeline
+  stubs/stages.ts                       # Adapter: 8 real impls + skill bundle export
   types/                                # Fixture and eval result types
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
@@ -119,26 +133,31 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 15 (write-report) complete. All eight pipeline stages operational. All three eval fixtures pass:
+Report Engine Phases 17-18 complete. Writer layer fully operational with three modes.
 
-```
-Fixture 001-ai-services:       scored stages PASS, write-report generates (6 sections, 15648 chars)
-Fixture 002-enterprise-proof:  scored stages PASS, write-report generates (6 sections, 14125 chars)
-Fixture 003-founder-credibility: scored stages PASS, write-report generates (6 sections, 20077 chars)
-```
+**Phase 17 (skill writer mode):**
+- `SkillSectionRequest` / `SkillSectionResponse` / `SkillWriterBundle` contracts in `types.ts`
+- `skill-writer.ts`: bundle builder (`buildSkillBundle`), response validator (`validateSkillResponses`), writer factory (`createSkillWriter`)
+- Two paths: (A) export bundle for Claude Code, (B) assemble report from skill responses
+- `writer-adapter.ts` routes `'skill'` mode; `write-report.ts` exposes `exportSkillBundle()`
+- Skill mode verified end-to-end with fixture 001 (0 errors, all validation checks pass)
 
-Write-report stage architecture:
-- **Deterministic layer**: section input assembly, lineage resolution, post-generation validation (7 checks)
-- **Writer adapter**: V1 uses template-based prose generation (placeholder for future LLM integration)
-- **Validation checks**: required sections, no discarded hypotheses, weak-only-in-uncertainty, no em dashes, no banned phrases, non-empty sections, lineage populated
-- **Text sanitisation**: em dashes from upstream objects replaced before validation
+**Phase 18 (skill prompt system):**
+- `skill-prompts.ts`: master prompt module with 5-layer architecture
+  1. Role definition (analyst persona)
+  2. Writing mechanics (language, sentence 12-20w, paragraph 2-4s, tone)
+  3. Section craft (intent, structure, emphasis, pitfalls per section)
+  4. Analytical context (structured object rendering)
+  5. Output contract (constraints, format)
+- `buildSkillPrompt(request)` and `buildSummaryPrompt(bundle)` exported
+- Prompt sizes: 7.6k-11.8k chars per section, 143-196 lines
 
-Full pipeline is now: extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report.
+Template mode unchanged. All eval fixtures pass.
 
 # Next Step
 
-The report engine pipeline is complete. Possible next directions:
-- LLM adapter integration (replace template prose with Claude-generated sections)
+Possible next directions:
+- End-to-end skill workflow integration (Claude Code writes sections from bundle)
 - Report quality scoring in eval harness
 - End-to-end CLI command for report generation from dossier
 - Report export formats (PDF, HTML)
@@ -157,12 +176,16 @@ The report engine pipeline is complete. Possible next directions:
 - Errors = structural failures (block validation). Warnings = quality concerns (never block).
 - Single skill architecture. No multi-agent refactor.
 - WebSearch + WebFetch only. No external tools (Exa, Firecrawl, Puppeteer).
-- Eval fixture 001 dossier predates MK2B schema additions (`evidence_summary`, `negative_signals`, `value_alignment_summary`) -- needs backfill to pass schema validation. Eval harness tests pipeline stages independently and is unaffected.
+- Skill mode: TypeScript controls section assembly, lineage, validation. Claude controls prose only.
 
 # Files Modified Recently
 
-**Report Engine Phase 15 (this session):**
-- `src/report/pipeline/write-report.ts` -- new stage: hybrid report writer (480 lines)
-- `src/report/evals/stubs/stages.ts` -- added `writeReport` adapter wiring
-- `src/report/evals/runner/run-fixture.ts` -- calls write-report after plan-report, prints section summary
-- `docs/handoffs/current.md` -- updated with Phase 15 completion
+**Report Engine Phases 17-18 (this session):**
+- `src/report/writer/types.ts` -- added `'skill'` mode, `SkillSectionRequest`, `SkillSectionResponse`, `SkillWriterBundle` contracts
+- `src/report/writer/skill-writer.ts` -- new: bundle builder, response validator, skill writer factory, prompt helper
+- `src/report/writer/skill-prompts.ts` -- new: master prompt system (5-layer architecture)
+- `src/report/writer/writer-adapter.ts` -- extended to route `'skill'` mode
+- `src/report/pipeline/write-report.ts` -- added `exportSkillBundle()`, skill response assembly path
+- `src/report/evals/stubs/stages.ts` -- exposed `exportSkillBundle`, `WriterOptions` passthrough
+- `src/report/evals/runner/run-skill-mode.ts` -- new: end-to-end skill mode verification
+- `docs/handoffs/current.md` -- updated with Phases 17-18

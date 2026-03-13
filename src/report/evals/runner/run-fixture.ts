@@ -125,7 +125,7 @@ async function runFixture(fixtureId: string): Promise<FixtureResult> {
   console.log(`  Tone: ${plan.tone_profile.style} / directness=${plan.tone_profile.directness} / skepticism=${plan.tone_profile.skepticism}`);
 
   // Run write-report (not scored — verify it generates successfully)
-  const reportResult = writeReport(dossier);
+  const reportResult = await writeReport(dossier);
   console.log('\nWrite Report:');
   if (reportResult.errors.length > 0) {
     console.log('  VALIDATION ERRORS:');
