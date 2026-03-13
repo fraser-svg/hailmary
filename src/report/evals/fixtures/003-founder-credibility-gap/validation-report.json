@@ -1,0 +1,18 @@
+{
+  "valid": true,
+  "schema_valid": true,
+  "evidence_links_valid": true,
+  "source_links_valid": true,
+  "errors": [],
+  "warnings": [],
+  "stats": {
+    "source_count": 9,
+    "evidence_count": 11,
+    "sections_populated": 10,
+    "sections_empty": 0,
+    "evidence_ids_referenced": 11,
+    "evidence_ids_resolved": 11,
+    "source_ids_referenced": 9,
+    "source_ids_resolved": 9
+  }
+}

@@ -114,14 +114,12 @@ function extractNarrativeGapSignals(dossier: Dossier, companyId: string): Signal
   for (const gap of ni.narrative_gaps) {
     if (gap.company_language.length === 0 || gap.customer_language.length === 0) continue;
 
-    const companyTheme = ni.company_claimed_value[0]?.theme ?? 'Company';
-    const customerTheme = ni.customer_expressed_value[0]?.theme ?? 'customer evidence';
     const claimEvidence = ni.company_claimed_value.flatMap(c => c.evidence_ids);
     const customerEvidence = ni.customer_expressed_value.flatMap(c => c.evidence_ids);
 
     signals.push(makeSignal(companyId, dossier, {
       kind: 'positioning',
-      title: `${companyTheme} narrative stronger than ${customerTheme} evidence`,
+      title: `Narrative gap: ${gap.gap_name}`,
       statement: `${gap.gap_description}. Company language emphasizes ${gap.company_language.slice(0, 2).join(', ')}, while customer language describes ${gap.customer_language.slice(0, 2).join(', ')}.`,
       evidence_ids: [...claimEvidence, ...customerEvidence],
       claim_ids: claimEvidence,
@@ -161,6 +159,9 @@ function extractCustomerLanguageSignals(dossier: Dossier, companyId: string): Si
     }
     if (/small.team|smb|not.*(enterprise|platform)|startup/i.test(patternText)) {
       tags.push('segment_perception', 'positioning_gap');
+    }
+    if (/founder|ceo|personal/i.test(patternText)) {
+      tags.push('founder_dependency');
     }
 
     signals.push(makeSignal(companyId, dossier, {
@@ -538,14 +539,12 @@ function extractPositioningCredibilityGapSignals(dossier: Dossier, companyId: st
   if (divergent.length === 0) return [];
 
   const allEvidence = unique(divergent.flatMap(v => v.evidence_ids));
-  const themes = divergent.map(v =>
-    `Company says ${v.company_language.slice(0, 2).join(', ')} but customers say ${v.customer_language.slice(0, 2).join(', ')}`
-  );
+  const themeLabels = divergent.map(v => v.theme);
 
   return [makeSignal(companyId, dossier, {
     kind: 'credibility',
     title: 'Positioning claims lack supporting customer evidence',
-    statement: `Value alignment analysis reveals divergence between company positioning and customer perception. ${themes.join('. ')}.`,
+    statement: `Value alignment analysis reveals ${divergent.length} divergent theme(s) between positioning and customer perception: ${themeLabels.join(', ')}.`,
     evidence_ids: allEvidence,
     inference_label: 'light_inference',
     confidence: 'medium',
@@ -553,6 +552,234 @@ function extractPositioningCredibilityGapSignals(dossier: Dossier, companyId: st
     novelty: 'medium',
     polarity: 'negative',
     tags: ['positioning_gap', 'credibility', 'segment_evidence'],
+  })];
+}
+
+/**
+ * Pass 13: Founder visibility dominance.
+ * Detects when a single founder/leader dominates all external-facing content,
+ * marketing, and public communications.
+ */
+function extractFounderVisibilitySignals(dossier: Dossier, companyId: string): Signal[] {
+  const gtm = dossier.gtm_model;
+  const hooks = gtm.content_and_positioning_hooks;
+  const observations = gtm.gtm_observations;
+  const allText = [...hooks, ...observations].join(' ');
+
+  // Check for founder-centric content patterns
+  const founderMentions = (allText.match(/founder|ceo|personally|personal brand/gi) ?? []).length;
+  if (founderMentions < 2) return [];
+
+  // Gather evidence from press, blog, and company profile
+  const pressEvidence = dossier.evidence.filter(e =>
+    e.tags.some(t => /founder_narrative|founder_concentration|thought_leadership/i.test(t))
+  );
+  if (pressEvidence.length === 0) return [];
+
+  const evidenceIds = pressEvidence.map(e => e.evidence_id);
+
+  // Check for content exclusivity (all content by one person)
+  const contentExclusive = pressEvidence.some(e =>
+    e.normalized_fields?.['other_authors'] === 0 ||
+    e.normalized_fields?.['other_presenters'] === 0 ||
+    e.normalized_fields?.['team_mentions'] === 0
+  );
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'positioning',
+    title: 'Founder visibility dominates company narrative and external communications',
+    statement: `The founder is prominently featured across external-facing content. ${contentExclusive ? 'All published content appears to be authored or presented exclusively by the founder. ' : ''}Marketing language and press coverage consistently center the company's identity around a single individual rather than institutional capability.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: pressEvidence.length >= 3 ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['founder_visibility', 'founder_concentration', 'narrative_gap'],
+  })];
+}
+
+/**
+ * Pass 14: Founder central to customer relationships.
+ * Detects when customers attribute value to the founder personally.
+ */
+function extractFounderCustomerSignals(dossier: Dossier, companyId: string): Signal[] {
+  const customerEvidence = dossier.evidence.filter(e =>
+    (e.evidence_type === 'review_record' || e.evidence_type === 'case_study_record') &&
+    (e.normalized_fields?.['founder_referenced_by_name'] === true ||
+     e.normalized_fields?.['founder_led_implementation'] === true ||
+     e.normalized_fields?.['value_attribution'] === 'founder_personal' ||
+     e.tags.some(t => /founder_involvement|founder_dependency/i.test(t)))
+  );
+
+  if (customerEvidence.length < 2) return [];
+
+  const evidenceIds = customerEvidence.map(e => e.evidence_id);
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'customer',
+    title: 'Founder appears central to customer relationships and value delivery',
+    statement: `Customers describe the founder as their primary point of contact and attribute value to the founder's personal involvement. ${customerEvidence.length} customer evidence records reference the founder directly in the context of implementation, setup, or ongoing engagement.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: customerEvidence.length >= 3 ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['founder_dependency', 'customer_voice', 'founder_involvement'],
+  })];
+}
+
+/**
+ * Pass 15: Leadership depth.
+ * Detects when leadership team is thin — single executive with only junior staff.
+ */
+function extractLeadershipDepthSignals(dossier: Dossier, companyId: string): Signal[] {
+  const leadership = dossier.company_profile.leadership;
+  if (leadership.length > 1) return []; // Multiple leaders → not thin
+
+  // Look for team structure evidence
+  const teamEvidence = dossier.evidence.filter(e =>
+    e.tags.some(t => /leadership_depth|team_structure/i.test(t)) ||
+    (e.normalized_fields?.['senior_leaders'] !== undefined && (e.normalized_fields['senior_leaders'] as number) <= 1)
+  );
+
+  if (teamEvidence.length === 0) return [];
+
+  // Check for missing roles
+  const missingRoles = teamEvidence.flatMap(e =>
+    (e.normalized_fields?.['missing_roles'] as string[] | undefined) ?? []
+  );
+
+  const evidenceIds = teamEvidence.map(e => e.evidence_id);
+
+  // Also include hiring evidence that confirms no senior hires
+  const hiringEvidence = dossier.evidence.filter(e =>
+    e.evidence_type === 'job_posting_record' &&
+    e.normalized_fields?.['senior_roles'] === 0
+  );
+  evidenceIds.push(...hiringEvidence.map(e => e.evidence_id));
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'talent',
+    title: 'Observable senior leadership limited to a single executive',
+    statement: `The leadership structure appears thin beyond one individual. Only ${leadership.length} executive-level role is listed, with remaining staff at individual contributor titles.${missingRoles.length > 0 ? ` No ${missingRoles.slice(0, 3).join(', ')} observed.` : ''} Institutional depth appears limited based on observable evidence.`,
+    evidence_ids: unique(evidenceIds),
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['leadership_depth', 'founder_concentration', 'institutional_gap'],
+  })];
+}
+
+/**
+ * Pass 16: Junior hiring pattern.
+ * Detects when all open positions are junior/entry-level with no senior leadership hires.
+ */
+function extractJuniorHiringSignals(dossier: Dossier, companyId: string): Signal[] {
+  const hiring = dossier.gtm_model.hiring_signals;
+  if (hiring.length === 0) return [];
+
+  const hiringEvidence = dossier.evidence.filter(e =>
+    (e.evidence_type === 'job_posting_record' || e.evidence_type === 'hiring_signal_record') &&
+    e.normalized_fields?.['senior_roles'] === 0
+  );
+
+  if (hiringEvidence.length === 0) return [];
+
+  // Check if all roles are junior
+  const allJunior = hiringEvidence.every(e =>
+    (e.normalized_fields?.['seniority'] === 'junior' || e.normalized_fields?.['junior_roles'] !== undefined) &&
+    e.normalized_fields?.['senior_roles'] === 0
+  );
+
+  if (!allJunior) return [];
+
+  const totalOpenings = hiringEvidence.reduce(
+    (sum, e) => sum + ((e.normalized_fields?.['total_openings'] as number) ?? (e.normalized_fields?.['role_count'] as number) ?? 0),
+    0,
+  );
+
+  const evidenceIds = hiringEvidence.map(e => e.evidence_id);
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'talent',
+    title: 'Hiring signals emphasize junior operational roles with no senior leadership',
+    statement: `All ${totalOpenings} open positions are junior individual contributor roles. No senior leadership, management, or executive-level positions are being recruited. Hiring pattern suggests staff augmentation rather than leadership expansion.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['hiring_signal', 'leadership_depth', 'junior_hiring', 'founder_concentration'],
+  })];
+}
+
+/**
+ * Pass 17: Thought leadership concentration.
+ * Detects when all published content (blog, webinars) is by a single person.
+ */
+function extractThoughtLeadershipConcentrationSignals(dossier: Dossier, companyId: string): Signal[] {
+  const contentEvidence = dossier.evidence.filter(e =>
+    e.tags.some(t => /thought_leadership|content_strategy/i.test(t)) &&
+    (e.normalized_fields?.['other_authors'] === 0 || e.normalized_fields?.['other_presenters'] === 0)
+  );
+
+  if (contentEvidence.length === 0) return [];
+
+  const evidenceIds = contentEvidence.map(e => e.evidence_id);
+  const totalContent = contentEvidence.reduce(
+    (sum, e) => sum + ((e.normalized_fields?.['total_articles'] as number) ?? 0) + ((e.normalized_fields?.['total_webinars'] as number) ?? 0),
+    0,
+  );
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'positioning',
+    title: 'Thought leadership concentrated in a single voice',
+    statement: `All published content${totalContent > 0 ? ` (${totalContent} pieces)` : ''} is authored or presented by a single individual. No guest contributors, team authors, or other company voices appear in any published content. The company's thought leadership is exclusively one person's voice.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'medium',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['thought_leadership', 'founder_concentration', 'content_strategy'],
+  })];
+}
+
+/**
+ * Pass 18: Press founder framing.
+ * Detects when press coverage frames the company around the founder's persona.
+ */
+function extractPressFounderFramingSignals(dossier: Dossier, companyId: string): Signal[] {
+  const pressEvidence = dossier.evidence.filter(e =>
+    e.evidence_type === 'press_record' &&
+    (e.normalized_fields?.['article_focus'] === 'founder profile' ||
+     e.normalized_fields?.['team_mentions'] === 0 ||
+     e.tags.some(t => /founder_narrative|institutional_gap/i.test(t)))
+  );
+
+  if (pressEvidence.length < 2) return [];
+
+  const evidenceIds = pressEvidence.map(e => e.evidence_id);
+  const framings = pressEvidence
+    .map(e => e.normalized_fields?.['founder_framing'] as string | undefined)
+    .filter((f): f is string => !!f);
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'credibility',
+    title: 'Press coverage frames company around founder persona',
+    statement: `Press articles frame the company through the founder's personal narrative${framings.length > 0 ? ` (described as ${framings.join(', ')})` : ''}. No other team members are quoted or referenced in press coverage. The company's media identity appears inseparable from the founder's personal identity.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'light_inference',
+    confidence: 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'neutral',
+    tags: ['press_coverage', 'founder_narrative', 'institutional_gap'],
   })];
 }
 
@@ -593,6 +820,12 @@ export function extractSignals(dossier: Dossier): Signal[] {
     ...extractPricingSegmentSignals(dossier, companyId),
     ...extractHiringSegmentSignals(dossier, companyId),
     ...extractPositioningCredibilityGapSignals(dossier, companyId),
+    ...extractFounderVisibilitySignals(dossier, companyId),
+    ...extractFounderCustomerSignals(dossier, companyId),
+    ...extractLeadershipDepthSignals(dossier, companyId),
+    ...extractJuniorHiringSignals(dossier, companyId),
+    ...extractThoughtLeadershipConcentrationSignals(dossier, companyId),
+    ...extractPressFounderFramingSignals(dossier, companyId),
   ];
 
   return deduplicateSignals(raw);

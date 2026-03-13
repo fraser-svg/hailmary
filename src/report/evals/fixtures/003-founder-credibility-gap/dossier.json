@@ -1,0 +1,690 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-13T00:00:00Z",
+  "company_input": {
+    "company_name": "CatalystIQ",
+    "primary_domain": "catalystiq.com",
+    "resolved_company_name": "CatalystIQ Inc.",
+    "resolved_domain": "catalystiq.com",
+    "aliases": ["Catalyst", "CIQ"]
+  },
+  "run_metadata": {
+    "run_id": "eval-fixture-003",
+    "pipeline_version": "0.1.0",
+    "collection_started_at": "2026-03-13T00:00:00Z",
+    "collection_finished_at": "2026-03-13T00:00:00Z",
+    "source_count": 9,
+    "evidence_record_count": 11,
+    "notes": ["Evaluation fixture — fictional company for reasoning pipeline testing"],
+    "evidence_summary": {
+      "total_sources": 9,
+      "total_evidence": 11,
+      "by_source_tier": {
+        "tier_1": 4,
+        "tier_2": 2,
+        "tier_3": 3,
+        "tier_4": 0,
+        "tier_5": 0
+      },
+      "by_evidence_category": {
+        "company_basics": 2,
+        "product_and_offer": 1,
+        "gtm": 2,
+        "customer": 3,
+        "competitors": 0,
+        "signals": 2,
+        "market_and_macro": 0,
+        "positioning_and_narrative": 1,
+        "risk": 0
+      },
+      "inferred_count": 0,
+      "direct_count": 11,
+      "customer_voice_depth": "moderate",
+      "negative_signal_depth": "none"
+    }
+  },
+  "company_profile": {
+    "plain_language_description": "CatalystIQ sells a business intelligence platform that positions itself as redefining decision-making for modern organizations. The company's public presence is heavily anchored to its founder, Priya Kapoor, whose personal credibility, thought leadership, and direct involvement in customer relationships appear to be central to the company's brand and go-to-market motion. Observable leadership depth beyond the founder is limited.",
+    "category": "Business Intelligence",
+    "subcategories": ["Decision Intelligence", "Data Analytics", "B2B SaaS"],
+    "founded_year": 2023,
+    "company_stage": {
+      "value": "early growth",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_005"]
+    },
+    "headquarters": "New York, NY",
+    "geographic_presence": ["United States"],
+    "leadership": [
+      {
+        "name": "Priya Kapoor",
+        "title": "CEO & Founder",
+        "evidence_ids": ["ev_001", "ev_004", "ev_005"]
+      }
+    ],
+    "ownership_or_structure_notes": ["VC-backed, Seed stage"],
+    "evidence_ids": ["ev_001", "ev_002", "ev_004", "ev_005"],
+    "confidence": "medium"
+  },
+  "product_and_offer": {
+    "core_offer_summary": "Business intelligence platform that combines data integration, automated insight generation, and executive dashboards. Positioned as enabling faster, more confident decisions without requiring a dedicated data team.",
+    "products_or_services": [
+      {
+        "name": "CatalystIQ Platform",
+        "type": "SaaS Platform",
+        "description": "Business intelligence platform with automated data connectors, AI-powered insight summaries, and customizable executive dashboards. Positioned as replacing traditional BI tools with a faster, more intuitive approach.",
+        "target_user": "Operations leaders and executive teams at mid-market organizations",
+        "evidence_ids": ["ev_001", "ev_003"]
+      }
+    ],
+    "pricing_model": {
+      "value": "tiered subscription",
+      "details": "Growth: $299/mo (up to 10 users). Scale: $799/mo (up to 50 users). Enterprise: custom pricing. All plans include onboarding call with the CatalystIQ team.",
+      "is_public": true,
+      "is_inferred": false,
+      "evidence_ids": ["ev_001"]
+    },
+    "pricing_signals": [
+      "All plans include an onboarding call — suggests hands-on setup model",
+      "Enterprise tier requires custom pricing and direct engagement"
+    ],
+    "delivery_model": ["SaaS"],
+    "implementation_complexity": {
+      "value": "medium",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_008", "ev_009"]
+    },
+    "evidence_ids": ["ev_001", "ev_003", "ev_008", "ev_009"],
+    "confidence": "medium"
+  },
+  "gtm_model": {
+    "sales_motion": {
+      "value": "founder-led sales with direct engagement",
+      "is_inferred": true,
+      "confidence": "medium",
+      "evidence_ids": ["ev_007", "ev_008", "ev_009"]
+    },
+    "acquisition_channels": ["Founder thought leadership", "Conference speaking", "Content marketing", "Direct outreach"],
+    "buyer_journey_notes": [
+      "Multiple customers describe the founder as their primary point of contact during evaluation and purchase",
+      "Case study describes founder-led implementation and ongoing relationship"
+    ],
+    "distribution_model": ["Direct sales"],
+    "territory_or_market_focus": ["Mid-market B2B in North America"],
+    "growth_signals": [
+      "Seed funding of $4.5M",
+      "Founder keynote at DataSummit 2025"
+    ],
+    "hiring_signals": [
+      {
+        "role_title": "Data Analyst",
+        "department": "Product",
+        "signal": "Open role for a junior data analyst to support platform data pipelines — individual contributor level, no management responsibility",
+        "evidence_ids": ["ev_006"]
+      },
+      {
+        "role_title": "Junior Full-Stack Developer",
+        "department": "Engineering",
+        "signal": "2 open roles for junior developers with 1-2 years of experience — no senior engineering or architecture roles observed",
+        "evidence_ids": ["ev_006"]
+      },
+      {
+        "role_title": "Operations Associate",
+        "department": "Operations",
+        "signal": "Open role for operations associate to handle customer onboarding logistics, scheduling, and administrative support",
+        "evidence_ids": ["ev_010"]
+      },
+      {
+        "role_title": "Marketing Coordinator",
+        "department": "Marketing",
+        "signal": "Open role for marketing coordinator to manage social media, blog scheduling, and event logistics — no VP Marketing or Head of Growth role observed",
+        "evidence_ids": ["ev_010"]
+      }
+    ],
+    "content_and_positioning_hooks": [
+      "The intelligence platform redefining decision-making for modern organizations",
+      "Built by Priya Kapoor, former data science lead at McKinsey",
+      "From the mind that transformed analytics at McKinsey",
+      "Priya Kapoor's vision for the future of business intelligence"
+    ],
+    "gtm_observations": [
+      "Founder's personal brand and credentials are central to all marketing and content",
+      "Sales motion appears to rely on founder's direct involvement in customer conversations",
+      "All published content — blog posts, webinars, conference talks — features the founder exclusively",
+      "No other company representatives appear in external-facing communications"
+    ],
+    "evidence_ids": ["ev_003", "ev_006", "ev_007", "ev_008", "ev_009", "ev_010", "ev_011"],
+    "confidence": "medium"
+  },
+  "customer_and_personas": {
+    "ideal_customer_profile": {
+      "company_size": ["50-200 employees"],
+      "industries": ["Professional Services", "Technology", "Financial Services"],
+      "geographies": ["North America"],
+      "traits": ["Data-informed leadership", "No dedicated BI team", "Looking for actionable insights without building internal analytics capacity"],
+      "is_inferred": true,
+      "evidence_ids": ["ev_007", "ev_008", "ev_009"]
+    },
+    "buyer_personas": [
+      {
+        "title": "VP of Operations",
+        "department": "Operations",
+        "seniority": "VP",
+        "role_in_purchase": "Economic buyer and champion",
+        "pain_points": ["Data scattered across tools", "No dedicated data team", "Slow reporting cycles"],
+        "desired_outcomes": ["Unified dashboard for executive decisions", "Automated insight generation"],
+        "evidence_ids": ["ev_007", "ev_008"],
+        "is_inferred": true
+      }
+    ],
+    "end_user_personas": [],
+    "customer_pain_themes": [
+      "Lack of unified data visibility for decision-making",
+      "Need for analytics without hiring a data team"
+    ],
+    "customer_outcome_themes": [
+      "Priya personally walked us through setup and configuration",
+      "The founder's expertise made the difference during onboarding",
+      "We felt like we were getting McKinsey-level consulting with a software tool"
+    ],
+    "case_study_signals": [
+      "Case study highlights founder personally leading the implementation over 4 weeks",
+      "Case study quotes the customer referencing the founder by name as the key relationship",
+      "No implementation team or customer success representative mentioned — only the founder"
+    ],
+    "evidence_ids": ["ev_007", "ev_008", "ev_009"],
+    "confidence": "medium"
+  },
+  "competitors": {
+    "direct_competitors": [],
+    "adjacent_competitors": [],
+    "substitutes": [],
+    "claimed_differentiators": ["AI-powered insight generation", "Founder's McKinsey pedigree", "Faster time to value than legacy BI tools"],
+    "positioning_overlaps": [],
+    "competitive_gaps": [],
+    "competitive_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "market_and_macro": {
+    "market_category": "Business Intelligence",
+    "market_dynamics": [],
+    "industry_trends": ["Mid-market organizations adopting BI tools as data literacy increases among non-technical leaders"],
+    "economic_sensitivity": [],
+    "regulatory_exposure": [],
+    "political_or_geopolitical_exposure": [],
+    "technology_shift_risks": [],
+    "ecosystem_dependencies": [],
+    "macro_observations": [],
+    "evidence_ids": [],
+    "confidence": "low"
+  },
+  "signals": {
+    "funding": [
+      {
+        "date": "2024-09",
+        "amount": "$4.5M",
+        "round": "Seed",
+        "investors": ["First Round Capital", "Founder Collective"],
+        "evidence_ids": ["ev_005"]
+      }
+    ],
+    "product_launches": [],
+    "leadership_changes": [],
+    "press_and_content": [
+      {
+        "date": "2025-02",
+        "type": "press_coverage",
+        "title": "How Priya Kapoor is reinventing business intelligence",
+        "summary": "Forbes profile centers entirely on the founder's background, vision, and personal journey. The company is framed as an extension of the founder's expertise rather than as an independent institution.",
+        "evidence_ids": ["ev_004"]
+      },
+      {
+        "date": "2025-06",
+        "type": "conference",
+        "title": "Priya Kapoor keynote at DataSummit 2025",
+        "summary": "Founder delivers keynote on the future of decision intelligence. Conference materials describe her as 'the visionary behind CatalystIQ' — attributing the company's value proposition to the founder personally.",
+        "evidence_ids": ["ev_005"]
+      }
+    ],
+    "notable_hiring": [
+      "5 open roles — all individual contributor level (data analyst, junior developers, operations associate, marketing coordinator)",
+      "No senior leadership, VP, CTO, or COO roles posted",
+      "No customer success or account management roles — founder appears to fill these functions"
+    ],
+    "signal_summary": [
+      "Hiring pattern suggests junior staff augmentation rather than leadership team build-out",
+      "Founder appears to personally handle sales, customer relationships, and external communications"
+    ],
+    "confidence": "medium"
+  },
+  "narrative_intelligence": {
+    "company_claimed_value": [
+      {
+        "theme": "Transformative intelligence platform",
+        "description": "Company positions itself as redefining decision-making for modern organizations through AI-powered analytics and the founder's domain expertise.",
+        "language_examples": [
+          "The intelligence platform redefining decision-making for modern organizations",
+          "Built by Priya Kapoor, former data science lead at McKinsey",
+          "From the mind that transformed analytics at McKinsey"
+        ],
+        "evidence_ids": ["ev_001", "ev_003"]
+      }
+    ],
+    "customer_expressed_value": [
+      {
+        "theme": "Founder's personal expertise and involvement",
+        "description": "Customers consistently describe the founder's personal involvement as the primary source of value, referencing her by name and attributing outcomes to her direct engagement rather than to the platform alone.",
+        "language_examples": [
+          "Priya personally walked us through the entire setup",
+          "Working with the founder directly was the real differentiator",
+          "Her McKinsey background shows in how she approaches our data challenges"
+        ],
+        "source_types": ["review_record", "case_study_record"],
+        "evidence_ids": ["ev_007", "ev_008", "ev_009"]
+      }
+    ],
+    "customer_language_patterns": [
+      {
+        "pattern": "Customers attribute value to the founder personally rather than to the company or product",
+        "interpretation": "Customer perception of value is anchored to the founder's credibility and direct involvement, not to institutional capability or product autonomy",
+        "evidence_ids": ["ev_007", "ev_008", "ev_009"]
+      }
+    ],
+    "narrative_gaps": [
+      {
+        "gap_name": "Founder-anchored credibility vs institutional depth",
+        "company_language": ["redefining decision-making", "Built by Priya Kapoor", "intelligence platform"],
+        "customer_language": ["Priya personally walked us through", "Priya spent four weeks working directly", "The founder gave us a personalized demo"],
+        "gap_description": "The company positions itself as an institutional platform, but customer experience and public evidence suggest that credibility and value delivery are concentrated in the founder personally. The gap is between the company's institutional ambition and its founder-dependent operating model.",
+        "likely_business_impact": [
+          "Scaling may be constrained by the founder's personal bandwidth",
+          "Customer relationships may be difficult to transfer to other team members",
+          "Enterprise buyers may seek institutional authority beyond a single individual"
+        ],
+        "suggested_repositioning_direction": "Gradually shift from founder-as-brand to team-as-brand — highlight growing expertise within the organization while the founder's credibility remains a strategic asset",
+        "evidence_ids": ["ev_001", "ev_002", "ev_007", "ev_008", "ev_009"],
+        "confidence": "medium"
+      }
+    ],
+    "negative_signals": [],
+    "value_alignment_summary": [
+      {
+        "theme": "Source of credibility",
+        "alignment": "divergent",
+        "company_language": ["Intelligence platform", "Redefining decision-making", "For modern organizations"],
+        "customer_language": ["Priya walked us through it", "The founder's expertise", "Working directly with her"],
+        "business_implication": "The company's institutional positioning may not match customers' actual perception, which is anchored to the founder's personal involvement and credibility",
+        "evidence_ids": ["ev_001", "ev_008", "ev_009"],
+        "confidence": "medium"
+      }
+    ],
+    "hidden_differentiators": [
+      "The founder's personal domain expertise and hands-on customer involvement may be the actual competitive advantage, not the platform technology itself"
+    ],
+    "messaging_opportunities": [],
+    "narrative_summary": "CatalystIQ positions itself as a transformative intelligence platform, but available evidence — press coverage, customer testimonials, case studies, blog content, and hiring patterns — consistently indicates that the company's credibility and customer value are concentrated in the founder personally. No executive team depth, senior leadership hires, or institutional authority signals are observable beyond the founder.",
+    "confidence": "medium"
+  },
+  "strategic_risks": {
+    "positioning_risks": [
+      "Founder-anchored credibility may create perception of single-point-of-failure risk for enterprise buyers"
+    ],
+    "gtm_risks": [
+      "Founder-led sales motion may constrain deal volume as the company grows"
+    ],
+    "competitive_risks": [],
+    "market_risks": [],
+    "dependency_risks": [
+      "Company's market presence and customer relationships appear to depend heavily on the founder's personal bandwidth and reputation"
+    ],
+    "risk_observations": [
+      {
+        "risk": "Founder concentration risk",
+        "description": "If the founder's availability decreases or the company scales beyond her personal capacity, customer experience quality and sales velocity may decline",
+        "severity": "medium",
+        "is_inferred": true,
+        "evidence_ids": ["ev_007", "ev_008", "ev_009", "ev_006"]
+      }
+    ],
+    "strategic_hypotheses": [],
+    "confidence": "medium"
+  },
+  "confidence_and_gaps": {
+    "high_confidence_findings": [
+      "Company's public presence is heavily centered on the founder's personal brand and expertise"
+    ],
+    "medium_confidence_findings": [
+      "Leadership depth beyond the founder appears limited based on observable evidence",
+      "Customer relationships appear to involve significant founder involvement",
+      "Hiring signals suggest junior staff augmentation rather than leadership expansion"
+    ],
+    "low_confidence_findings": [
+      "Institutional leadership development may be in progress but not yet externally visible"
+    ],
+    "missing_data": [
+      "No executive team members beyond the founder identified",
+      "No board of advisors or advisory board visible",
+      "No competitor comparison evidence collected",
+      "No post-seed institutional development signals"
+    ],
+    "conflicting_evidence": [
+      "Company positions itself as an institutional platform but all external-facing activity is founder-centric"
+    ],
+    "sections_with_weak_support": ["competitors", "market_and_macro"],
+    "overall_confidence": "medium"
+  },
+  "sources": [
+    {
+      "source_id": "src_001",
+      "url": "https://catalystiq.com",
+      "source_type": "company_website",
+      "title": "CatalystIQ — Homepage",
+      "publisher_or_owner": "CatalystIQ Inc.",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "relevance_notes": ["Primary source for company positioning and founder-centric messaging"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_002",
+      "url": "https://catalystiq.com/about",
+      "source_type": "company_website",
+      "title": "CatalystIQ — About / Team",
+      "publisher_or_owner": "CatalystIQ Inc.",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "relevance_notes": ["Team page revealing limited leadership depth beyond the founder"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_003",
+      "url": "https://catalystiq.com/blog",
+      "source_type": "company_blog",
+      "title": "CatalystIQ — Blog and Thought Leadership",
+      "publisher_or_owner": "CatalystIQ Inc.",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "relevance_notes": ["All blog content authored exclusively by the founder"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_004",
+      "url": "https://forbes.com/profile/priya-kapoor-catalystiq",
+      "source_type": "press_article",
+      "title": "How Priya Kapoor Is Reinventing Business Intelligence",
+      "publisher_or_owner": "Forbes",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "relevance_notes": ["Press profile framing the company entirely around the founder"],
+      "source_tier": 2
+    },
+    {
+      "source_id": "src_005",
+      "url": "https://techcrunch.com/2024/09/catalystiq-seed-round",
+      "source_type": "press_article",
+      "title": "CatalystIQ raises $4.5M to bring decision intelligence to mid-market teams",
+      "publisher_or_owner": "TechCrunch",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "relevance_notes": ["Funding coverage with founder-centric framing and conference appearance"],
+      "source_tier": 2
+    },
+    {
+      "source_id": "src_006",
+      "url": "https://linkedin.com/company/catalystiq/jobs",
+      "source_type": "job_board",
+      "title": "CatalystIQ — LinkedIn Job Postings",
+      "publisher_or_owner": "CatalystIQ Inc.",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "relevance_notes": ["Hiring signals revealing junior-only staff growth with no senior leadership roles"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_007",
+      "url": "https://catalystiq.com/customers/acuitylabs",
+      "source_type": "case_study",
+      "title": "How AcuityLabs Transformed Their Analytics with CatalystIQ",
+      "publisher_or_owner": "CatalystIQ Inc.",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "relevance_notes": ["Case study with heavy founder involvement in customer implementation"],
+      "source_tier": 1
+    },
+    {
+      "source_id": "src_008",
+      "url": "https://g2.com/products/catalystiq/reviews",
+      "source_type": "review_platform",
+      "title": "CatalystIQ Reviews — G2",
+      "publisher_or_owner": "G2.com",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "relevance_notes": ["Customer reviews referencing founder by name as primary value driver"],
+      "source_tier": 3
+    },
+    {
+      "source_id": "src_009",
+      "url": "https://trustpilot.com/review/catalystiq.com",
+      "source_type": "review_platform",
+      "title": "CatalystIQ Reviews — Trustpilot",
+      "publisher_or_owner": "Trustpilot",
+      "captured_at": "2026-03-12T10:40:00Z",
+      "relevance_notes": ["Customer reviews describing founder-led demos and personalized setup"],
+      "source_tier": 3
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_001",
+      "source_id": "src_001",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:00:00Z",
+      "excerpt": "CatalystIQ is the intelligence platform redefining decision-making for modern organizations. Built by Priya Kapoor, former data science lead at McKinsey, CatalystIQ brings world-class analytical rigor to every business decision.",
+      "summary": "Homepage headline positions CatalystIQ as a transformative platform while prominently crediting the founder by name and citing her McKinsey pedigree. The founder's personal credentials are presented as a core value proposition alongside the product itself.",
+      "normalized_fields": {
+        "claim_category": "positioning",
+        "claim_strength": "strong",
+        "founder_mention": true,
+        "founder_credential": "former data science lead at McKinsey"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Platform positioning as transformative", "Founder's personal credentials as product differentiator"],
+      "tags": ["founder_narrative", "positioning", "credibility"]
+    },
+    {
+      "evidence_id": "ev_002",
+      "source_id": "src_002",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:05:00Z",
+      "excerpt": "Our Team: Priya Kapoor — CEO & Founder. Former data science lead at McKinsey & Company. 10+ years in analytics and decision science. Team members: Ravi Desai (Data Engineer), Aisha Okonkwo (Full-Stack Developer), Leo Huang (Product Designer), Maya Fernandez (Operations Coordinator).",
+      "summary": "About page lists the founder with extensive credentials and four team members with individual contributor titles. No CTO, VP Engineering, Head of Product, COO, or other senior leadership roles are listed. The leadership page is effectively a founder page with supporting staff.",
+      "normalized_fields": {
+        "total_team_listed": 5,
+        "senior_leaders": 1,
+        "individual_contributors": 4,
+        "missing_roles": ["CTO", "VP Engineering", "Head of Product", "COO", "VP Sales"]
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Leadership team consists solely of the founder", "Staff are individual contributors, not leaders"],
+      "tags": ["leadership_depth", "team_structure", "founder_concentration"]
+    },
+    {
+      "evidence_id": "ev_003",
+      "source_id": "src_003",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "excerpt": "Blog archive: 22 published articles. All authored by Priya Kapoor. Topics include: 'Why Most BI Tools Fail Mid-Market Teams' (Priya Kapoor), 'The McKinsey Framework I Use to Evaluate Data Quality' (Priya Kapoor), 'Decision Intelligence: A Founder's Perspective' (Priya Kapoor). Recent webinar: 'Live Product Demo with Priya Kapoor — Every Thursday at 2pm ET.'",
+      "summary": "Company blog contains 22 articles, all authored by the founder. Topics reference the founder's McKinsey experience and personal frameworks. Weekly product demos are hosted by the founder. No guest authors, team contributors, or other company voices appear in any published content.",
+      "normalized_fields": {
+        "total_articles": 22,
+        "founder_authored": 22,
+        "other_authors": 0,
+        "weekly_demos_by_founder": true
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["All thought leadership is founder-generated", "No other voices represent the company publicly"],
+      "tags": ["thought_leadership", "founder_concentration", "content_strategy"]
+    },
+    {
+      "evidence_id": "ev_004",
+      "source_id": "src_004",
+      "evidence_type": "press_record",
+      "captured_at": "2026-03-12T10:15:00Z",
+      "excerpt": "Forbes: 'How Priya Kapoor Is Reinventing Business Intelligence.' The article profiles Kapoor's journey from McKinsey to founding CatalystIQ, describing her as 'the driving force behind a new generation of decision tools.' The company is mentioned primarily as a vehicle for Kapoor's vision. No other team members are quoted or referenced.",
+      "summary": "Forbes profile frames CatalystIQ entirely through the founder's personal narrative. The company is described as an extension of the founder's expertise rather than as an independent institution. No other executives, team members, or organizational capabilities are mentioned.",
+      "normalized_fields": {
+        "article_focus": "founder profile",
+        "team_mentions": 0,
+        "founder_framing": "visionary, driving force",
+        "company_framing": "vehicle for founder's vision"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Press frames company as founder's personal project", "No institutional identity beyond the founder is visible in press"],
+      "tags": ["press_coverage", "founder_narrative", "institutional_gap"]
+    },
+    {
+      "evidence_id": "ev_005",
+      "source_id": "src_005",
+      "evidence_type": "press_record",
+      "captured_at": "2026-03-12T10:20:00Z",
+      "excerpt": "TechCrunch: 'CatalystIQ has raised $4.5M in seed funding led by First Round Capital. Founder Priya Kapoor, who previously led data science at McKinsey, tells TechCrunch: \"I saw how the best firms in the world make decisions, and I'm bringing that to every mid-market company.\" Kapoor also delivered a keynote at DataSummit 2025, where she was introduced as \"the visionary behind CatalystIQ.\"'",
+      "summary": "TechCrunch coverage positions CatalystIQ through the founder's personal authority and McKinsey credentials. The founder's keynote appearance further reinforces the pattern of the founder as the company's primary public representative. Conference introduction describes the founder as 'the visionary behind CatalystIQ' — attributing company identity to the founder personally.",
+      "normalized_fields": {
+        "funding_amount": "$4.5M",
+        "round": "Seed",
+        "founder_keynote": true,
+        "founder_framing": "visionary behind CatalystIQ",
+        "credential_emphasis": "McKinsey"
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Founder is the primary public representative", "Company identity is attributed to founder personally"],
+      "tags": ["funding", "founder_narrative", "conference", "credibility"]
+    },
+    {
+      "evidence_id": "ev_006",
+      "source_id": "src_006",
+      "evidence_type": "job_posting_record",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "excerpt": "Open roles: Data Analyst (1 opening, 1-3 years experience), Junior Full-Stack Developer (2 openings, 1-2 years experience), Operations Associate (1 opening, entry-level). All roles report to the CEO. No senior engineering, product leadership, or executive roles posted.",
+      "summary": "Four open positions, all at junior or entry level. All roles report directly to the CEO (the founder). No senior leadership hires — no CTO, VP Engineering, VP Product, Head of Sales, or any other executive-level role is being recruited. The hiring pattern suggests the founder intends to remain the sole senior decision-maker.",
+      "normalized_fields": {
+        "total_openings": 4,
+        "junior_roles": 4,
+        "senior_roles": 0,
+        "all_report_to_ceo": true,
+        "missing_leadership_hires": ["CTO", "VP Engineering", "VP Product", "Head of Sales"]
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["All hires are junior individual contributors", "No leadership expansion is observable"],
+      "tags": ["hiring_signal", "leadership_depth", "founder_concentration"]
+    },
+    {
+      "evidence_id": "ev_007",
+      "source_id": "src_007",
+      "evidence_type": "case_study_record",
+      "captured_at": "2026-03-12T10:30:00Z",
+      "excerpt": "Case Study: How AcuityLabs Transformed Their Analytics with CatalystIQ. 'Priya spent four weeks working directly with our leadership team to design our dashboard architecture and configure our data pipelines. Her McKinsey background was immediately apparent — she brought a level of strategic thinking we hadn't expected from a software vendor,' says Daniel Frost, VP Operations at AcuityLabs (85-person financial consulting firm).",
+      "summary": "Company-published case study features the founder personally leading a 4-week implementation for a mid-market customer. The customer quotes the founder by name and attributes value to her McKinsey expertise, not to the product or a customer success team. No other CatalystIQ team members are mentioned in the case study.",
+      "normalized_fields": {
+        "customer_company": "AcuityLabs",
+        "customer_size": 85,
+        "customer_type": "financial consulting firm",
+        "founder_led_implementation": true,
+        "implementation_duration": "4 weeks",
+        "contact_title": "VP Operations",
+        "other_team_mentioned": false
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["Founder personally leads customer implementations", "Customer value is attributed to founder's expertise, not institutional capability"],
+      "tags": ["customer_reference", "founder_involvement", "case_study"]
+    },
+    {
+      "evidence_id": "ev_008",
+      "source_id": "src_008",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:35:00Z",
+      "excerpt": "G2 review: 'Priya personally walked us through the entire setup over three calls. She redesigned our data model and showed us insights we'd been missing for months. The platform is solid, but honestly the biggest value was working with Priya directly. Not sure what the experience would be like without her involvement.'",
+      "summary": "G2 reviewer credits the founder personally for the value received. The reviewer explicitly questions what the experience would be like without the founder's direct involvement — suggesting awareness that the value may be founder-dependent rather than product-dependent or team-dependent.",
+      "normalized_fields": {
+        "sentiment": "positive",
+        "value_attribution": "founder_personal",
+        "founder_referenced_by_name": true,
+        "concern_about_scalability": true,
+        "setup_calls": 3
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customer value attributed to founder personally", "Customer questions whether value is repeatable without founder"],
+      "tags": ["customer_voice", "founder_dependency", "scalability_concern"]
+    },
+    {
+      "evidence_id": "ev_009",
+      "source_id": "src_009",
+      "evidence_type": "review_record",
+      "captured_at": "2026-03-12T10:40:00Z",
+      "excerpt": "Trustpilot review: 'The founder gave us a personalized demo and helped configure our executive dashboard over a weekend. You can tell she really understands the analytics space — her McKinsey experience comes through in every recommendation. My only concern is whether this level of attention will scale as they grow. For now, it feels like having a top-tier consultant bundled with a SaaS tool.'",
+      "summary": "Trustpilot reviewer describes a founder-led demo and weekend configuration session. The reviewer explicitly raises scaling concerns — questioning whether the personalized attention from the founder can be maintained. The review frames CatalystIQ as a 'consultant bundled with a SaaS tool,' anchoring the value perception to the founder's personal expertise.",
+      "normalized_fields": {
+        "sentiment": "positive",
+        "value_attribution": "founder_personal",
+        "founder_referenced_by_name": false,
+        "scaling_concern_raised": true,
+        "perceived_value": "consultant bundled with SaaS tool"
+      },
+      "source_quality": "medium",
+      "confidence": "medium",
+      "is_inferred": false,
+      "supports_claims": ["Customers perceive value as founder-delivered consulting", "Customers independently raise scaling concerns about founder involvement"],
+      "tags": ["customer_voice", "founder_dependency", "scalability_concern", "buyer_language"]
+    },
+    {
+      "evidence_id": "ev_010",
+      "source_id": "src_006",
+      "evidence_type": "hiring_signal_record",
+      "captured_at": "2026-03-12T10:25:00Z",
+      "excerpt": "Additional open roles: Marketing Coordinator (1 opening, 1-2 years experience, responsibilities include blog scheduling, social media management, and event logistics). Operations Associate (1 opening, entry-level, responsibilities include customer onboarding scheduling, CRM updates, and administrative support). Both roles report to the CEO.",
+      "summary": "Two additional junior roles focused on administrative and coordination tasks. Neither role involves strategic decision-making, customer-facing authority, or leadership responsibilities. Combined with ev_006, all 5 open positions are individual contributor roles reporting directly to the founder.",
+      "normalized_fields": {
+        "role_count": 2,
+        "departments": ["Marketing", "Operations"],
+        "seniority": "junior",
+        "reports_to": "CEO",
+        "strategic_authority": false
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["All hiring is for junior support roles", "No delegation of leadership responsibilities observed"],
+      "tags": ["hiring_signal", "leadership_depth", "operational_maturity"]
+    },
+    {
+      "evidence_id": "ev_011",
+      "source_id": "src_003",
+      "evidence_type": "company_claim_record",
+      "captured_at": "2026-03-12T10:10:00Z",
+      "excerpt": "Upcoming webinars: 'Live Product Demo with Priya Kapoor — Every Thursday at 2pm ET.' Past webinars: 'Ask Priya Anything: BI Strategy for Growing Teams' (Priya Kapoor), 'Data-Driven Decision Making: Lessons from McKinsey' (Priya Kapoor), 'CatalystIQ Deep Dive: Founder's Walkthrough' (Priya Kapoor). All 14 recorded webinars feature the founder as the sole presenter.",
+      "summary": "All 14 company webinars feature the founder as the only presenter. Weekly live demos are hosted by the founder personally. Webinar titles reference the founder by name and her McKinsey credentials. No other team members, product specialists, or customer success representatives appear in any webinar content.",
+      "normalized_fields": {
+        "total_webinars": 14,
+        "founder_presented": 14,
+        "other_presenters": 0,
+        "weekly_demo_by_founder": true
+      },
+      "source_quality": "high",
+      "confidence": "high",
+      "is_inferred": false,
+      "supports_claims": ["All external-facing content is founder-presented", "No other company voice exists in public communications"],
+      "tags": ["thought_leadership", "founder_concentration", "content_strategy"]
+    }
+  ]
+}

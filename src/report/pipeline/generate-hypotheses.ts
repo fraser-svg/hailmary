@@ -376,10 +376,12 @@ function hypothesizeHiringRevealsStrategy(
   signals: Signal[],
   companyId: string,
 ): Hypothesis | null {
-  const hiringPattern = findPatternByType(patterns, 'concentration')
-    ?? findPatternByTitleKeyword(patterns, 'hiring');
+  const hiringPattern = findPatternByTitleKeyword(patterns, 'hiring')
+    ?? findPatternByType(patterns, 'concentration');
 
   if (!hiringPattern) return null;
+  // Guard: must be about hiring patterns, not founder credibility concentration
+  if (!hiringPattern.title.toLowerCase().includes('hiring')) return null;
 
   const supportingTensions = findTensionsByIds(tensions, hiringPattern.tension_ids);
 
@@ -629,6 +631,150 @@ function hypothesizeCredibilityWhileBuildingTraction(
   });
 }
 
+/**
+ * Template 8: Founder-dependent credibility
+ *
+ * Triggered by: concentration-type pattern (credibility concentrated in founder)
+ * Explains: the company's market position may be anchored to a single individual
+ * rather than to institutional capability.
+ */
+function hypothesizeFounderDependentCredibility(
+  patterns: Pattern[],
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Hypothesis | null {
+  // Look for founder credibility concentration pattern
+  const concentrationPattern = findPatternByTitleKeyword(patterns, 'credibility concentrated')
+    ?? findPatternByTitleKeyword(patterns, 'founder');
+
+  if (!concentrationPattern) return null;
+  // Guard: must be about founder concentration, not hiring-as-strategy-reveal
+  if (concentrationPattern.title.toLowerCase().includes('hiring-as-strategy')) return null;
+
+  const supportingTensions = findTensionsByIds(tensions, concentrationPattern.tension_ids);
+
+  // Also pull in the institutional leadership gap pattern tensions if available
+  const gapPattern = findPatternByTitleKeyword(patterns, 'institutional leadership');
+  const additionalTensions = gapPattern
+    ? findTensionsByIds(tensions, gapPattern.tension_ids).filter(
+        t => !concentrationPattern.tension_ids.includes(t.tension_id),
+      )
+    : [];
+
+  // Pull in founder-related signals across multiple kinds
+  const founderSignals = signals.filter(s =>
+    s.tags.some(t => /founder_dependency|founder_visibility|founder_concentration/.test(t))
+  );
+
+  return makeHypothesis(companyId, {
+    title: "The company's credibility may currently depend heavily on founder personal authority",
+    statement:
+      "The concentration of credibility, customer relationships, and public narrative in " +
+      "the founder may mean that the company's market position is anchored to a single " +
+      'individual rather than to institutional capability. The absence of visible senior ' +
+      "leadership, the founder's direct involvement in customer implementations, and the " +
+      'exclusively founder-generated content all suggest that credibility has not yet been ' +
+      'distributed beyond the founder.',
+    hypothesis_type: 'leadership',
+    patterns: gapPattern ? [concentrationPattern, gapPattern] : [concentrationPattern],
+    tensions: [...supportingTensions, ...additionalTensions],
+    extraSignals: founderSignals,
+    assumptions: [
+      "The founder's personal involvement is currently necessary for customer acquisition and retention.",
+      'No other team member has comparable external authority or customer-facing credibility.',
+      'The company\'s brand identity is inseparable from the founder\'s personal identity.',
+    ],
+    alternative_explanations: [
+      "Founder visibility may be a deliberate early-stage growth strategy — using the founder's " +
+        'personal brand to build initial traction before investing in institutional infrastructure.',
+      'Institutional leadership may be developing but not yet externally visible — seed-stage ' +
+        'companies often make leadership hires through networks rather than public postings.',
+    ],
+    missing_evidence: [
+      'Evidence of customer relationships managed by team members other than the founder.',
+      'Internal hiring plans or leadership development strategies not visible publicly.',
+      'Customer retention data comparing founder-led vs team-led engagements.',
+    ],
+    confidence: 'medium',
+    novelty: 'medium',
+    severity: 'high',
+    actionability: 'high',
+  });
+}
+
+/**
+ * Template 9: Institutional leadership still emerging
+ *
+ * Triggered by: gap-type pattern (institutional leadership depth lagging)
+ * Explains: the limited leadership depth may reflect early-stage phase,
+ * not a structural limitation.
+ */
+function hypothesizeEmergingInstitutionalLeadership(
+  patterns: Pattern[],
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Hypothesis | null {
+  const gapPattern = findPatternByType(patterns, 'gap')
+    ?? findPatternByTitleKeyword(patterns, 'institutional leadership');
+
+  if (!gapPattern) return null;
+  // Guard: must be about leadership depth, not other gaps
+  if (!gapPattern.title.toLowerCase().includes('leadership') &&
+      !gapPattern.title.toLowerCase().includes('institutional')) return null;
+
+  const supportingTensions = findTensionsByIds(tensions, gapPattern.tension_ids);
+
+  // Also look for founder-centric growth pattern for broader support
+  const growthPattern = findPatternByTitleKeyword(patterns, 'founder-centric growth')
+    ?? findPatternByType(patterns, 'dependency');
+  const additionalTensions = growthPattern
+    ? findTensionsByIds(tensions, growthPattern.tension_ids).filter(
+        t => !gapPattern.tension_ids.includes(t.tension_id),
+      )
+    : [];
+
+  const talentSignals = signals.filter(s =>
+    s.kind === 'talent' &&
+    s.tags.some(t => /leadership_depth|junior_hiring|hiring_signal/.test(t))
+  );
+
+  return makeHypothesis(companyId, {
+    title: 'Institutional leadership structures may still be emerging as the company scales',
+    statement:
+      'The limited leadership depth may reflect an early-stage company that has not yet ' +
+      'reached the inflection point where senior leadership hires become necessary. The ' +
+      'founder may be intentionally maintaining a lean structure during the seed stage, ' +
+      'with plans to build institutional depth as revenue and customer base grow. The ' +
+      'current state may be a temporary phase rather than a structural limitation.',
+    hypothesis_type: 'organizational',
+    patterns: growthPattern ? [gapPattern, growthPattern] : [gapPattern],
+    tensions: [...supportingTensions, ...additionalTensions],
+    extraSignals: talentSignals,
+    assumptions: [
+      'The company is at an early stage where founder-led operations are expected.',
+      'Junior hires are building operational capacity while leadership hiring is deferred.',
+      'The founder intends to build institutional leadership as the company matures.',
+    ],
+    alternative_explanations: [
+      "The founder's personal involvement may be a competitive differentiator the company " +
+        'is deliberately leveraging rather than a sign of incomplete institutionalization.',
+      'The company may have informal leadership structures or advisors that are not ' +
+        'reflected on the public team page or job postings.',
+    ],
+    missing_evidence: [
+      'Board composition or advisory board that might provide institutional guidance.',
+      'Internal hiring plans for senior leadership positions.',
+      'Evidence of delegation or leadership development within the existing team.',
+    ],
+    confidence: 'medium',
+    novelty: 'medium',
+    severity: 'medium',
+    actionability: 'medium',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -675,6 +821,8 @@ export function generateHypotheses(
     hypothesizeWideningGap(patterns, tensions, signals, companyId),
     hypothesizeAspirationalPositioning(patterns, tensions, signals, companyId),
     hypothesizeCredibilityWhileBuildingTraction(patterns, tensions, signals, companyId),
+    hypothesizeFounderDependentCredibility(patterns, tensions, signals, companyId),
+    hypothesizeEmergingInstitutionalLeadership(patterns, tensions, signals, companyId),
   ].filter((h): h is Hypothesis => h !== null);
 
   return deduplicateHypotheses(candidates);

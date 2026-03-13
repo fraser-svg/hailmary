@@ -599,6 +599,203 @@ function implyInvestorExpectationsCalibration(
   });
 }
 
+/**
+ * Template 13: Scaling requires distributing credibility
+ *
+ * Triggered by hypotheses about founder-dependent credibility.
+ * If credibility is anchored to one person, growth may require
+ * distributing that credibility across the organization.
+ */
+function implyCredibilityDistribution(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'credibility',
+    'founder personal authority',
+    'anchored to a single individual',
+  ])) return null;
+
+  if (!textContains(text, [
+    'founder',
+    'personal',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Scaling may require distributing credibility beyond the founder',
+    statement:
+      "If the company's credibility is currently anchored to the founder personally, " +
+      "growth beyond the founder's personal bandwidth may require building institutional " +
+      'credibility signals — a visible leadership team, team-led content, and customer ' +
+      'relationships managed by people other than the founder.',
+    implication_type: 'constraint',
+    audience: 'executive',
+    horizon: 'near_term',
+    urgency: 'high',
+    impact: 'high',
+    key_questions: [
+      'What institutional credibility signals exist beyond the founder?',
+      'Can customer relationships be successfully transitioned to other team members?',
+      "How dependent is new customer acquisition on the founder's personal involvement?",
+    ],
+  });
+}
+
+/**
+ * Template 14: Enterprise buyers seek institutional authority
+ *
+ * Triggered by hypotheses about founder-dependent credibility.
+ * Enterprise procurement evaluates institutional maturity and vendor risk.
+ */
+function implyEnterpriseInstitutionalAuthority(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, ['credibility'])) return null;
+  if (!textContains(text, [
+    'single individual',
+    'founder',
+    'not yet been distributed',
+    'anchored',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Enterprise buyers may seek institutional authority signals beyond the founder',
+    statement:
+      'If the company pursues larger customers, enterprise procurement processes may ' +
+      'evaluate institutional maturity — executive team depth, organizational resilience, ' +
+      'and continuity risk. A company whose public identity is inseparable from a single ' +
+      'individual may face additional scrutiny from enterprise buyers assessing vendor risk.',
+    implication_type: 'risk',
+    audience: 'executive',
+    horizon: 'mid_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'How do enterprise prospects evaluate vendor risk and institutional maturity?',
+      'Does the company have institutional authority signals beyond the founder?',
+      'What continuity risk do enterprise buyers perceive in a founder-dependent company?',
+    ],
+  });
+}
+
+/**
+ * Template 15: Leadership depth becomes increasingly important
+ *
+ * Triggered by hypotheses about emerging institutional leadership.
+ * If the founder fills all roles, capacity becomes constrained.
+ */
+function implyLeadershipDepthImportance(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, [
+    'institutional leadership',
+    'leadership depth',
+    'lean structure',
+    'leadership structures',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Leadership depth may become increasingly important as the company grows',
+    statement:
+      'If the current operating model — founder as sales, customer success, content ' +
+      'creator, and product evangelist — continues without delegation, the company\'s ' +
+      'capacity to serve additional customers may be constrained by the founder\'s ' +
+      'available time and energy.',
+    implication_type: 'constraint',
+    audience: 'founder',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'Which functions is the founder currently filling that could be delegated?',
+      'At what customer count does the current model reach capacity constraints?',
+      'What leadership hires would most effectively distribute critical functions?',
+    ],
+  });
+}
+
+/**
+ * Template 16: Founder bandwidth influences deal flow
+ *
+ * Triggered by hypotheses about founder-dependent credibility.
+ * If the founder is in every deal, concurrent deal capacity is limited.
+ */
+function implyFounderBandwidthConstraint(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, ['founder'])) return null;
+  if (!textContains(text, [
+    'direct involvement',
+    'customer implementations',
+    'customer relationships',
+  ])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Founder bandwidth may influence deal flow and customer partnerships',
+    statement:
+      'If the founder is personally involved in every customer implementation, demo, ' +
+      'and relationship, the number of concurrent deals and customer relationships may ' +
+      "be limited by one person's capacity. This may become visible in sales cycle " +
+      'length, response times, or customer attention quality as demand grows.',
+    implication_type: 'watchpoint',
+    audience: 'operator',
+    horizon: 'near_term',
+    urgency: 'medium',
+    impact: 'high',
+    key_questions: [
+      'How many concurrent customer engagements can the founder effectively manage?',
+      'Are there signs of capacity strain in response times or deal velocity?',
+      'What customer functions could be delegated without reducing perceived value?',
+    ],
+  });
+}
+
+/**
+ * Template 17: Investor perception evolves with leadership (nice to detect)
+ *
+ * Triggered by hypotheses about institutional leadership emergence.
+ * Seed investors may have funded the founder; future investors evaluate the team.
+ */
+function implyInvestorPerceptionEvolution(
+  hyp: Hypothesis,
+  companyId: string,
+): Implication | null {
+  const text = `${hyp.title} ${hyp.statement}`;
+
+  if (!textContains(text, ['institutional leadership', 'leadership structures'])) return null;
+  if (!textContains(text, ['seed stage', 'early-stage', 'early stage'])) return null;
+
+  return makeImplication(companyId, hyp, {
+    title: 'Investor perception may evolve as leadership structure matures',
+    statement:
+      "If the seed round was raised on the strength of the founder's personal credibility, " +
+      'future investors may evaluate whether the company has developed institutional ' +
+      'capability beyond the founder. Series A investors typically assess team depth as ' +
+      'a scaling indicator.',
+    implication_type: 'watchpoint',
+    audience: 'investor',
+    horizon: 'mid_term',
+    urgency: 'medium',
+    impact: 'medium',
+    key_questions: [
+      "Was the seed round primarily based on the founder's personal credibility?",
+      'What team depth milestones do Series A investors typically expect?',
+      'How is the company building institutional capability visible to future investors?',
+    ],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -657,6 +854,11 @@ export function generateImplications(
     implySMBUnderservedByEnterpriseMessaging,
     implySalesMotionAdjustment,
     implyInvestorExpectationsCalibration,
+    implyCredibilityDistribution,
+    implyEnterpriseInstitutionalAuthority,
+    implyLeadershipDepthImportance,
+    implyFounderBandwidthConstraint,
+    implyInvestorPerceptionEvolution,
   ];
 
   // Apply each template to each surviving hypothesis

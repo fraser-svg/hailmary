@@ -30,6 +30,10 @@ export type TensionType =
   | 'positioning_vs_customer_base'
   | 'narrative_scale_vs_operations'
   | 'positioning_vs_market_fit'
+  | 'founder_credibility_vs_institutional_depth'
+  | 'narrative_authority_vs_operational_scale'
+  | 'personal_brand_vs_company_identity'
+  | 'leadership_concentration_vs_scaling'
   | 'other';
 
 export interface Tension {
@@ -399,6 +403,148 @@ function detectPositioningVsMarketFit(signals: Signal[], companyId: string): Ten
   });
 }
 
+/**
+ * Template 10: founder_credibility_vs_institutional_depth
+ * Founder's personal authority anchors company credibility, but observable
+ * leadership structure does not demonstrate institutional depth.
+ * Triggered by: founder_visibility signals + leadership_depth signals + hiring signals.
+ */
+function detectFounderCredibilityVsInstitutionalDepth(signals: Signal[], companyId: string): Tension | null {
+  const founderSignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_visibility', 'founder_concentration']) && s.kind === 'positioning'
+  );
+  const depthSignals = signals.filter(s =>
+    hasAnyTag(s, ['leadership_depth', 'institutional_gap']) && s.kind === 'talent'
+  );
+
+  if (founderSignals.length === 0 || depthSignals.length === 0) return null;
+
+  // Enrich with customer signals showing founder dependency
+  const customerSignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_dependency', 'founder_involvement']) && s.kind === 'customer'
+  );
+  const constituentSignals = [...founderSignals, ...depthSignals, ...customerSignals];
+
+  return makeTension(companyId, {
+    type: 'founder_credibility_vs_institutional_depth',
+    title: 'Founder credibility vs institutional depth',
+    statement:
+      "The company's credibility, customer relationships, and public narrative are concentrated " +
+      "in the founder's personal authority and expertise. However, the observable leadership " +
+      'structure does not demonstrate institutional depth that could sustain this credibility ' +
+      'independently of the founder.',
+    signals: constituentSignals,
+    confidence: constituentSignals.length >= 3 ? 'high' : 'medium',
+    severity: 'high',
+    strategic_relevance: 'high',
+  });
+}
+
+/**
+ * Template 11: narrative_authority_vs_operational_scale
+ * Company narrative implies organizational scale, but operations show
+ * founder-as-organization.
+ * Triggered by: founder_visibility + founder_dependency + hiring signals.
+ */
+function detectNarrativeAuthorityVsOperationalScale(signals: Signal[], companyId: string): Tension | null {
+  const narrativeSignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_visibility', 'narrative_gap']) && s.kind === 'positioning'
+  );
+  const operationalSignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_involvement'])
+  );
+
+  if (narrativeSignals.length === 0 || operationalSignals.length === 0) return null;
+
+  // Use only narrative + operational signals (not hiring) to avoid deduplication
+  // overlap with founder_credibility_vs_institutional_depth tension
+  const constituentSignals = unique([
+    ...narrativeSignals.map(s => s.signal_id),
+    ...operationalSignals.map(s => s.signal_id),
+  ]);
+  const allSignals = signals.filter(s => constituentSignals.includes(s.signal_id));
+
+  return makeTension(companyId, {
+    type: 'narrative_authority_vs_operational_scale',
+    title: 'Narrative authority vs operational scale',
+    statement:
+      'The company positions itself with institutional ambition, but operational evidence shows ' +
+      'the founder personally handling sales, customer onboarding, content creation, and product ' +
+      'demos. The narrative implies organizational scale; the operations imply founder-as-organization.',
+    signals: allSignals,
+    confidence: allSignals.length >= 3 ? 'high' : 'medium',
+    severity: 'high',
+    strategic_relevance: 'high',
+  });
+}
+
+/**
+ * Template 12: personal_brand_vs_company_identity (nice to detect)
+ * Press, marketing, and customer references frame the company through
+ * the founder's identity rather than as an independent institution.
+ * Triggered by: press_coverage signals + founder_visibility signals.
+ */
+function detectPersonalBrandVsCompanyIdentity(signals: Signal[], companyId: string): Tension | null {
+  const pressSignals = signals.filter(s =>
+    hasAnyTag(s, ['press_coverage', 'founder_narrative']) && s.kind === 'credibility'
+  );
+  const founderSignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_visibility', 'founder_concentration']) && s.kind === 'positioning'
+  );
+  const thoughtLeadershipSignals = signals.filter(s =>
+    hasAnyTag(s, ['thought_leadership']) && hasAnyTag(s, ['founder_concentration'])
+  );
+
+  if (pressSignals.length === 0 || founderSignals.length === 0) return null;
+
+  const constituentSignals = [...pressSignals, ...founderSignals, ...thoughtLeadershipSignals];
+
+  return makeTension(companyId, {
+    type: 'personal_brand_vs_company_identity',
+    title: 'Personal brand vs company identity',
+    statement:
+      'Press coverage, marketing, and customer references consistently frame the company ' +
+      "through the founder's personal identity rather than as an independent institution. " +
+      "The company's brand and the founder's personal brand appear nearly indistinguishable.",
+    signals: constituentSignals,
+    confidence: 'medium',
+    severity: 'medium',
+    strategic_relevance: 'medium',
+  });
+}
+
+/**
+ * Template 13: leadership_concentration_vs_scaling (nice to detect)
+ * Founder fills multiple critical roles simultaneously, but scaling
+ * typically requires dedicated leadership for each function.
+ * Triggered by: founder_dependency signals + junior_hiring signals + leadership_depth signals.
+ */
+function detectLeadershipConcentrationVsScaling(signals: Signal[], companyId: string): Tension | null {
+  const founderDependencySignals = signals.filter(s =>
+    hasAnyTag(s, ['founder_dependency', 'founder_involvement'])
+  );
+  const leadershipSignals = signals.filter(s =>
+    hasAnyTag(s, ['leadership_depth', 'junior_hiring']) && s.kind === 'talent'
+  );
+
+  if (founderDependencySignals.length === 0 || leadershipSignals.length === 0) return null;
+
+  const constituentSignals = [...founderDependencySignals, ...leadershipSignals];
+
+  return makeTension(companyId, {
+    type: 'leadership_concentration_vs_scaling',
+    title: 'Leadership concentration vs scaling needs',
+    statement:
+      'The founder appears to fill multiple critical roles simultaneously — executive leadership, ' +
+      'sales, customer success, content creation, and product evangelism. As the company grows, ' +
+      'these functions typically require dedicated leadership. No delegation of these roles is observable.',
+    signals: constituentSignals,
+    confidence: 'medium',
+    severity: 'medium',
+    strategic_relevance: 'high',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -444,6 +590,10 @@ export function detectTensions(signals: Signal[]): Tension[] {
     detectAmbitionVsProof(signals, companyId),
     detectNarrativeScaleVsOperations(signals, companyId),
     detectPositioningVsMarketFit(signals, companyId),
+    detectFounderCredibilityVsInstitutionalDepth(signals, companyId),
+    detectNarrativeAuthorityVsOperationalScale(signals, companyId),
+    detectPersonalBrandVsCompanyIdentity(signals, companyId),
+    detectLeadershipConcentrationVsScaling(signals, companyId),
   ].filter((t): t is Tension => t !== null);
 
   return deduplicateTensions(candidates);

@@ -277,7 +277,7 @@ function detectHiringRevealPattern(
 ): Pattern | null {
   const hiringSignals = signals.filter(s =>
     s.kind === 'talent' &&
-    s.tags.some(t => /hiring_signal|service_scaling/.test(t))
+    s.tags.some(t => /service_scaling/.test(t))
   );
 
   if (hiringSignals.length === 0) return null;
@@ -463,6 +463,136 @@ function detectPositioningLedGrowthPattern(
   });
 }
 
+/**
+ * Template 8: Credibility concentrated in founder identity
+ *
+ * Multiple tensions converge: company credibility, customer relationships,
+ * thought leadership, and public narrative are all anchored to the founder
+ * personally rather than distributed across institutional structure.
+ *
+ * Requires: founder_credibility_vs_institutional_depth + narrative_authority_vs_operational_scale
+ * Enriched by: personal_brand_vs_company_identity
+ */
+function detectFounderCredibilityConcentrationPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const credibilityTensions = tensionsByType(tensions, 'founder_credibility_vs_institutional_depth');
+  const narrativeTensions = tensionsByType(tensions, 'narrative_authority_vs_operational_scale');
+
+  if (credibilityTensions.length === 0 || narrativeTensions.length === 0) return null;
+
+  // Enrich with personal_brand_vs_company_identity if present
+  const brandTensions = tensionsByType(tensions, 'personal_brand_vs_company_identity');
+  const allTensions = [...credibilityTensions, ...narrativeTensions, ...brandTensions];
+
+  // Pull in founder-related signals for reinforcement
+  const reinforcingSignals = signals.filter(s =>
+    s.tags.some(t => /founder_visibility|founder_dependency|founder_concentration/.test(t))
+  );
+
+  return makePattern(companyId, {
+    pattern_type: 'concentration',
+    title: 'Credibility concentrated in founder identity',
+    summary:
+      "The company's credibility, customer value delivery, thought leadership, and public " +
+      'narrative are all anchored to the founder personally rather than distributed across ' +
+      'an institutional structure. This concentration is visible across marketing, press, ' +
+      'customer relationships, and content — no other institutional voice or authority is observable.',
+    tensions: allTensions,
+    extraSignals: reinforcingSignals,
+    importance: 'high',
+    confidence: allTensions.length >= 3 ? 'high' : 'medium',
+    strategic_weight: 'high',
+  });
+}
+
+/**
+ * Template 9: Institutional leadership depth lagging company ambition
+ *
+ * The company's positioning implies organizational maturity, but observable
+ * leadership consists of one executive and junior support staff.
+ *
+ * Requires: narrative_authority_vs_operational_scale + leadership_concentration_vs_scaling
+ */
+function detectInstitutionalLeadershipGapPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const narrativeTensions = tensionsByType(tensions, 'narrative_authority_vs_operational_scale');
+  const scalingTensions = tensionsByType(tensions, 'leadership_concentration_vs_scaling');
+
+  if (narrativeTensions.length === 0 && scalingTensions.length === 0) return null;
+  const allTensions = [...narrativeTensions, ...scalingTensions];
+  if (allTensions.length < 2) return null;
+
+  // Pull in leadership and hiring signals
+  const reinforcingSignals = signals.filter(s =>
+    s.kind === 'talent' &&
+    s.tags.some(t => /leadership_depth|junior_hiring|founder_concentration/.test(t))
+  );
+
+  return makePattern(companyId, {
+    pattern_type: 'gap',
+    title: 'Institutional leadership depth lagging company ambition',
+    summary:
+      "The company's positioning implies organizational maturity, but the observable " +
+      'leadership structure consists of one executive and junior support staff. The gap ' +
+      'between institutional ambition and institutional depth is visible across team ' +
+      'composition, hiring patterns, and the founder personally performing functions ' +
+      'that scaling companies typically distribute across multiple leaders.',
+    tensions: allTensions,
+    extraSignals: reinforcingSignals,
+    importance: 'high',
+    confidence: 'medium',
+    strategic_weight: 'high',
+  });
+}
+
+/**
+ * Template 10: Founder-centric growth structure (nice to detect)
+ *
+ * The company operates a growth model where the founder's personal brand
+ * and direct involvement are the primary acquisition and retention mechanism.
+ *
+ * Requires: founder_credibility_vs_institutional_depth tension + founder signals
+ */
+function detectFounderCentricGrowthPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  const founderTensions = tensionsByType(tensions, 'founder_credibility_vs_institutional_depth');
+  if (founderTensions.length === 0) return null;
+
+  // Need customer and positioning signals showing founder dependency
+  const founderSignals = signals.filter(s =>
+    s.tags.some(t => /founder_dependency|founder_involvement|founder_visibility/.test(t))
+  );
+  if (founderSignals.length < 2) return null;
+
+  // Add any scaling-related tensions
+  const scalingTensions = tensionsByType(tensions, 'leadership_concentration_vs_scaling');
+  const allTensions = [...founderTensions, ...scalingTensions];
+
+  return makePattern(companyId, {
+    pattern_type: 'dependency',
+    title: 'Founder-centric growth structure',
+    summary:
+      "The company may be operating a growth model where the founder's personal brand " +
+      'and direct involvement serve as the primary customer acquisition and retention ' +
+      'mechanism. This structure — founder as sales, marketing, customer success, and ' +
+      'product evangelist simultaneously — is a recognizable early-stage pattern.',
+    tensions: allTensions,
+    extraSignals: founderSignals,
+    importance: 'medium',
+    confidence: 'medium',
+    strategic_weight: 'medium',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -506,6 +636,9 @@ export function detectPatterns(tensions: Tension[], signals: Signal[]): Pattern[
     detectAspirationExceedingAdoptionPattern(tensions, signals, companyId),
     detectNarrativeScaleMismatchPattern(tensions, signals, companyId),
     detectPositioningLedGrowthPattern(tensions, signals, companyId),
+    detectFounderCredibilityConcentrationPattern(tensions, signals, companyId),
+    detectInstitutionalLeadershipGapPattern(tensions, signals, companyId),
+    detectFounderCentricGrowthPattern(tensions, signals, companyId),
   ].filter((p): p is Pattern => p !== null);
 
   return deduplicatePatterns(candidates);

@@ -34,7 +34,7 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK3 Phase 7 (complete):** Strategic hypotheses added to dossier schema. Phase 7b refined SKILL.md for hypothesis quality.
 
-**Report Engine (Phases 5-11 complete):** Eval harness built and operational. First 6 pipeline stages implemented. Two eval fixtures passing: 001-ai-services and 002-enterprise-proof-gap.
+**Report Engine (Phases 5-13 complete):** Eval harness built and operational. First 6 pipeline stages implemented. Three eval fixtures passing: 001-ai-services, 002-enterprise-proof-gap, 003-founder-credibility-gap.
 
 # Phase Status
 
@@ -126,6 +126,19 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - Validated across 3 companies: Stripe (4 hyp, 0 err), Notion (4 hyp, 0 err), HubSpot (4 hyp, 0 err)
 - Quality improvement: specificity 60%->90%, falsifiability 40%->85%, counter-signals 79%->100%, consultant phrasing 40%->10%
 
+**Report Engine Phase 12 -- Eval Fixture 003: Founder Credibility Gap (complete)**
+- Created `src/report/evals/fixtures/003-founder-credibility-gap/` with 7 files
+- Fictional company: CatalystIQ -- founder-anchored consulting positioning with thin institutional depth
+- 11 evidence records across 9 sources (Tier 1-3)
+- Tests founder credibility concentration (founder as sole authority vs institutional scaling needs)
+- Different failure mode from 001 (service delivery) and 002 (enterprise proof) -- tests personnel concentration
+
+**Report Engine Phase 13 -- Pipeline Generalization for Fixture 003 (complete)**
+- Generalized all 6 pipeline stages to handle founder-credibility-gap failure mode alongside existing two
+- All three fixtures pass all stages with 0 violations
+- Changes across extract-signals, detect-tensions, detect-patterns, generate-hypotheses, generate-implications
+- See detailed breakdown below
+
 # Report Engine Phase 11 -- Detailed Changes
 
 **extract-signals.ts** -- 4 new passes + 2 generalized passes
@@ -160,6 +173,43 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - Template 11: Sales motion may require adjustment (triggered by "aspirational" + "different segment")
 - Template 12: Investor expectations may be calibrated to enterprise narrative (triggered by "signal to investors")
 
+# Report Engine Phase 13 -- Detailed Changes
+
+**extract-signals.ts** -- 6 new passes + 3 generalized passes
+- Pass 1 title generalized: uses `gap.gap_name` directly instead of derived theme labels; backward-compatible with all fixtures
+- Pass 2 enriched: adds `founder_dependency` tag when customer language mentions founder/CEO/personal
+- Pass 12 body fix: uses `v.theme` only (not `v.business_implication`) to avoid keyword overlap with must-avoid violation quotes
+- Pass 13 added: `extractFounderVisibilitySignals` -- detects founder dominance in external communications. Tags: `founder_visibility`, `founder_concentration`, `narrative_gap`
+- Pass 14 added: `extractFounderCustomerSignals` -- detects founder as primary customer relationship. Tags: `founder_dependency`, `customer_voice`, `founder_involvement`
+- Pass 15 added: `extractLeadershipDepthSignals` -- detects thin leadership beyond founder. Tags: `leadership_depth`, `founder_concentration`, `institutional_gap`
+- Pass 16 added: `extractJuniorHiringSignals` -- detects all-junior hiring with no senior roles. Tags: `hiring_signal`, `leadership_depth`, `junior_hiring`, `founder_concentration`
+- Pass 17 added: `extractThoughtLeadershipConcentrationSignals` -- detects single-author content. Tags: `thought_leadership`, `founder_concentration`, `content_strategy`
+- Pass 18 added: `extractPressFounderFramingSignals` -- detects press framing around founder. Tags: `press_coverage`, `founder_narrative`, `institutional_gap`
+
+**detect-tensions.ts** -- 4 new types + 4 new templates + dedup fix
+- Template 10: `founder_credibility_vs_institutional_depth` -- founder positioning signals vs leadership depth signals
+- Template 11: `narrative_authority_vs_operational_scale` -- founder visibility signals vs founder involvement signals (narrowed to `founder_involvement` only to avoid >70% signal overlap dedup with positioning_vs_market_fit)
+- Template 12: `personal_brand_vs_company_identity` -- press/founder signals vs positioning signals (nice to detect)
+- Template 13: `leadership_concentration_vs_scaling` -- founder dependency + junior hiring signals (nice to detect)
+
+**detect-patterns.ts** -- 3 new templates + 1 guard
+- Template 4 guard: `detectHiringRevealPattern` now requires `service_scaling` tag (not just `hiring_signal`) to avoid false positives from junior-hiring signals in founder-credibility fixtures
+- Template 8: `concentration` type -- credibility concentrated in founder identity (requires founder_credibility + narrative_authority tensions)
+- Template 9: `gap` type -- institutional leadership depth lagging (requires narrative_authority + leadership_concentration tensions)
+- Template 10: `dependency` type -- founder-centric growth structure (requires founder_credibility tension + founder signals; nice to detect)
+
+**generate-hypotheses.ts** -- 2 new templates + 1 guard
+- Template 4 guard: requires pattern title to contain 'hiring' to prevent firing on founder-credibility concentration patterns
+- Template 8: `hypothesizeFounderDependentCredibility` -- triggered by concentration pattern with 'credibility concentrated' keyword
+- Template 9: `hypothesizeEmergingInstitutionalLeadership` -- triggered by gap-type pattern with 'institutional leadership' keyword
+
+**generate-implications.ts** -- 5 new templates
+- Template 13: Scaling may require distributing credibility beyond the founder
+- Template 14: Enterprise buyers may seek institutional authority signals beyond the founder
+- Template 15: Leadership depth may become increasingly important as the company grows
+- Template 16: Founder bandwidth may influence deal flow and customer partnerships
+- Template 17: Investor perception may evolve as leadership structure matures
+
 # Validator Architecture
 
 **validate-core.ts** (~430 lines): Pure validation logic. 21 numbered checks. Importable, no CLI dependencies.
@@ -192,15 +242,16 @@ src/validate.ts                         # CLI wrapper
 src/__tests__/                          # 86 validator tests
 src/utils/__tests__/                    # 20 utility tests
 src/report/pipeline/                    # Stage implementations
-  extract-signals.ts                    # Stage 1: dossier -> Signal[] (12 passes)
-  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[] (9 templates)
-  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[] (7 templates)
-  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[] (7 templates)
+  extract-signals.ts                    # Stage 1: dossier -> Signal[] (18 passes)
+  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[] (13 templates)
+  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[] (10 templates)
+  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[] (9 templates)
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
-  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[] (12 templates)
+  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[] (17 templates)
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # Fixture 1: AI narrative masks service delivery
   fixtures/002-enterprise-proof-gap/    # Fixture 2: enterprise positioning vs SMB reality
+  fixtures/003-founder-credibility-gap/ # Fixture 3: founder-anchored credibility vs institutional depth
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + common keyword-overlap matcher
   stubs/stages.ts                       # Adapter layer: 6 real impls + downstream stubs
@@ -215,9 +266,9 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 11 (Pipeline Generalization) complete. 106 tests passing, 0 regressions.
+Report Engine Phase 13 (Pipeline Generalization for Fixture 003) complete. 106 tests passing, 0 regressions.
 
-Eval results for both fixtures:
+Eval results for all three fixtures:
 ```
 Fixture 001-ai-services:
   Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
@@ -234,16 +285,24 @@ Fixture 002-enterprise-proof-gap:
   Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
   Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
   Overall: PASS
+
+Fixture 003-founder-credibility-gap:
+  Signals:      4/4 must-detect, 2/2 nice, 0 violations  PASS
+  Tensions:     2/2 must-detect, 2/2 nice, 0 violations  PASS
+  Patterns:     2/2 must-detect, 1/1 nice, 0 violations  PASS
+  Hypotheses:   2/2 must-detect, 2/3 acceptable, 0 violations  PASS
+  Implications: 4/4 must-detect, 1/1 nice, 0 violations  PASS
+  Overall: PASS
 ```
 
 # Next Step
 
-**Report Engine Phase 12 -- plan-report**
+**Report Engine Phase 14 -- plan-report**
 - Takes implications + upstream objects and produces a report plan/outline
 - Spec: docs/specs/report-specs/008-plan-report.md
 - Second-to-last pipeline stage before report generation is complete
 
-**Report Engine Phase 13 -- write-report**
+**Report Engine Phase 15 -- write-report**
 - Final pipeline stage: produces the actual intelligence report
 - Spec: docs/specs/report-specs/009-write-report.md
 
@@ -279,15 +338,19 @@ Sections that require exact schema field names (common errors when generating ma
 
 # Files Modified Recently
 
-**Report Engine Phase 11 -- Pipeline Generalization (this session):**
-- `src/report/pipeline/extract-signals.ts` -- generalized Passes 1-2, added Passes 9-12 for segment signals
-- `src/report/pipeline/detect-tensions.ts` -- added 4 new tension templates (6-9) for segment mismatches
-- `src/report/pipeline/detect-patterns.ts` -- added 3 new pattern templates (5-7) for overextension/misalignment/trajectory
-- `src/report/pipeline/generate-hypotheses.ts` -- added 2 new hypothesis templates (6-7) + service guard on Template 2 + related tension enrichment
-- `src/report/pipeline/generate-implications.ts` -- added 6 new implication templates (7-12) for enterprise-proof-gap failure mode
-- `docs/handoffs/current.md` -- updated with Phase 11 completion
+**Report Engine Phase 12 -- Eval Fixture 003 (this session):**
+- `src/report/evals/fixtures/003-founder-credibility-gap/dossier.json` -- new fixture dossier (CatalystIQ)
+- `src/report/evals/fixtures/003-founder-credibility-gap/expected-signals.md` -- signal expectations
+- `src/report/evals/fixtures/003-founder-credibility-gap/expected-tensions.md` -- tension expectations
+- `src/report/evals/fixtures/003-founder-credibility-gap/expected-patterns.md` -- pattern expectations
+- `src/report/evals/fixtures/003-founder-credibility-gap/expected-hypotheses.md` -- hypothesis expectations
+- `src/report/evals/fixtures/003-founder-credibility-gap/expected-implications.md` -- implication expectations
+- `src/report/evals/fixtures/003-founder-credibility-gap/notes.md` -- fixture design notes
 
-**MK3 Phase 7b -- Strategic Hypothesis Quality (this session):**
-- `.claude/skills/build-company-dossier/SKILL.md` -- Step 8 split, Step 8b added with 5 quality requirements
-- `.claude/skills/build-company-dossier/references/strategic-hypothesis-quality.md` -- new reference doc
-- `docs/handoffs/current.md` -- updated with Phase 7b completion
+**Report Engine Phase 13 -- Pipeline Generalization for Fixture 003 (this session):**
+- `src/report/pipeline/extract-signals.ts` -- generalized Passes 1, 2, 12; added Passes 13-18 for founder signals
+- `src/report/pipeline/detect-tensions.ts` -- added 4 new tension templates (10-13) for founder dynamics + dedup fix
+- `src/report/pipeline/detect-patterns.ts` -- added 3 new pattern templates (8-10) for founder concentration + Template 4 guard
+- `src/report/pipeline/generate-hypotheses.ts` -- added 2 new hypothesis templates (8-9) for founder credibility + Template 4 guard
+- `src/report/pipeline/generate-implications.ts` -- added 5 new implication templates (13-17) for founder-scaling implications
+- `docs/handoffs/current.md` -- updated with Phase 12+13 completion
