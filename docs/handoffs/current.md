@@ -107,6 +107,19 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 - 11 new tests (86 total across 4 files), 0 regressions
 - No validator logic changes needed -- existing `collectValues` traversal picks up new evidence_ids automatically
 
+**MK2B Phase 6 -- Evidence Summary / Research Depth (complete)**
+- Added `evidence_summary` object to `run_metadata`
+  - `total_sources`, `total_evidence` (integers)
+  - `by_source_tier`: tier_1 through tier_5 counts
+  - `by_evidence_category`: 9 categories (company_basics, product_and_offer, gtm, customer, competitors, signals, market_and_macro, positioning_and_narrative, risk)
+  - `inferred_count`, `direct_count` (integers)
+  - `customer_voice_depth`: enum (none/thin/moderate/rich)
+  - `negative_signal_depth`: enum (none/thin/moderate/rich)
+  - `additionalProperties: false` on evidence_summary and all sub-objects
+- Schema, types, and empty dossier updated in lockstep
+- 12 new tests (98 total across 4 files), 0 regressions
+- No validator logic changes -- schema-only phase
+
 # Validator Architecture
 
 **validate-core.ts** (~430 lines): Pure validation logic. 21 numbered checks. Importable, no CLI dependencies.
@@ -114,7 +127,7 @@ Exports: `validate()`, `collectValues()`, `isSectionPopulated()`, `ValidationRep
 
 **validate.ts** (~60 lines): Thin CLI wrapper. Handles argv, file I/O, console output, exit codes. Writes `validation-report.json` alongside dossier.
 
-**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 86 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
+**Test setup:** 4 test files under `src/__tests__/` and `src/utils/__tests__/`. 98 tests via vitest. Fixtures are programmatic via `createEmptyDossier()`.
 
 # Source Tier System
 
@@ -161,7 +174,7 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Report Engine Phase 9 (generate-implications) complete. All 6 pipeline stages passing.
+MK2B Phase 6 (Evidence Summary / Research Depth) complete. 98 tests passing, 0 regressions.
 
 Report Engine eval results for fixture 001-ai-services:
 ```
@@ -180,7 +193,7 @@ Overall: PASS
 - Spec: docs/specs/report-specs/008-plan-report.md
 - Last two pipeline stages before report generation is complete
 
-**MK2B Phase 6+ -- Further schema expansion** (if planned)
+**MK2B Phase 7+ -- Further schema expansion** (if planned)
 
 # Known Constraints
 
@@ -200,6 +213,10 @@ Overall: PASS
 # Dossier Schema Key Fields
 
 Sections that require exact schema field names (common errors when generating manually):
+- `run_metadata.evidence_summary` requires: `total_sources`, `total_evidence`, `by_source_tier`, `by_evidence_category`, `inferred_count`, `direct_count`, `customer_voice_depth`, `negative_signal_depth`
+- `by_source_tier` requires: `tier_1`, `tier_2`, `tier_3`, `tier_4`, `tier_5`
+- `by_evidence_category` requires: `company_basics`, `product_and_offer`, `gtm`, `customer`, `competitors`, `signals`, `market_and_macro`, `positioning_and_narrative`, `risk`
+- `customer_voice_depth` / `negative_signal_depth` enums: `none`, `thin`, `moderate`, `rich`
 - `narrative_intelligence` requires: `company_claimed_value`, `customer_expressed_value`, `customer_language_patterns`, `narrative_gaps`, `negative_signals`, `value_alignment_summary`, `hidden_differentiators`, `messaging_opportunities`, `narrative_summary`
 - `negative_signals` items require: `signal`, `category`, `severity`, `frequency`, `evidence_ids` (optional: `related_narrative_gap`)
 - `value_alignment_summary` items require: `theme`, `alignment`, `company_language`, `customer_language`, `business_implication`, `evidence_ids`, `confidence`
@@ -207,7 +224,9 @@ Sections that require exact schema field names (common errors when generating ma
 
 # Files Modified Recently
 
-**Report Engine Phase 9 -- generate-implications (this session):**
-- `src/report/pipeline/generate-implications.ts` -- new: 6 implication templates, Implication type with full spec fields
-- `src/report/evals/stubs/stages.ts` -- updated: wired generate-implications as real implementation
-- `docs/handoffs/current.md` -- updated with Phase 9 completion
+**MK2B Phase 6 -- Evidence Summary / Research Depth (this session):**
+- `src/types/dossier.ts` -- added BySourceTier, ByEvidenceCategory, DepthLevel, EvidenceSummary interfaces; updated RunMetadata
+- `schemas/company-dossier.schema.json` -- added evidence_summary to run_metadata with additionalProperties: false on all sub-objects
+- `src/utils/empty-dossier.ts` -- added zeroed evidence_summary with 'none' depths
+- `src/__tests__/validate.test.ts` -- 12 new tests for Phase 6 schema + empty dossier + collectValues safety
+- `docs/handoffs/current.md` -- updated with MK2B Phase 6 completion

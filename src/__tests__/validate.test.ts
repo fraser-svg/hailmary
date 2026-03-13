@@ -1013,6 +1013,177 @@ describe('validate', () => {
     });
   });
 
+  // --- Phase 6 (MK2B): Evidence summary in run_metadata ---
+
+  describe('evidence_summary schema', () => {
+    function makeValidEvidenceSummary() {
+      return {
+        total_sources: 5,
+        total_evidence: 20,
+        by_source_tier: { tier_1: 2, tier_2: 1, tier_3: 1, tier_4: 1, tier_5: 0 },
+        by_evidence_category: {
+          company_basics: 3,
+          product_and_offer: 2,
+          gtm: 2,
+          customer: 5,
+          competitors: 2,
+          signals: 2,
+          market_and_macro: 1,
+          positioning_and_narrative: 2,
+          risk: 1,
+        },
+        inferred_count: 3,
+        direct_count: 17,
+        customer_voice_depth: 'moderate' as const,
+        negative_signal_depth: 'thin' as const,
+      };
+    }
+
+    it('accepts a valid evidence_summary', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = makeValidEvidenceSummary();
+      const path = writeDossier('ev-summary-valid', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(true);
+      expect(report.valid).toBe(true);
+    });
+
+    it('fails schema when evidence_summary is missing from run_metadata', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const rm = { ...(dossier.run_metadata as Record<string, unknown>) };
+      delete rm.evidence_summary;
+      (dossier as Record<string, unknown>).run_metadata = rm;
+      const path = writeDossier('ev-summary-missing', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects extra properties on evidence_summary', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = {
+        ...makeValidEvidenceSummary(),
+        bonus_field: 42,
+      };
+      const path = writeDossier('ev-summary-extra-prop', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects extra properties on by_source_tier', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary.by_source_tier as Record<string, unknown>).tier_6 = 0;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-tier-extra', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects extra properties on by_evidence_category', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary.by_evidence_category as Record<string, unknown>).unknown_category = 0;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-cat-extra', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects non-integer values for count fields', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary as Record<string, unknown>).total_sources = 1.5;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-float', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects negative values for count fields', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary as Record<string, unknown>).inferred_count = -1;
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-negative', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects invalid customer_voice_depth enum', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary as Record<string, unknown>).customer_voice_depth = 'deep';
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-bad-cvd', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+
+    it('rejects invalid negative_signal_depth enum', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const summary = makeValidEvidenceSummary();
+      (summary as Record<string, unknown>).negative_signal_depth = 'deep';
+      (dossier.run_metadata as Record<string, unknown>).evidence_summary = summary;
+      const path = writeDossier('ev-summary-bad-nsd', dossier);
+      const report = validate(path);
+
+      expect(report.schema_valid).toBe(false);
+    });
+  });
+
+  describe('empty dossier evidence_summary', () => {
+    it('includes evidence_summary with all zeros and none depths', () => {
+      const dossier = createEmptyDossier('Test', 'test.com');
+      const summary = dossier.run_metadata.evidence_summary;
+
+      expect(summary).toBeDefined();
+      expect(summary.total_sources).toBe(0);
+      expect(summary.total_evidence).toBe(0);
+      expect(summary.by_source_tier).toEqual({ tier_1: 0, tier_2: 0, tier_3: 0, tier_4: 0, tier_5: 0 });
+      expect(summary.by_evidence_category).toEqual({
+        company_basics: 0, product_and_offer: 0, gtm: 0, customer: 0,
+        competitors: 0, signals: 0, market_and_macro: 0,
+        positioning_and_narrative: 0, risk: 0,
+      });
+      expect(summary.inferred_count).toBe(0);
+      expect(summary.direct_count).toBe(0);
+      expect(summary.customer_voice_depth).toBe('none');
+      expect(summary.negative_signal_depth).toBe('none');
+    });
+
+    it('passes full validation with evidence_summary', () => {
+      const dossier = createEmptyDossier('Test', 'test.com');
+      const path = writeDossier('ev-summary-empty-valid', dossier);
+      const report = validate(path);
+
+      expect(report.valid).toBe(true);
+      expect(report.schema_valid).toBe(true);
+      expect(report.errors).toHaveLength(0);
+    });
+  });
+
+  describe('evidence_summary collectValues safety', () => {
+    it('does not inject false evidence_ids from evidence_summary', () => {
+      const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;
+      const dossierWithoutEvidence = { ...dossier };
+      delete dossierWithoutEvidence.evidence;
+      delete dossierWithoutEvidence.sources;
+
+      const refs = collectValues(dossierWithoutEvidence, 'evidence_ids')
+        .filter((v): v is string => typeof v === 'string');
+
+      expect(refs).toHaveLength(0);
+    });
+  });
+
   describe('Phase 5 evidence_ids resolution', () => {
     it('errors when negative_signal references non-existent evidence', () => {
       const dossier = createEmptyDossier('Test', 'test.com') as unknown as Record<string, unknown>;

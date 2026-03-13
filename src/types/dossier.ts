@@ -163,6 +163,41 @@ export interface RiskObservation {
   evidence_ids: string[];
 }
 
+// --- Evidence summary (Phase 6 MK2B) ---
+
+export interface BySourceTier {
+  tier_1: number;
+  tier_2: number;
+  tier_3: number;
+  tier_4: number;
+  tier_5: number;
+}
+
+export interface ByEvidenceCategory {
+  company_basics: number;
+  product_and_offer: number;
+  gtm: number;
+  customer: number;
+  competitors: number;
+  signals: number;
+  market_and_macro: number;
+  positioning_and_narrative: number;
+  risk: number;
+}
+
+export type DepthLevel = 'none' | 'thin' | 'moderate' | 'rich';
+
+export interface EvidenceSummary {
+  total_sources: number;
+  total_evidence: number;
+  by_source_tier: BySourceTier;
+  by_evidence_category: ByEvidenceCategory;
+  inferred_count: number;
+  direct_count: number;
+  customer_voice_depth: DepthLevel;
+  negative_signal_depth: DepthLevel;
+}
+
 // --- Top-level sections ---
 
 export interface CompanyInput {
@@ -181,6 +216,7 @@ export interface RunMetadata {
   source_count: number;
   evidence_record_count: number;
   notes: string[];
+  evidence_summary: EvidenceSummary;
 }
 
 export interface CompanyProfile {
