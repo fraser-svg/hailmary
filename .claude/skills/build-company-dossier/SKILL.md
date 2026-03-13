@@ -192,6 +192,8 @@ Rules:
 - "Saves time" vs "automation" is NOT a gap — it's adjacent language
 - A real gap: company says "enterprise-grade AI orchestration" but customers repeatedly say "easy to set up" and "fast time to value"
 - If customer evidence is too thin, DO NOT fabricate gaps. Set `"confidence": "low"` and note "Insufficient customer-language evidence" in `missing_data`.
+- **Language traceability (mandatory):** Every string in `company_language` and `customer_language` must be an exact substring copied from an evidence excerpt referenced in the gap's `evidence_ids`. Do not paraphrase, summarize, or synthesize. If no verbatim substring captures the theme, either quote a longer excerpt fragment that does, or reduce gap confidence to `"low"`. The validator checks this — untraceable language triggers a warning.
+- **Evidence role separation (mandatory):** The evidence records supporting `company_language` and those supporting `customer_language` must be different records. Do not use the same evidence record to ground both sides of a gap. The validator checks this — overlapping evidence triggers a warning.
 
 ### Step 8: Stub Remaining Sections
 

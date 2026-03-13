@@ -13,17 +13,24 @@ Company name + domain
   -> Evidence extraction with source tier tagging
   -> runs/<slug>/dossier.json (16 required top-level fields, evidence inline)
   -> TypeScript validator (schema + evidence-link checking)
+  -> Report Engine pipeline (8-stage reasoning chain over dossier)
 ```
 
 Errors = structural integrity (fail validation). Warnings = trust/quality (never fail).
+
+Report Engine pipeline:
+```
+extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
+  -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report
+```
 
 # Development Stage
 
 **MK1 (complete):** Full vertical slice. Company input to validated dossier. One production run (Vercel).
 
-**MK2 Core (Phases 1-4 complete):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
+**MK2 Core (complete, Phases 1-4):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
-**Report Engine:** Specs locked (9 documents). Evaluation fixture 001 created and validated. Harness skeleton not yet built.
+**Report Engine (Phases 5-6 complete, Phases 7+ pending):** Eval harness built and operational. First 3 pipeline stages implemented and passing fixture 001-ai-services.
 
 # Phase Status
 
@@ -42,19 +49,24 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 - Created 3 reference docs: `negative-signal-research.md`, `customer-voice-segmentation.md`, `competitor-depth.md`
 - Added Step 4b (Negative Signal Research) and Critical Rule 8 (WebFetch fallback) to SKILL.md
 - Enhanced Steps 4 and 5 with segmentation and competitor depth references
-- SKILL.md at 262 lines (under 400 limit)
 - Validated across 3 companies: Stripe (52ev), Notion (55ev), HubSpot (54ev) -- all 0 errors 0 warnings
 
-**Phase 4 -- Narrative Gap Traceability (complete)**
-- 4 new validator warnings (checks 18-21) in `validate-core.ts`:
-  1. Gap company evidence link: gap evidence_ids must include >=1 company_claim_record/positioning_record/content_record
-  2. Gap customer evidence link: gap evidence_ids must include >=2 testimonial_record/review_record/customer_language_record/customer_value_record
-  3. Gap language traceability: each company_language/customer_language string must appear as case-insensitive substring in a referenced evidence excerpt
-  4. Gap evidence role separation: evidence supporting company_language and customer_language must not be the same records
+**Phase 4 -- Narrative Gap Traceability (complete, validated)**
+- 4 new validator warnings (checks 18-21) in `validate-core.ts`
 - 5 new tests added (75 total across 4 test files)
 - All warnings only -- never fail validation
-- No schema or type changes introduced
-- Implemented via strict TDD (RED-GREEN confirmed)
+
+**Phase 5 -- Report Engine: extract-signals + detect-tensions + eval harness (complete)**
+- Built eval harness: fixture loader, markdown expectation parser, keyword-overlap scorer (60% threshold)
+- Implemented `extract-signals`: 8 deterministic extraction passes over dossier sections (positioning, customer, talent, pricing, case study, internal perception, funding/hiring mismatch, services revenue)
+- Implemented `detect-tensions`: 5 template-based tension detectors over Signal[] (automation_vs_service, claim_vs_reality, positioning_vs_delivery, vision_vs_execution, credibility_vs_claim)
+- Fixture 001-ai-services: signals 5/5 must-detect, 3/3 nice; tensions 3/3 must-detect, 2/2 nice; 0 violations
+
+**Phase 6 -- Report Engine: detect-patterns (complete)**
+- Implemented `detect-patterns`: 4 template-based pattern detectors over Tension[] + Signal[]
+- Pattern types used: dependency, misalignment, consistency, concentration
+- Patterns compress multiple tensions into higher-level structural forms -- not single-tension restatements
+- Fixture 001-ai-services: patterns 2/2 must-detect, 2/2 nice-to-detect, 0 violations
 
 # Validator Architecture
 
@@ -87,7 +99,17 @@ src/validate-core.ts                    # 21-check validation logic
 src/validate.ts                         # CLI wrapper
 src/__tests__/                          # 55 validator tests
 src/utils/__tests__/                    # 20 utility tests
-src/report/evals/fixtures/001-ai-services/  # First eval fixture
+src/report/pipeline/                    # Stage implementations
+  extract-signals.ts                    # Stage 1: dossier -> Signal[]
+  detect-tensions.ts                    # Stage 2: Signal[] -> Tension[]
+  detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
+src/report/evals/                       # Evaluation harness
+  fixtures/001-ai-services/             # First eval fixture (dossier + expected-*.md)
+  runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
+  scoring/                              # Per-stage scorers + common keyword-overlap matcher
+  stubs/stages.ts                       # Adapter layer: real impls + downstream stubs
+  types/                                # Fixture and eval result types
+  results/                              # Eval run outputs (gitignored recommended)
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
 docs/specs/report-specs/                # 9 report engine specs (001-009)
 docs/handoffs/current.md               # This file
@@ -97,17 +119,30 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Phase 4 complete.
+Phase 6 complete. First 3 report engine pipeline stages implemented and passing all eval checks.
+
+Current eval results for fixture 001-ai-services:
+```
+Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
+Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
+Patterns:     2/2 must-detect, 2/2 nice, 0 violations  PASS
+Hypotheses:   0/2 must-detect (stub)
+Implications: 0/4 must-detect (stub)
+```
 
 # Next Step
 
-**Intelligence Engine Phase 5** -- to be scoped. Possible directions:
-- Skill workflow update to satisfy Phase 4 traceability warnings in new dossier runs
-- Additional validator checks (e.g., cross-section consistency)
+**Phase 7 -- Report Engine: generate-hypotheses**
 
-**Report Engine: Phase 3 -- Evaluation Harness Skeleton** (separate track)
+Implement the hypothesis generation stage. Takes patterns and tensions as input. Produces causal explanations for observed structural forms.
 
-Build the machinery to run a fixture through the pipeline and score outputs stage by stage.
+Key constraints from spec (docs/specs/report-specs/005-generate-hypotheses.md):
+- Hypotheses must be falsifiable
+- Must reference supporting patterns and tensions
+- Must include alternative explanations
+- Must not be deterministic conclusions
+
+Expected fixture targets: 2 must-detect hypotheses, 3 acceptable alternatives.
 
 # Known Constraints
 
@@ -115,16 +150,30 @@ Build the machinery to run a fixture through the pipeline and score outputs stag
 - `additionalProperties: false` on section objects -- new fields require schema update first
 - `$defs` (source_record, evidence_record) do NOT have `additionalProperties: false` -- optional fields are backward-compatible
 - Report engine must not perform fresh research -- operates only on dossier-derived data
+- Report engine pipeline stages must not inspect dossier directly (signals-only downstream of extract-signals)
 - SKILL.md must stay under ~400 lines. Reference docs handle depth.
 - All 16 dossier sections must exist even when empty (downstream AI needs consistent shape)
 - Errors = structural failures (block validation). Warnings = quality concerns (never block).
 - Do not refactor into multi-agent architecture. Single skill works.
 - WebSearch + WebFetch only. No external tools (Exa, Firecrawl, Puppeteer).
-- Do not build fixture 002 until harness is working against fixture 001.
+- Do not build fixture 002 until harness is fully working against fixture 001.
+- Eval results directory should be gitignored (transient outputs).
 
 # Files Modified Recently
 
-**Phase 4 narrative gap traceability (this session):**
-- `src/validate-core.ts` -- added checks 18-21 (4 gap traceability warnings)
-- `src/__tests__/validate.test.ts` -- added 5 tests for Phase 4 warnings
-- `docs/handoffs/current.md` -- updated with Phase 4 completion
+**Phase 5 + 6 -- Report Engine pipeline (this session):**
+- `src/report/pipeline/extract-signals.ts` -- new: 8 extraction passes over dossier
+- `src/report/pipeline/detect-tensions.ts` -- new: 5 tension templates over signals
+- `src/report/pipeline/detect-patterns.ts` -- new: 4 pattern templates over tensions + signals
+- `src/report/evals/runner/run-fixture.ts` -- new: eval runner CLI
+- `src/report/evals/scoring/common.ts` -- new: keyword-overlap matcher
+- `src/report/evals/scoring/score-signals.ts` -- new: signals scorer
+- `src/report/evals/scoring/score-tensions.ts` -- new: tensions scorer
+- `src/report/evals/scoring/score-patterns.ts` -- new: patterns scorer
+- `src/report/evals/scoring/score-hypotheses.ts` -- new: hypotheses scorer
+- `src/report/evals/scoring/score-implications.ts` -- new: implications scorer
+- `src/report/evals/stubs/stages.ts` -- new: adapter layer (3 real + 2 stubs)
+- `src/report/evals/types/fixture.ts` -- new: fixture types
+- `src/report/evals/types/eval-result.ts` -- new: eval result types
+- `src/report/evals/fixtures/001-ai-services/` -- fixture data (dossier.json + 5 expected-*.md)
+- `docs/handoffs/current.md` -- updated with Phase 5-6 completion
