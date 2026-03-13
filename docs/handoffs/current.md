@@ -30,7 +30,7 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK2 Core (complete, Phases 1-4):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
-**Report Engine (Phases 5-8 complete, Phase 9+ pending):** Eval harness built and operational. First 5 pipeline stages implemented and passing fixture 001-ai-services.
+**Report Engine (Phases 5-9 complete, Phase 10+ pending):** Eval harness built and operational. First 6 pipeline stages implemented and passing fixture 001-ai-services.
 
 # Phase Status
 
@@ -87,6 +87,15 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
   - Hiring reveals strategy: **weak** (medium -> low confidence, 2/3 assumptions ungrounded)
   - Widening gap hypothesis: **weak** (low confidence -- speculative despite broad coverage)
 
+**Phase 9 -- Report Engine: generate-implications (complete)**
+- Implemented `generate-implications`: 6 deterministic implication templates over surviving Hypothesis[]
+- Implication types used: constraint, risk, structural, watchpoint
+- Only hypotheses with status `survives` generate implications; weak/discarded excluded
+- Each implication includes: implication_type, audience, horizon, confidence (inherited), urgency, impact, key_questions
+- Deduplication at >70% title keyword overlap
+- Fixture 001-ai-services: implications 4/4 must-detect, 2/2 nice-to-detect, 0 violations
+- Templates: service scaling constraint, operational leverage overstatement, positioning risk, services team competitive variable, investor scrutiny, product roadmap pressure
+
 **MK2B Phase 5 -- Narrative Intelligence Expansion (complete)**
 - Added `negative_signals` array to `narrative_intelligence` section
   - Fields: signal, category (7 enums), severity, frequency (3 enums), related_narrative_gap (optional), evidence_ids
@@ -135,11 +144,12 @@ src/report/pipeline/                    # Stage implementations
   detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
   generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[]
   stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
+  generate-implications.ts              # Stage 6: Hypothesis[] (survives) -> Implication[]
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # First eval fixture (dossier + expected-*.md)
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + common keyword-overlap matcher
-  stubs/stages.ts                       # Adapter layer: 5 real impls + downstream stubs
+  stubs/stages.ts                       # Adapter layer: 6 real impls + downstream stubs
   types/                                # Fixture and eval result types
   results/                              # Eval run outputs (gitignored recommended)
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
@@ -151,7 +161,7 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-MK2B Phase 5 (Narrative Intelligence Expansion) complete. Dossier schema expanded with `negative_signals` and `value_alignment_summary` inside `narrative_intelligence`. 86 tests passing, 0 regressions.
+Report Engine Phase 9 (generate-implications) complete. All 6 pipeline stages passing.
 
 Report Engine eval results for fixture 001-ai-services:
 ```
@@ -159,22 +169,18 @@ Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
 Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
 Patterns:     2/2 must-detect, 2/2 nice, 0 violations  PASS
 Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
-Implications: 0/4 must-detect (stub)
+Implications: 4/4 must-detect, 2/2 nice, 0 violations  PASS
+Overall: PASS
 ```
 
 # Next Step
 
-Two parallel tracks available:
+**Report Engine Phase 10 -- plan-report**
+- Takes implications + upstream objects and produces a report plan/outline
+- Spec: docs/specs/report-specs/008-plan-report.md
+- Last two pipeline stages before report generation is complete
 
 **MK2B Phase 6+ -- Further schema expansion** (if planned)
-
-**Report Engine Phase 9 -- generate-implications**
-- Takes stress-tested hypotheses (status: survives only) and produces strategic implications
-- Key constraints from spec (docs/specs/report-specs/007-generate-implications.md):
-  - Only surviving hypotheses feed implications
-  - Implications must be actionable and evidence-grounded
-  - Must not introduce new hypotheses or revisit discarded ones
-- Expected fixture targets: 4 must-detect implications, 2 nice-to-detect
 
 # Known Constraints
 
@@ -201,9 +207,7 @@ Sections that require exact schema field names (common errors when generating ma
 
 # Files Modified Recently
 
-**MK2B Phase 5 -- Narrative Intelligence Expansion (this session):**
-- `schemas/company-dossier.schema.json` -- added negative_signals + value_alignment_summary to narrative_intelligence
-- `src/types/dossier.ts` -- added NegativeSignal + ValueAlignmentEntry interfaces, updated NarrativeIntelligence
-- `src/utils/empty-dossier.ts` -- added empty arrays for new fields
-- `src/__tests__/validate.test.ts` -- 11 new tests for Phase 5 schema + evidence resolution
-- `docs/handoffs/current.md` -- updated with MK2B Phase 5 completion
+**Report Engine Phase 9 -- generate-implications (this session):**
+- `src/report/pipeline/generate-implications.ts` -- new: 6 implication templates, Implication type with full spec fields
+- `src/report/evals/stubs/stages.ts` -- updated: wired generate-implications as real implementation
+- `docs/handoffs/current.md` -- updated with Phase 9 completion

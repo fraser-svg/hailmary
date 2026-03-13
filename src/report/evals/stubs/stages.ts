@@ -12,6 +12,7 @@ import { detectTensions as realDetectTensions } from '../../pipeline/detect-tens
 import { detectPatterns as realDetectPatterns } from '../../pipeline/detect-patterns.js';
 import { generateHypotheses as realGenerateHypotheses } from '../../pipeline/generate-hypotheses.js';
 import { stressTestHypotheses as realStressTestHypotheses } from '../../pipeline/stress-test-hypotheses.js';
+import { generateImplications as realGenerateImplications } from '../../pipeline/generate-implications.js';
 
 export function extractSignals(dossier: Dossier): StageOutputItem[] {
   return realExtractSignals(dossier).map(signal => ({
@@ -60,11 +61,20 @@ export function generateHypotheses(
   }));
 }
 
-// --- Stubs for stages not yet implemented ---
+// --- Real implementation wired in (generate-implications) ---
 
 export function generateImplications(
-  _dossier: Dossier,
+  dossier: Dossier,
   _hypotheses: StageOutputItem[],
 ): StageOutputItem[] {
-  return [];
+  const signals = realExtractSignals(dossier);
+  const tensions = realDetectTensions(signals);
+  const patterns = realDetectPatterns(tensions, signals);
+  const hypotheses = realGenerateHypotheses(patterns, tensions, signals);
+  const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
+  const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
+  return implications.map(imp => ({
+    title: imp.title,
+    body: imp.statement,
+  }));
 }
