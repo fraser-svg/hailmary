@@ -30,6 +30,7 @@ import {
   detectPatterns,
   generateHypotheses,
   generateImplications,
+  planReport,
 } from '../stubs/stages.js';
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,17 @@ async function runFixture(fixtureId: string): Promise<FixtureResult> {
   const patterns = detectPatterns(dossier, tensions);
   const hypotheses = generateHypotheses(dossier, patterns);
   const implications = generateImplications(dossier, hypotheses);
+
+  // Run plan-report (not scored yet — just verify it runs without errors)
+  const plan = planReport(dossier);
+  console.log('\nReport Plan:');
+  console.log(`  Core thesis: ${plan.core_thesis.substring(0, 100)}...`);
+  console.log(`  Key findings: ${plan.key_findings.length}`);
+  console.log(`  Primary hypotheses: ${plan.primary_hypothesis_ids.length}`);
+  console.log(`  Supporting hypotheses: ${plan.supporting_hypothesis_ids.length}`);
+  console.log(`  Selected implications: ${plan.implication_ids.length}`);
+  console.log(`  Sections: ${plan.section_plan.length}`);
+  console.log(`  Tone: ${plan.tone_profile.style} / directness=${plan.tone_profile.directness} / skepticism=${plan.tone_profile.skepticism}`);
 
   // Score each stage
   const stages: StageScore[] = [

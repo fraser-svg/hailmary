@@ -13,6 +13,8 @@ import { detectPatterns as realDetectPatterns } from '../../pipeline/detect-patt
 import { generateHypotheses as realGenerateHypotheses } from '../../pipeline/generate-hypotheses.js';
 import { stressTestHypotheses as realStressTestHypotheses } from '../../pipeline/stress-test-hypotheses.js';
 import { generateImplications as realGenerateImplications } from '../../pipeline/generate-implications.js';
+import { planReport as realPlanReport } from '../../pipeline/plan-report.js';
+import type { ReportPlan } from '../../pipeline/plan-report.js';
 
 export function extractSignals(dossier: Dossier): StageOutputItem[] {
   return realExtractSignals(dossier).map(signal => ({
@@ -77,4 +79,16 @@ export function generateImplications(
     title: imp.title,
     body: imp.statement,
   }));
+}
+
+// --- Real implementation wired in (plan-report) ---
+
+export function planReport(dossier: Dossier): ReportPlan {
+  const signals = realExtractSignals(dossier);
+  const tensions = realDetectTensions(signals);
+  const patterns = realDetectPatterns(tensions, signals);
+  const hypotheses = realGenerateHypotheses(patterns, tensions, signals);
+  const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
+  const implications = realGenerateImplications(stressTested, patterns, tensions, signals);
+  return realPlanReport(implications, stressTested, patterns, tensions, signals);
 }
