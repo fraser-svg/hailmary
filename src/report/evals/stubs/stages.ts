@@ -10,6 +10,8 @@ import type { StageOutputItem } from '../scoring/common.js';
 import { extractSignals as realExtractSignals } from '../../pipeline/extract-signals.js';
 import { detectTensions as realDetectTensions } from '../../pipeline/detect-tensions.js';
 import { detectPatterns as realDetectPatterns } from '../../pipeline/detect-patterns.js';
+import { generateHypotheses as realGenerateHypotheses } from '../../pipeline/generate-hypotheses.js';
+import { stressTestHypotheses as realStressTestHypotheses } from '../../pipeline/stress-test-hypotheses.js';
 
 export function extractSignals(dossier: Dossier): StageOutputItem[] {
   return realExtractSignals(dossier).map(signal => ({
@@ -41,14 +43,24 @@ export function detectPatterns(
   }));
 }
 
-// --- Stubs for stages not yet implemented ---
+// --- Real implementations wired in (generate + stress test) ---
 
 export function generateHypotheses(
-  _dossier: Dossier,
+  dossier: Dossier,
   _patterns: StageOutputItem[],
 ): StageOutputItem[] {
-  return [];
+  const signals = realExtractSignals(dossier);
+  const tensions = realDetectTensions(signals);
+  const patterns = realDetectPatterns(tensions, signals);
+  const hypotheses = realGenerateHypotheses(patterns, tensions, signals);
+  const stressTested = realStressTestHypotheses(hypotheses, patterns, tensions, signals);
+  return stressTested.map(hyp => ({
+    title: hyp.title,
+    body: hyp.statement,
+  }));
 }
+
+// --- Stubs for stages not yet implemented ---
 
 export function generateImplications(
   _dossier: Dossier,

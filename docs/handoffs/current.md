@@ -30,7 +30,7 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **MK2 Core (complete, Phases 1-4):** Better judgment quality, not more fields. No new dossier fields. No schema expansion. Sharper intelligence from existing structure.
 
-**Report Engine (Phases 5-6 complete, Phases 7+ pending):** Eval harness built and operational. First 3 pipeline stages implemented and passing fixture 001-ai-services.
+**Report Engine (Phases 5-8 complete, Phase 9+ pending):** Eval harness built and operational. First 5 pipeline stages implemented and passing fixture 001-ai-services.
 
 # Phase Status
 
@@ -58,15 +58,34 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
 
 **Phase 5 -- Report Engine: extract-signals + detect-tensions + eval harness (complete)**
 - Built eval harness: fixture loader, markdown expectation parser, keyword-overlap scorer (60% threshold)
-- Implemented `extract-signals`: 8 deterministic extraction passes over dossier sections (positioning, customer, talent, pricing, case study, internal perception, funding/hiring mismatch, services revenue)
-- Implemented `detect-tensions`: 5 template-based tension detectors over Signal[] (automation_vs_service, claim_vs_reality, positioning_vs_delivery, vision_vs_execution, credibility_vs_claim)
+- Implemented `extract-signals`: 8 deterministic extraction passes over dossier sections
+- Implemented `detect-tensions`: 5 template-based tension detectors over Signal[]
 - Fixture 001-ai-services: signals 5/5 must-detect, 3/3 nice; tensions 3/3 must-detect, 2/2 nice; 0 violations
 
 **Phase 6 -- Report Engine: detect-patterns (complete)**
 - Implemented `detect-patterns`: 4 template-based pattern detectors over Tension[] + Signal[]
 - Pattern types used: dependency, misalignment, consistency, concentration
-- Patterns compress multiple tensions into higher-level structural forms -- not single-tension restatements
 - Fixture 001-ai-services: patterns 2/2 must-detect, 2/2 nice-to-detect, 0 violations
+
+**Phase 7 -- Report Engine: generate-hypotheses (complete)**
+- Implemented `generate-hypotheses`: 5 template-based hypothesis generators over Pattern[] + Tension[] + Signal[]
+- Hypothesis types: product, operational, gtm, strategic, narrative
+- All hypotheses start as `candidate` with assumptions, alternatives, and missing evidence
+- Deduplication at >70% pattern+tension ID overlap
+- Fixture 001-ai-services: hypotheses 2/2 must-detect, 1/3 acceptable alternatives, 0 violations
+
+**Phase 8 -- Report Engine: stress-test-hypotheses (complete)**
+- Implemented `stress-test-hypotheses`: 5 deterministic checks over Hypothesis[] + upstream objects
+- Checks: support strength, alternative explanation pressure, assumption fragility, structural coverage, counter-signal detection
+- Status assignment: survives (high-importance pattern + medium+ confidence + 3+ tensions + 2+ signal kinds), weak (limited support or low confidence), discarded (zero support)
+- Post-stress-test deduplication retains stronger hypotheses when >70% overlap detected
+- Hypothesis interface extended with: `strongest_support`, `strongest_objections`, `residual_uncertainty`, `initial_confidence`
+- Fixture 001-ai-services results:
+  - Automation compensation hypothesis: **survives** (medium confidence, 3 tensions, 6 signal kinds)
+  - Structural onboarding hypothesis: **survives** (medium confidence, 3 tensions, 3 signal kinds)
+  - Services-led GTM hypothesis: **weak** (low confidence -- started low, medium-importance pattern)
+  - Hiring reveals strategy: **weak** (medium -> low confidence, 2/3 assumptions ungrounded)
+  - Widening gap hypothesis: **weak** (low confidence -- speculative despite broad coverage)
 
 # Validator Architecture
 
@@ -103,11 +122,13 @@ src/report/pipeline/                    # Stage implementations
   extract-signals.ts                    # Stage 1: dossier -> Signal[]
   detect-tensions.ts                    # Stage 2: Signal[] -> Tension[]
   detect-patterns.ts                    # Stage 3: Tension[] + Signal[] -> Pattern[]
+  generate-hypotheses.ts                # Stage 4: Pattern[] + Tension[] + Signal[] -> Hypothesis[]
+  stress-test-hypotheses.ts             # Stage 5: Hypothesis[] + upstream -> Hypothesis[] (tested)
 src/report/evals/                       # Evaluation harness
   fixtures/001-ai-services/             # First eval fixture (dossier + expected-*.md)
   runner/run-fixture.ts                 # CLI runner: loads fixture, runs pipeline, scores
   scoring/                              # Per-stage scorers + common keyword-overlap matcher
-  stubs/stages.ts                       # Adapter layer: real impls + downstream stubs
+  stubs/stages.ts                       # Adapter layer: 5 real impls + downstream stubs
   types/                                # Fixture and eval result types
   results/                              # Eval run outputs (gitignored recommended)
 docs/specs/Intelligence-engine-specs/   # 8 upstream specs (001-008)
@@ -119,30 +140,29 @@ runs/                                   # Per-company output (gitignored)
 
 # Current Phase
 
-Phase 6 complete. First 3 report engine pipeline stages implemented and passing all eval checks.
+Phase 8 complete. First 5 report engine pipeline stages implemented and passing all eval checks.
 
 Current eval results for fixture 001-ai-services:
 ```
 Signals:      5/5 must-detect, 3/3 nice, 0 violations  PASS
 Tensions:     3/3 must-detect, 2/2 nice, 0 violations  PASS
 Patterns:     2/2 must-detect, 2/2 nice, 0 violations  PASS
-Hypotheses:   0/2 must-detect (stub)
+Hypotheses:   2/2 must-detect, 1/3 acceptable, 0 violations  PASS
 Implications: 0/4 must-detect (stub)
 ```
 
 # Next Step
 
-**Phase 7 -- Report Engine: generate-hypotheses**
+**Phase 9 -- Report Engine: generate-implications**
 
-Implement the hypothesis generation stage. Takes patterns and tensions as input. Produces causal explanations for observed structural forms.
+Implement the implications generation stage. Takes stress-tested hypotheses (status: survives only) and produces strategic implications for the report.
 
-Key constraints from spec (docs/specs/report-specs/005-generate-hypotheses.md):
-- Hypotheses must be falsifiable
-- Must reference supporting patterns and tensions
-- Must include alternative explanations
-- Must not be deterministic conclusions
+Key constraints from spec (docs/specs/report-specs/007-generate-implications.md):
+- Only surviving hypotheses feed implications
+- Implications must be actionable and evidence-grounded
+- Must not introduce new hypotheses or revisit discarded ones
 
-Expected fixture targets: 2 must-detect hypotheses, 3 acceptable alternatives.
+Expected fixture targets: 4 must-detect implications, 2 nice-to-detect.
 
 # Known Constraints
 
@@ -161,19 +181,8 @@ Expected fixture targets: 2 must-detect hypotheses, 3 acceptable alternatives.
 
 # Files Modified Recently
 
-**Phase 5 + 6 -- Report Engine pipeline (this session):**
-- `src/report/pipeline/extract-signals.ts` -- new: 8 extraction passes over dossier
-- `src/report/pipeline/detect-tensions.ts` -- new: 5 tension templates over signals
-- `src/report/pipeline/detect-patterns.ts` -- new: 4 pattern templates over tensions + signals
-- `src/report/evals/runner/run-fixture.ts` -- new: eval runner CLI
-- `src/report/evals/scoring/common.ts` -- new: keyword-overlap matcher
-- `src/report/evals/scoring/score-signals.ts` -- new: signals scorer
-- `src/report/evals/scoring/score-tensions.ts` -- new: tensions scorer
-- `src/report/evals/scoring/score-patterns.ts` -- new: patterns scorer
-- `src/report/evals/scoring/score-hypotheses.ts` -- new: hypotheses scorer
-- `src/report/evals/scoring/score-implications.ts` -- new: implications scorer
-- `src/report/evals/stubs/stages.ts` -- new: adapter layer (3 real + 2 stubs)
-- `src/report/evals/types/fixture.ts` -- new: fixture types
-- `src/report/evals/types/eval-result.ts` -- new: eval result types
-- `src/report/evals/fixtures/001-ai-services/` -- fixture data (dossier.json + 5 expected-*.md)
-- `docs/handoffs/current.md` -- updated with Phase 5-6 completion
+**Phase 7+8 -- generate-hypotheses + stress-test-hypotheses (this session):**
+- `src/report/pipeline/generate-hypotheses.ts` -- new: 5 hypothesis templates, Hypothesis type with stress-test fields
+- `src/report/pipeline/stress-test-hypotheses.ts` -- new: 5 deterministic checks, status assignment, dedup
+- `src/report/evals/stubs/stages.ts` -- updated: wired generate-hypotheses + stress-test-hypotheses
+- `docs/handoffs/current.md` -- updated with Phase 7+8 completion
