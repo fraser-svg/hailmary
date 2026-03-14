@@ -9,6 +9,10 @@
  *   npx tsx src/report/runner/batch-analyse.ts           # all companies with dossiers
  *   npx tsx src/report/runner/batch-analyse.ts attio      # single company
  *
+ * Feature flags:
+ *   USE_INTELLIGENCE_V2=true  — run intelligence-v2 pipeline (diagnosis/mechanisms/intervention)
+ *   (default: legacy pipeline with hypotheses/implications)
+ *
  * Prerequisites:
  *   Dossiers must exist at runs/{slug}/dossier.json.
  *   Use /build-company-dossier to generate dossiers first.
@@ -38,8 +42,17 @@ import {
   exportSkillBundle,
 } from '../pipeline/write-report.js';
 
+import { runV2Pipeline } from '../../intelligence-v2/pipeline.js';
+import type { V2PipelineResult } from '../../intelligence-v2/pipeline.js';
+
 import { companies } from './company-list.js';
 import { slugify, writeJson, writeMarkdown } from './output-manager.js';
+
+// ---------------------------------------------------------------------------
+// Feature flag
+// ---------------------------------------------------------------------------
+
+const USE_V2 = process.env.USE_INTELLIGENCE_V2 === 'true';
 
 // ---------------------------------------------------------------------------
 // Dossier loader
@@ -58,7 +71,7 @@ async function loadDossier(slug: string): Promise<Dossier | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Insight summary generator
+// Insight summary generator (legacy pipeline)
 // ---------------------------------------------------------------------------
 
 function buildInsightSummary(
@@ -107,34 +120,28 @@ function impactRank(c: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// Single company pipeline
+// Single company pipeline — legacy (hypotheses/implications)
 // ---------------------------------------------------------------------------
 
 interface AnalysisResult {
   slug: string;
+  pipeline: 'legacy' | 'v2';
   signalCount: number;
   tensionCount: number;
   patternCount: number;
   hypothesisCount: number;
   implicationCount: number;
+  diagnosisType?: string;
+  mechanismCount?: number;
   reportErrors: number;
 }
 
-async function analyseCompany(
+async function analyseCompanyLegacy(
   name: string,
   slug: string,
-): Promise<AnalysisResult | null> {
-  console.log(`\nAnalysing: ${name}`);
-
-  // 1. Load dossier
-  const dossier = await loadDossier(slug);
-  if (!dossier) {
-    console.log(`  ✗ No dossier found at runs/${slug}/dossier.json — skipping`);
-    return null;
-  }
-  console.log(`  ✓ dossier loaded`);
-
-  // 2. Run deterministic reasoning pipeline
+  dossier: Dossier,
+): Promise<AnalysisResult> {
+  // 1. Run deterministic reasoning pipeline
   const signals: Signal[] = extractSignals(dossier);
   const tensions: Tension[] = detectTensions(signals);
   const patterns: Pattern[] = detectPatterns(tensions, signals);
@@ -143,24 +150,24 @@ async function analyseCompany(
   const implications = generateImplications(stressTested, patterns, tensions, signals);
   console.log(`  ✓ reasoning pipeline complete (${signals.length} signals, ${tensions.length} tensions, ${patterns.length} patterns, ${stressTested.length} hypotheses, ${implications.length} implications)`);
 
-  // 3. Generate report plan
+  // 2. Generate report plan
   const plan: ReportPlan = planReport(implications, stressTested, patterns, tensions, signals);
   console.log(`  ✓ report plan generated`);
 
-  // 4. Write template report
+  // 3. Write template report
   const result: WriteReportResult = await writeReport(
     plan, implications, stressTested, patterns, tensions, signals,
     { writerMode: 'template' },
   );
   console.log(`  ✓ template report written${result.errors.length > 0 ? ` (${result.errors.length} validation errors)` : ''}`);
 
-  // 5. Export skill bundle
+  // 4. Export skill bundle
   const skillResult: SkillBundleResult = exportSkillBundle(
     plan, implications, stressTested, patterns, tensions, signals,
   );
   console.log(`  ✓ skill bundle exported (${skillResult.bundle.sections.length} sections)`);
 
-  // 6. Write all outputs
+  // 5. Write all outputs
   await writeJson(slug, 'dossier.json', dossier);
   await writeJson(slug, 'signals.json', signals);
   await writeJson(slug, 'tensions.json', tensions);
@@ -171,13 +178,14 @@ async function analyseCompany(
   await writeMarkdown(slug, 'report-template.md', result.markdown);
   await writeJson(slug, 'skill-bundle.json', skillResult.bundle);
 
-  // 7. Write insight summary
+  // 6. Write insight summary
   const insightSummary = buildInsightSummary(tensions, patterns, stressTested, implications);
   await writeMarkdown(slug, 'insight-summary.md', insightSummary);
   console.log(`  ✓ insight summary written`);
 
   return {
     slug,
+    pipeline: 'legacy',
     signalCount: signals.length,
     tensionCount: tensions.length,
     patternCount: patterns.length,
@@ -185,6 +193,86 @@ async function analyseCompany(
     implicationCount: implications.length,
     reportErrors: result.errors.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Single company pipeline — intelligence-v2 (diagnosis/mechanisms/intervention)
+// ---------------------------------------------------------------------------
+
+async function analyseCompanyV2(
+  name: string,
+  slug: string,
+  dossier: Dossier,
+): Promise<AnalysisResult> {
+  const companyId = dossier.company_input?.company_name ?? slug;
+  const v2: V2PipelineResult = await runV2Pipeline(companyId, dossier);
+
+  console.log(
+    `  ✓ v2 pipeline complete (${v2.signals.length} signals, ${v2.tensions.length} tensions, ` +
+    `${v2.patterns.length} patterns, diagnosis: ${v2.diagnosis.type}, ` +
+    `${v2.mechanisms.length} mechanisms, intervention: ${v2.intervention.type})`,
+  );
+
+  // Write all outputs
+  await writeJson(slug, 'dossier.json', dossier);
+  await writeJson(slug, 'signals.json', v2.signals);
+  await writeJson(slug, 'gtm-analysis.json', v2.gtm_analysis);
+  await writeJson(slug, 'tensions.json', v2.tensions);
+  await writeJson(slug, 'patterns.json', v2.patterns);
+  await writeJson(slug, 'v2-patterns.json', v2.v2_patterns);
+  await writeJson(slug, 'diagnosis.json', v2.diagnosis);
+  await writeJson(slug, 'mechanisms.json', v2.mechanisms);
+  await writeJson(slug, 'intervention.json', v2.intervention);
+
+  if (v2.report.markdown) {
+    await writeMarkdown(slug, 'report-v2.md', v2.report.markdown);
+    console.log(`  ✓ v2 report written${v2.report.errors.length > 0 ? ` (${v2.report.errors.length} validation errors)` : ''}`);
+  } else {
+    console.log(`  ✗ v2 report rendering failed (${v2.report.errors.length} errors)`);
+    for (const err of v2.report.errors) {
+      console.log(`    - ${err.check}: ${err.message}`);
+    }
+  }
+
+  if (v2.report.report) {
+    await writeJson(slug, 'report-v2.json', v2.report.report);
+  }
+
+  return {
+    slug,
+    pipeline: 'v2',
+    signalCount: v2.signals.length,
+    tensionCount: v2.tensions.length,
+    patternCount: v2.patterns.length,
+    hypothesisCount: 0,
+    implicationCount: 0,
+    diagnosisType: v2.diagnosis.type,
+    mechanismCount: v2.mechanisms.length,
+    reportErrors: v2.report.errors.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Single company dispatcher
+// ---------------------------------------------------------------------------
+
+async function analyseCompany(
+  name: string,
+  slug: string,
+): Promise<AnalysisResult | null> {
+  console.log(`\nAnalysing: ${name}${USE_V2 ? ' [v2]' : ''}`);
+
+  const dossier = await loadDossier(slug);
+  if (!dossier) {
+    console.log(`  ✗ No dossier found at runs/${slug}/dossier.json — skipping`);
+    return null;
+  }
+  console.log(`  ✓ dossier loaded`);
+
+  if (USE_V2) {
+    return analyseCompanyV2(name, slug, dossier);
+  }
+  return analyseCompanyLegacy(name, slug, dossier);
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +297,7 @@ async function main() {
     targets = companies.map(c => ({ name: c.name, slug: slugify(c.name) }));
   }
 
-  console.log(`Batch analysis: ${targets.length} companies`);
+  console.log(`Batch analysis: ${targets.length} companies (pipeline: ${USE_V2 ? 'intelligence-v2' : 'legacy'})`);
   console.log('─'.repeat(50));
 
   const results: AnalysisResult[] = [];
@@ -235,7 +323,11 @@ async function main() {
   if (results.length > 0) {
     console.log('\nResults:');
     for (const r of results) {
-      console.log(`  ${r.slug}: ${r.signalCount} signals, ${r.tensionCount} tensions, ${r.patternCount} patterns, ${r.hypothesisCount} hypotheses, ${r.implicationCount} implications${r.reportErrors > 0 ? ` (${r.reportErrors} report errors)` : ''}`);
+      if (r.pipeline === 'v2') {
+        console.log(`  ${r.slug}: ${r.signalCount} signals, ${r.tensionCount} tensions, ${r.patternCount} patterns, diagnosis: ${r.diagnosisType}, ${r.mechanismCount} mechanisms${r.reportErrors > 0 ? ` (${r.reportErrors} report errors)` : ''}`);
+      } else {
+        console.log(`  ${r.slug}: ${r.signalCount} signals, ${r.tensionCount} tensions, ${r.patternCount} patterns, ${r.hypothesisCount} hypotheses, ${r.implicationCount} implications${r.reportErrors > 0 ? ` (${r.reportErrors} report errors)` : ''}`);
+      }
     }
     console.log(`\nOutputs written to: reports/`);
   }
