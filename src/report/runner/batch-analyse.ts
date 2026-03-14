@@ -224,14 +224,24 @@ async function analyseCompanyV2(
   await writeJson(slug, 'mechanisms.json', v2.mechanisms);
   await writeJson(slug, 'intervention.json', v2.intervention);
 
-  if (v2.report.markdown) {
-    await writeMarkdown(slug, 'report-v2.md', v2.report.markdown);
-    console.log(`  ✓ v2 report written${v2.report.errors.length > 0 ? ` (${v2.report.errors.length} validation errors)` : ''}`);
-  } else {
-    console.log(`  ✗ v2 report rendering failed (${v2.report.errors.length} errors)`);
+  if (v2.report.errors.length > 0) {
+    // Hard fail: report budget and structural violations must not be silently swallowed.
+    // A null report means the company's run failed — log clearly and re-throw.
+    console.log(`  ✗ v2 report validation failed (${v2.report.errors.length} errors):`);
     for (const err of v2.report.errors) {
       console.log(`    - ${err.check}: ${err.message}`);
     }
+    // Write the raw markdown for debugging even when validation fails
+    if (v2.report.markdown) {
+      await writeMarkdown(slug, 'report-v2-debug.md', v2.report.markdown);
+      console.log(`  ⚠ debug markdown written to report-v2-debug.md`);
+    }
+    throw new Error(`v2 report validation failed with ${v2.report.errors.length} errors (see above)`);
+  }
+
+  if (v2.report.markdown) {
+    await writeMarkdown(slug, 'report-v2.md', v2.report.markdown);
+    console.log(`  ✓ v2 report written`);
   }
 
   if (v2.report.report) {

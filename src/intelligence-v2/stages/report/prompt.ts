@@ -54,7 +54,7 @@ Critical rules:
 - Write directly to the founder. No hedging, no academic qualifiers.
 - Short sentences. Active voice.
 - No em dashes (—). Use commas, semicolons, or full stops instead.
-- Maximum 500 words per section.
+- Maximum 350 words per section. Total report must not exceed 900 words. This is a physical mail report — brevity is not optional.
 - Do not use these phrases: ${BANNED_PHRASES.join(', ')}.
 
 Return valid JSON only. No markdown code fences. No additional text outside the JSON.`

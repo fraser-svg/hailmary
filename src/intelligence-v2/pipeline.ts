@@ -98,6 +98,26 @@ export async function runV2Pipeline(
   // Stage 8: Select intervention (v2-only)
   const intervention = selectIntervention(companyId, diagnosis, mechanisms)
 
+  // Output contract assertions — catch violations before LLM render.
+  // These guard against programming errors in upstream stages, not data quality issues.
+  if (mechanisms.length < 2 || mechanisms.length > 3) {
+    throw new Error(
+      `runV2Pipeline [${companyId}]: contract violation — expected 2–3 mechanisms, got ${mechanisms.length}`,
+    )
+  }
+  if (!intervention.diagnosis_id || intervention.diagnosis_id !== diagnosis.id) {
+    throw new Error(
+      `runV2Pipeline [${companyId}]: contract violation — intervention.diagnosis_id does not match diagnosis.id`,
+    )
+  }
+  const mechIds = mechanisms.map(m => m.id)
+  const missingMechIds = mechIds.filter(id => !intervention.mechanism_ids.includes(id))
+  if (missingMechIds.length > 0) {
+    throw new Error(
+      `runV2Pipeline [${companyId}]: contract violation — intervention.mechanism_ids missing: ${missingMechIds.join(', ')}`,
+    )
+  }
+
   // Stage 9: Render report (v2-only — the only LLM call)
   const report = await renderReport(companyId, diagnosis, mechanisms, intervention)
 

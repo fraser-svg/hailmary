@@ -9,8 +9,10 @@
 import type { ReportV2, ValidationError } from './types.js'
 import { BANNED_PHRASES } from './prompt.js'
 
-const MAX_WORDS_PER_SECTION = 500
-const MAX_TOTAL_WORDS = 1500
+// Physical mail budget: ≤3 pages at business letter format (~300 words/page).
+// Leaving headroom for headers, whitespace, and letterhead.
+const MAX_WORDS_PER_SECTION = 350
+const MAX_TOTAL_WORDS = 900
 const REQUIRED_SECTION_TITLES = ['The Diagnosis', 'Why This Happens', 'The Opportunity']
 
 function countWords(text: string): number {
