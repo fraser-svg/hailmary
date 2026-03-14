@@ -783,6 +783,101 @@ function extractPressFounderFramingSignals(dossier: Dossier, companyId: string):
   })];
 }
 
+/**
+ * Pass 19: Open source / GitHub adoption signal.
+ * Fires when evidence contains github_stars or an open-source license.
+ * Emits one consolidated signal tagged with plg/open_source/github_adoption.
+ */
+function extractOpenSourceAdoptionSignals(dossier: Dossier, companyId: string): Signal[] {
+  const matching = dossier.evidence.filter(e => {
+    const hasStars = e.normalized_fields?.['github_stars'] !== undefined;
+    const hasLicense = typeof e.normalized_fields?.['license'] === 'string' &&
+      /apache|mit|gpl|bsd/i.test(e.normalized_fields['license'] as string);
+    return hasStars || hasLicense;
+  });
+
+  if (matching.length === 0) return [];
+
+  // Collect representative values for the statement
+  let starCount: string | null = null;
+  let license: string | null = null;
+  for (const ev of matching) {
+    if (ev.normalized_fields?.['github_stars'] && !starCount) {
+      starCount = String(ev.normalized_fields['github_stars']);
+    }
+    if (typeof ev.normalized_fields?.['license'] === 'string' && !license) {
+      license = ev.normalized_fields['license'] as string;
+    }
+  }
+
+  const hasBoth = starCount !== null && license !== null;
+  const parts: string[] = [];
+  if (starCount) parts.push(`${starCount} GitHub stars`);
+  if (license) parts.push(`${license} license`);
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'gtm',
+    title: 'Open source / GitHub adoption indicates developer-led distribution',
+    statement: `${parts.join(' and ')}. Open source traction is the primary acquisition signal.`,
+    evidence_ids: matching.map(e => e.evidence_id),
+    inference_label: 'direct',
+    confidence: hasBoth ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'positive',
+    tags: ['open_source', 'plg', 'github_adoption'],
+  })];
+}
+
+/**
+ * Pass 20: Explicit PLG / self-serve motion signal.
+ * Fires when sales_motion_record or delivery_model_record evidence indicates PLG.
+ * Emits one signal tagged self_serve/plg/product_led.
+ */
+function extractPlgMotionSignals(dossier: Dossier, companyId: string): Signal[] {
+  const candidates = dossier.evidence.filter(e =>
+    e.evidence_type === 'sales_motion_record' ||
+    e.evidence_type === 'delivery_model_record',
+  );
+  if (candidates.length === 0) return [];
+
+  const explicitPlg = candidates.filter(e =>
+    e.normalized_fields?.['motion_type'] === 'PLG',
+  );
+  const textMatch = candidates.filter(e =>
+    /self.serv|no.sales|free.tier|product.led|plg/i.test(e.excerpt + ' ' + (e.summary ?? '')),
+  );
+
+  const matching = explicitPlg.length > 0 ? explicitPlg : textMatch;
+  if (matching.length === 0) return [];
+
+  const isExplicit = explicitPlg.length > 0;
+
+  // Collect explicit signals list if available
+  const rawSignals = matching
+    .flatMap(e => {
+      const s = e.normalized_fields?.['signals'];
+      return Array.isArray(s) ? s as string[] : [];
+    })
+    .slice(0, 3);
+  const signalNote = rawSignals.length > 0
+    ? ` Signals: ${rawSignals.join(', ')}.`
+    : '';
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'gtm',
+    title: 'Product-led growth motion: self-serve, no sales required',
+    statement: `Evidence indicates PLG distribution.${signalNote} Developer self-serve is the primary acquisition path.`,
+    evidence_ids: matching.map(e => e.evidence_id),
+    inference_label: isExplicit ? 'direct' : 'light_inference',
+    confidence: isExplicit ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'positive',
+    tags: ['self_serve', 'plg', 'product_led'],
+  })];
+}
+
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -826,6 +921,8 @@ export function extractSignals(dossier: Dossier): Signal[] {
     ...extractJuniorHiringSignals(dossier, companyId),
     ...extractThoughtLeadershipConcentrationSignals(dossier, companyId),
     ...extractPressFounderFramingSignals(dossier, companyId),
+    ...extractOpenSourceAdoptionSignals(dossier, companyId),
+    ...extractPlgMotionSignals(dossier, companyId),
   ];
 
   return deduplicateSignals(raw);

@@ -36,7 +36,7 @@ export function analyseGtm(companyId: string, signals: Signal[]): GTMAnalysis {
   const distribution_architecture = classifyDistributionArchitecture(signals)
   const founder_dependency = classifyFounderDependency(signals)
   const service_dependency = classifyServiceDependency(signals)
-  const pricing_delivery_fit = classifyPricingDeliveryFit(signals)
+  const pricing_delivery_fit = classifyPricingDeliveryFit(signals, service_dependency)
 
   const evidence_refs = unique([
     ...sales_motion.evidence_refs,

@@ -11,6 +11,7 @@
     "analyse-batch": "tsx src/report/runner/batch-analyse.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   },

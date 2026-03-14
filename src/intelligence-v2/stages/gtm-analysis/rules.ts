@@ -418,7 +418,7 @@ export function classifyServiceDependency(signals: Signal[]): ServiceDependencyA
 // Rule: Classify Pricing/Delivery Fit
 // ---------------------------------------------------------------------------
 
-export function classifyPricingDeliveryFit(signals: Signal[]): PricingDeliveryFitAssessment {
+export function classifyPricingDeliveryFit(signals: Signal[], serviceDependency: ServiceDependencyAssessment): PricingDeliveryFitAssessment {
   const pricingSignals = signals.filter(s => s.kind === 'pricing')
   const segmentSignals = filterByTags(signals, ['smb_signal', 'segment_alignment'])
   const deliverySignals = filterByTags(signals, [
@@ -449,8 +449,11 @@ export function classifyPricingDeliveryFit(signals: Signal[]): PricingDeliveryFi
     roi_clarity = 'low'
   }
 
-  // Delivery fit tension: software pricing alongside service delivery signals (SPEC 005)
-  const delivery_fit_tension = pricingSignals.length > 0 && deliverySignals.length > 0
+  // Delivery fit tension: specific SPEC 005 conditions (not mere co-presence of signals)
+  const delivery_fit_tension =
+    (pricing_model === 'seat' && serviceDependency.onboarding_complexity === 'high') ||
+    (pricing_model === 'usage' && serviceDependency.implementation_required) ||
+    (roi_clarity === 'low' && pricing_model !== 'custom')
 
   const allSignals = [...pricingSignals, ...segmentSignals, ...deliverySignals]
   const confidence: Confidence = lowerConfidence(

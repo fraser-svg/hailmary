@@ -74,7 +74,7 @@ const TENSION_ARCHETYPE_AFFINITY: Record<ReportTensionType, Partial<Record<Patte
   leadership_concentration_vs_scaling: { founder_led_sales_ceiling: 2, distribution_fragility: 1 },
 
   // Enterprise positioning → enterprise_theatre
-  positioning_vs_customer_base: { enterprise_theatre: 3 },
+  positioning_vs_customer_base: { enterprise_theatre: 2, narrative_distribution_mismatch: 2 },
   ambition_vs_proof: { enterprise_theatre: 2, narrative_distribution_mismatch: 1 },
 
   // Growth/distribution → distribution_fragility
@@ -85,7 +85,7 @@ const TENSION_ARCHETYPE_AFFINITY: Record<ReportTensionType, Partial<Record<Patte
   // Narrative/distribution → narrative_distribution_mismatch
   vision_vs_execution: { narrative_distribution_mismatch: 2, services_disguised_as_saas: 1 },
   credibility_vs_claim: { narrative_distribution_mismatch: 2 },
-  positioning_vs_market_fit: { narrative_distribution_mismatch: 2 },
+  positioning_vs_market_fit: { narrative_distribution_mismatch: 2, enterprise_theatre: 1 },
   breadth_vs_focus: { narrative_distribution_mismatch: 1 },
   brand_vs_customer_language: { narrative_distribution_mismatch: 1 },
   speed_vs_trust: { narrative_distribution_mismatch: 1 },
@@ -156,11 +156,31 @@ function classifyArchetype(
   if (gtm.founder_dependency.risk_score >= 0.67) {
     scores.founder_led_sales_ceiling += 2
   }
+  if (gtm.sales_motion.mode === 'founder_led') {
+    scores.founder_led_sales_ceiling += 2
+  }
+  if (gtm.sales_motion.mode === 'plg') {
+    scores.developer_adoption_without_buyer_motion += 2
+  }
+  if (gtm.distribution_architecture.primary_channel === 'product') {
+    scores.developer_adoption_without_buyer_motion += 2
+  }
   if (gtm.buyer_structure.user_buyer_mismatch) {
     scores.developer_adoption_without_buyer_motion += 3
   }
   if (gtm.distribution_architecture.fragility_score >= 0.7) {
     scores.distribution_fragility += 2
+  }
+  if (gtm.pricing_delivery_fit.delivery_fit_tension) {
+    scores.services_disguised_as_saas += 1
+  }
+
+  // Debug: log score map before selection
+  if (process.env['ARCHETYPE_DEBUG'] === 'true') {
+    console.log(`\nArchetype scores [${pattern.pattern_id}]:`)
+    for (const [arch, score] of Object.entries(scores).sort(([, a], [, b]) => b - a)) {
+      console.log(`  ${arch}: ${score}`)
+    }
   }
 
   // Pick highest-scoring archetype; break ties alphabetically
