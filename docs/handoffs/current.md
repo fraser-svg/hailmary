@@ -2,22 +2,27 @@
 
 # Project Goal
 
-A system that accepts a company name and domain, conducts structured public research, and produces a machine-readable JSON dossier for downstream AI consumption. The dossier surfaces the gap between company messaging and customer-perceived value. A deterministic reasoning pipeline then produces a GTM diagnosis, causal mechanisms, and intervention opportunity.
+A system that accepts a company name and domain, conducts structured public research, and produces a machine-readable JSON dossier for downstream AI consumption. The dossier surfaces the gap between company messaging and customer-perceived value. A deterministic reasoning pipeline then produces a GTM diagnosis, causal mechanisms, and intervention opportunity. V3 adds a memo generation layer: the system produces a founder-facing strategic memo good enough for physical outreach.
 
 # Current Architecture
 
 ```
 Company name + domain
+  -> [V3] siteCorpusAcquisition + externalResearchAcquisition
+  -> [V3] mergeResearchCorpus -> corpusToDossierAdapter
+  OR (legacy path):
   -> Claude research skill (/build-company-dossier)
   -> WebSearch + WebFetch (no external APIs)
   -> Evidence extraction with source tier tagging
   -> runs/<slug>/dossier.json (16 required top-level fields, evidence inline)
   -> TypeScript validator (schema + evidence-link checking)
-  -> Pipeline (feature-flagged: legacy or intelligence-v2)
-  -> Batch analysis runner (orchestrates pipeline across ICP companies)
+  -> V2 reasoning pipeline (deterministic, 9 stages)
+  -> [V3] buildEvidencePack -> adjudicateDiagnosis -> buildMemoBrief
+  -> [V3] writeMemo (LLM) -> criticiseMemo (adversarial LLM) -> runSendGate
+  -> MarkdownMemo + SendGateResult
 ```
 
-Two pipelines exist, selectable via `USE_INTELLIGENCE_V2=true`:
+Three pipelines exist:
 
 Legacy pipeline (8 stages):
 ```
@@ -25,15 +30,18 @@ extract-signals -> detect-tensions -> detect-patterns -> generate-hypotheses
   -> stress-test-hypotheses -> generate-implications -> plan-report -> write-report
 ```
 
-Intelligence-v2 pipeline (9 stages):
+Intelligence-v2 pipeline (9 stages, feature-flagged via USE_INTELLIGENCE_V2=true):
 ```
 extract-signals -> gtm-analysis -> detect-tensions -> detect-patterns
   -> adapter (archetype classification) -> diagnosis -> mechanisms -> intervention -> report-v2
 ```
 
-The v2 pipeline reuses the first 4 stages (signals, tensions, patterns) from the legacy pipeline, then diverges. An adapter layer converts report pipeline types (generic PatternType) to intelligence-v2 types (specific PatternArchetype) using tension affinity scoring boosted by GTM analysis signals.
-
-Writer modes: `template` (deterministic, default) | `skill` (Claude Code prose) | `llm` (runtime API)
+Intelligence-v3 pipeline (17 stages — upstream implemented, memo layer stubbed):
+```
+siteCorpusAcquisition -> externalResearchAcquisition -> mergeResearchCorpus
+  -> corpusToDossierAdapter -> [V2 reasoning spine] -> buildEvidencePack
+  -> adjudicateDiagnosis -> buildMemoBrief -> writeMemo -> criticiseMemo -> runSendGate
+```
 
 Errors = structural integrity (fail validation). Warnings = trust/quality (never fail).
 
@@ -49,7 +57,9 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 
 **Report Engine (complete, Phases 5-19 + Phase 8 Reasoning + Phase 9B Specificity):** Eval harness + 8 pipeline stages + writer layer + batch runner + reasoning improvements.
 
-**Intelligence-V2 (current):** Deterministic reasoning pipeline producing diagnosis/mechanisms/intervention. GTM analysis classifiers, archetype-based pattern scoring, mechanism maps, intervention maps, LLM report renderer. Integrated into batch runner behind feature flag. Calibration complete — all 3 reference companies produce correct diagnoses.
+**Intelligence-V2 (complete):** Deterministic reasoning pipeline producing diagnosis/mechanisms/intervention. GTM analysis classifiers, archetype-based pattern scoring, mechanism maps, intervention maps, LLM report renderer. Calibration complete — all 3 reference companies produce correct diagnoses. 174 tests pass.
+
+**Intelligence-V3 Upstream (current — V3-U1 through V3-U4 implemented):** Acquisition layer complete. `siteCorpusAcquisition`, `externalResearchAcquisition`, `mergeResearchCorpus`, `corpusToDossierAdapter` all implemented with fixture/manual mode + pluggable provider interfaces. 208 tests pass (174 existing + 34 new). Memo layer (V3-M1 through V3-M6) remains stubbed.
 
 # Phase Status
 
@@ -85,10 +95,13 @@ Errors = structural integrity (fail validation). Warnings = trust/quality (never
 | **V2 Evals** | **Evaluation fixtures** | **6 archetype fixtures with mock signals and expected outputs** |
 | **V2 Integration** | **Pipeline integration + feature flag** | **adapter.ts, pipeline.ts, batch-analyse.ts modified** |
 | **V2 Audit** | **Spec-vs-code audit + targeted bug fixes** | **D4, D5, D10 fixed; D2/D3/D6–D9/D11/D12 documented** |
-| **V2 Calibration 1** | **Archetype scoring bias** | **positioning_vs_customer_base weight split ET:2/NDM:2; score debug logging; 5 new tests** |
-| **V2 Calibration 2** | **PLG signal extraction + DAWBM scoring** | **Pass 19+20 in extract-signals.ts; plg boost in adapter.ts; 13 new tests** |
-| **V2 Calibration 3** | **Product-led distribution boost for DAWBM** | **primary_channel=product → DAWBM +2 in adapter.ts; 2 new tests** |
-| **V2 Calibration 4** | **Omnea ET fix via positioning_vs_market_fit affinity** | **pvm carries ET:+1; Omnea correctly ET; 2 new tests; 174 total** |
+| **V2 Calibration 1** | **Archetype scoring bias** | **positioning_vs_customer_base weight split ET:2/NDM:2** |
+| **V2 Calibration 2** | **PLG signal extraction + DAWBM scoring** | **Pass 19+20; plg boost; 174 tests** |
+| **V2 Calibration 3** | **Product-led distribution boost for DAWBM** | **primary_channel=product → DAWBM +2** |
+| **V2 Calibration 4** | **Omnea ET fix via positioning_vs_market_fit affinity** | **pvm carries ET:+1; all 3 companies correct** |
+| **V3 Spec Pack** | **6 implementation-grade spec files** | **docs/specs/intelligence-engine-v3/001–006** |
+| **V3 Scaffold** | **TypeScript types + TODO stubs** | **src/intelligence-v3/ — 15 files, no logic** |
+| **V3 Upstream** | **Acquisition layer (V3-U1 through V3-U4)** | **site-corpus, external-research, merge-corpus, corpus-to-dossier — 34 new tests** |
 
 # Validator Architecture
 
@@ -139,9 +152,34 @@ src/intelligence-v2/                    # V2 reasoning pipeline
     fixtures/                           # 6 archetype fixtures (mock signals + expected outputs)
   adapter.ts                            # Report pipeline -> V2 type conversion + archetype classification
   pipeline.ts                           # V2 pipeline orchestrator
-docs/specs/Intelligence-engine-specs/   # 8 upstream specs
+src/intelligence-v3/                    # V3 pipeline
+  types/                                # ResearchCorpus, EvidencePack, Adjudication, MemoBrief, Memo, MemoCritic, SendGate
+  acquisition/                          # V3-U1 through V3-U4 (IMPLEMENTED)
+    site-corpus.ts                      # siteCorpusAcquisition() — fixture + provider mode
+    external-research.ts                # externalResearchAcquisition() — fixture + provider mode
+    merge-corpus.ts                     # mergeResearchCorpus() — dedup + tier distribution
+    corpus-to-dossier.ts                # corpusToDossierAdapter() — ResearchCorpus → Dossier
+  __tests__/
+    acquisition.test.ts                 # 34 tests for V3-U1 through V3-U4
+  memo/                                 # V3-M1 through V3-M6 (stubbed — not implemented)
+    build-evidence-pack.ts
+    adjudicate-diagnosis.ts
+    build-memo-brief.ts
+    write-memo.ts
+    criticise-memo.ts
+    run-send-gate.ts
+  pipeline/
+    run-v3-pipeline.ts                  # runV3Pipeline() orchestrator (stubbed)
+docs/specs/Intelligence-engine-specs/   # 8 V1 upstream specs
 docs/specs/report-specs/                # 9 report engine specs
-docs/specs/intelligence-engine-v2/      # V2 specs
+docs/specs/intelligence-engine-v2/      # 6 V2 specs
+docs/specs/intelligence-engine-v3/      # 6 V3 specs
+  001_product_contract.md
+  002_pipeline_architecture.md
+  003_evidence_pack_spec.md
+  004_adjudication_spec.md
+  005_memo_spec.md
+  006_send_gate_spec.md
 docs/handoffs/current.md                # This file
 .claude/skills/build-company-dossier/   # SKILL.md + 7 reference docs
 runs/                                   # Per-company dossier output (gitignored)
@@ -161,87 +199,79 @@ Six archetypes drive the entire v2 pipeline:
 | `distribution_fragility` | Single-channel concentration | founder_lock_in, local_success_trap, delivery_constraint | distribution_strategy_reset |
 | `narrative_distribution_mismatch` | Stated GTM diverges from actual distribution | investor_signalling, category_gravity, buyer_psychology | positioning_reset |
 
-GTM Analysis produces 6 sub-assessments from signals: sales motion, buyer structure, distribution architecture, founder dependency, service dependency, pricing/delivery fit. These inform the archetype classification adapter.
+Current adapter boosts in `classifyArchetype()`:
+```typescript
+if (gtm.service_dependency.hidden_services_risk >= 0.5)       scores.services_disguised_as_saas += 2
+if (gtm.founder_dependency.risk_score >= 0.67)                scores.founder_led_sales_ceiling += 2
+if (gtm.sales_motion.mode === 'founder_led')                   scores.founder_led_sales_ceiling += 2
+if (gtm.sales_motion.mode === 'plg')                           scores.developer_adoption_without_buyer_motion += 2
+if (gtm.distribution_architecture.primary_channel === 'product') scores.developer_adoption_without_buyer_motion += 2
+if (gtm.buyer_structure.user_buyer_mismatch)                   scores.developer_adoption_without_buyer_motion += 3
+if (gtm.distribution_architecture.fragility_score >= 0.7)     scores.distribution_fragility += 2
+if (gtm.pricing_delivery_fit.delivery_fit_tension)             scores.services_disguised_as_saas += 1
+```
 
-The adapter converts report pipeline patterns (generic `PatternType`: contradiction, gap, dependency...) to v2 patterns (specific `PatternArchetype`) using tension affinity scoring boosted by GTM analysis signals.
-
-# Current Phase
-
-**Calibration complete. All 3 reference companies produce correct diagnoses.**
-
-## Calibration History
-
-### Calibration 1 — positioning_vs_customer_base weight split
-- Changed `{ enterprise_theatre: 3 }` to `{ enterprise_theatre: 2, narrative_distribution_mismatch: 2 }`
-- Prevents ET from dominating patterns with a single tension
-- Added score debug logging gated on `ARCHETYPE_DEBUG=true`
-
-### Calibration 2 — PLG signal extraction + DAWBM sales_motion boost
-- Added Pass 19 (`extractOpenSourceAdoptionSignals`): fires on `github_stars` or OSS license
-- Added Pass 20 (`extractPlgMotionSignals`): fires on `motion_type === 'PLG'` or PLG text patterns
-- Added adapter boost: `sales_motion.mode === 'plg'` → DAWBM +2
-- Result for Trigger.dev: 4 → 6 signals; `sales_motion.mode` hybrid → plg; `primary_channel` unknown → product
-
-### Calibration 3 — product-led distribution boost for DAWBM
-- Added adapter boost: `distribution_architecture.primary_channel === 'product'` → DAWBM +2
-- Second-order PLG signal: product as primary distribution channel is the defining DAWBM characteristic
-- Result for Trigger.dev: DAWBM=4 ties NDM=4, wins alphabetically ('d' < 'n')
-
-### Calibration 4 — positioning_vs_market_fit carries ET:+1 (Omnea fix)
-- Root cause: pat_003 (all 3 Omnea tensions) scored NDM:5 vs ET:4 — margin of 1 point
-- Fix: added `enterprise_theatre: 1` to `positioning_vs_market_fit` affinity
-- Effect: pat_003 now ties ET:5 = NDM:5 → ET wins alphabetically → ET group covers 3 tensions → ET wins selector 12 vs 10
-- Form3 unaffected (lacks `ambition_vs_proof`, so ET:3 < NDM:4 — NDM still wins)
-
-## Verified Company Diagnoses
+Verified company diagnoses (208 tests, all pass):
 
 | Company | Signals | Diagnosis | Accurate? |
 |---------|---------|-----------|-----------|
-| Trigger.dev | 6 | `developer_adoption_without_buyer_motion` | **Yes** |
-| Omnea | 5 | `enterprise_theatre` | **Yes** |
-| Form3 | 4 | `narrative_distribution_mismatch` | Partially (Form3 IS enterprise but lacks ambition_vs_proof tension to trigger ET) |
+| Trigger.dev | 6 | `developer_adoption_without_buyer_motion` | Yes |
+| Omnea | 5 | `enterprise_theatre` | Yes |
+| Form3 | 4 | `narrative_distribution_mismatch` | Partially (IS enterprise but lacks ambition_vs_proof) |
 
-## Current Adapter Boosts (summary)
+# Intelligence-V3 Upstream Layer
 
-```typescript
-// GTM boosts in classifyArchetype()
-if (gtm.service_dependency.hidden_services_risk >= 0.5)   scores.services_disguised_as_saas += 2
-if (gtm.founder_dependency.risk_score >= 0.67)            scores.founder_led_sales_ceiling += 2
-if (gtm.sales_motion.mode === 'founder_led')               scores.founder_led_sales_ceiling += 2
-if (gtm.sales_motion.mode === 'plg')                       scores.developer_adoption_without_buyer_motion += 2
-if (gtm.distribution_architecture.primary_channel === 'product') scores.developer_adoption_without_buyer_motion += 2
-if (gtm.buyer_structure.user_buyer_mismatch)               scores.developer_adoption_without_buyer_motion += 3
-if (gtm.distribution_architecture.fragility_score >= 0.7) scores.distribution_fragility += 2
-if (gtm.pricing_delivery_fit.delivery_fit_tension)         scores.services_disguised_as_saas += 1
-```
+The acquisition layer (V3-U1 through V3-U4) is complete. It feeds the V2 reasoning spine a richer Dossier produced from structured web research rather than manual skill output.
 
-## Spec-vs-Code Audit Status
+**V3-U1: siteCorpusAcquisition**
+- Two modes: fixture/manual (for tests) and provider (pluggable — future Cloudflare)
+- Validates mandatory pages (homepage, pricing, about); ERR_CORPUS_EMPTY on missing homepage
+- Enforces ≤10 pages, ≤20k tokens with priority-ordered truncation
+- Token counts computed automatically from raw_text (1 token ≈ 4 chars)
 
-| ID | File | Divergence | Status |
-|----|------|------------|--------|
-| D4 | adapter.ts | `sales_motion.mode === "founder_led"` boost missing | **Fixed** |
-| D5 | adapter.ts | `delivery_fit_tension` → +1 to services_disguised_as_saas missing | **Fixed** |
-| D10 | rules.ts | `delivery_fit_tension` triggered on any co-presence of signals (too broad) | **Fixed** |
-| D2 | adapter.ts | `risk_score` threshold 0.67 vs spec 0.6 | Deferred — consistent with D8 |
-| D3 | adapter.ts | `user_buyer_mismatch` boost +3 vs spec +2 | Deferred — open design question |
-| D6 | rules.ts | Fragility: +0.5 when founderProportion > 0.5, spec says +0.4 | Deferred |
-| D7 | rules.ts | Fragility: no negative adjustments from spec | Deferred |
-| D8 | rules.ts | Founder risk_score uses equal 1/3 weights, spec uses 0.3/0.4/0.3 | Deferred — D2 calibrated to this |
-| D9 | rules.ts | `onboarding_complexity === "medium"` adds +0.25, spec says +0.2 | Deferred |
-| D11 | scoring.ts | tension_coverage×3 + confidence×2 + actionability×1; spec says sum of pattern weights | Design decision required |
-| D12 | scoring.ts | Diagnosis confidence from max pattern confidence, not winner-vs-second margin | Design decision required |
+**V3-U2: externalResearchAcquisition**
+- Two modes: fixture/manual and provider (pluggable — future Perplexity)
+- Non-fatal on sparse results (WARN_EXTERNAL_RESEARCH_SPARSE, pipeline continues)
+- Typed source priority order matches spec (reviews → press → competitors → funding → LinkedIn)
+
+**V3-U3: mergeResearchCorpus**
+- URL dedup: keeps higher token-count version
+- Content hash dedup (SHA-256, 16 chars): catches identical excerpts from different queries
+- Four-bucket structure: site_pages, external_sources, community_mentions, founder_statements
+- company_id derived from domain via slugify()
+
+**V3-U4: corpusToDossierAdapter**
+- Starts from createEmptyDossier() — all 16 sections always present
+- One SourceRecord + one EvidenceRecord per corpus item
+- evidence_type derived from page_type / source_type via static maps
+- Populates: company_input, run_metadata, company_profile, product_and_offer, gtm_model, customer_and_personas, competitors, signals, narrative_intelligence, confidence_and_gaps
+- Inline integrity check throws ERR_DOSSIER_INVALID on broken evidence/source links
+- TODOs mark where NLP extraction will come in a later phase
+
+# Current Phase
+
+**V3 Upstream acquisition layer (V3-U1 through V3-U4) implemented and tested. 208 tests pass.**
+
+The V2 reasoning spine can now consume V3-produced dossiers. The corpusToDossierAdapter output passes structural integrity checks. Deeper field population (leadership extraction, pricing signal parsing, narrative gap detection) is marked TODO for a subsequent phase.
 
 # Next Step
 
-**Calibration phase is complete. All reference companies are correctly diagnosed.**
+Implement V3 memo layer stages in order:
 
-Remaining open items:
+1. **V3-M1: buildEvidencePack** — score all dossier evidence records on 4 dimensions; assign memo roles; build hook_candidates. Fully deterministic. Spec: `003_evidence_pack_spec.md`.
 
-- **D11/D12**: Selector formula decisions (pattern weight sum vs tension coverage heuristic). Low urgency — current heuristic produces correct results for all 3 reference companies.
-- **D2/D3/D8**: Threshold and weight alignment group — deferred as internally self-consistent.
-- **Form3 ET diagnosis**: Form3 is genuinely enterprise but lacks `ambition_vs_proof` tension in its dossier. Would require either richer evidence extraction or a Form3-specific signal, not a classifier change.
-- **Signal specificity**: Mechanism/intervention text contains no company-specific content — requires LLM render stage (needs `ANTHROPIC_API_KEY`).
-- **LLM render stage**: All deterministic stages produce correct output. The final prose render (Haiku) fails only due to missing API key.
+2. **V3-M2: adjudicateDiagnosis** — run 4 checks; compute total_points; apply override rules; return AdjudicationResult. Fully deterministic. Spec: `004_adjudication_spec.md`.
+
+3. **V3-M3: buildMemoBrief** — select hook, derive thesis, build evidence_spine, generate CTA. Deterministic. Merge V2 banned phrases from `src/intelligence-v2/stages/report/prompt.ts` into `BANNED_PHRASES` export. Spec: `005_memo_spec.md`.
+
+4. **V3-M4/M5: writeMemo + criticiseMemo** — two LLM calls (Haiku). Pattern after `src/intelligence-v2/stages/report/writer.ts`. Wire revision loop in pipeline orchestrator.
+
+5. **V3-M6: runSendGate** — evaluate all 6 criteria; compute quality score; return SendGateResult. Spec: `006_send_gate_spec.md`.
+
+6. **V3 pipeline orchestrator** — wire all stages in `runV3Pipeline()`. Export `V2PipelineResult` from `src/intelligence-v2/pipeline.ts` (currently not exported).
+
+Pre-implementation note:
+- `V2PipelineResult` needs to be exported from `src/intelligence-v2/pipeline.ts`
 
 # Known Constraints
 
@@ -252,36 +282,24 @@ Remaining open items:
 - V2 report rendering requires `ANTHROPIC_API_KEY` environment variable.
 - V2 pipeline produces exactly 1 diagnosis, 2-3 mechanisms, 1 intervention per company.
 - All deterministic except the final report prose render (Haiku model).
-- Legacy pipeline is NOT removed. Both pipelines coexist behind feature flag.
+- Legacy pipeline is NOT removed. All three pipelines coexist.
 - SKILL.md must stay under ~400 lines.
 - All 16 dossier sections must exist even when empty.
 - WebSearch + WebFetch only. No external tools.
-- Do not touch D2/D3/D8 individually — they are internally self-consistent and must move as a group.
-- Score debug logging (`ARCHETYPE_DEBUG=true`) is diagnostic only — do not make it always-on.
+- Do not touch D2/D3/D8 individually — they are internally self-consistent.
+- Score debug logging (`ARCHETYPE_DEBUG=true`) is diagnostic only.
+- V3 acquisition must not modify any existing V2 source files.
+- `CorpusToDossierAdapter` must produce a Dossier that passes existing `src/validate.ts`.
+- All LLM calls isolated to V3-M4 and V3-M5; no other stages may call an LLM.
 
 # Files Modified Recently
 
-**Calibration 4 (latest):**
-- `src/intelligence-v2/adapter.ts` — `positioning_vs_market_fit` affinity: added `enterprise_theatre: 1`
-- `src/__tests__/intelligence-v2-contract.test.ts` — 2 new Calibration 4 tests (pvc+abp+pvm → ET; pvc+pvm only → NDM)
+**V3 Upstream Implementation (this session):**
+- `src/intelligence-v3/acquisition/site-corpus.ts` — implemented (was stub)
+- `src/intelligence-v3/acquisition/external-research.ts` — implemented (was stub)
+- `src/intelligence-v3/acquisition/merge-corpus.ts` — implemented (was stub)
+- `src/intelligence-v3/acquisition/corpus-to-dossier.ts` — implemented (was stub)
+- `src/intelligence-v3/__tests__/acquisition.test.ts` — NEW (34 tests)
+- `docs/handoffs/current.md` — updated (this file)
 
-**Calibration 3:**
-- `src/intelligence-v2/adapter.ts` — `primary_channel === 'product'` → DAWBM +2 boost
-- `src/__tests__/intelligence-v2-contract.test.ts` — 2 new Calibration 3 tests
-
-**Calibration 2:**
-- `src/report/pipeline/extract-signals.ts` — Added Pass 19 + Pass 20; both wired into `extractSignals()`
-- `src/intelligence-v2/adapter.ts` — `sales_motion.mode === 'plg'` → DAWBM +2 boost
-- `src/__tests__/extract-signals-plg.test.ts` — NEW: 11 tests for Pass 19 + Pass 20
-- `src/__tests__/intelligence-v2-contract.test.ts` — 2 Calibration 2 tests
-
-**Calibration 1:**
-- `src/intelligence-v2/adapter.ts` — `positioning_vs_customer_base` weight split; score debug logging
-- `src/__tests__/intelligence-v2-contract.test.ts` — 3 Calibration 1 tests; 2 D5 tests; 2 D4 tests
-
-**Spec-vs-code audit + bug fixes:**
-- `src/intelligence-v2/adapter.ts` — D4 founder_led boost; D5 delivery_fit_tension boost
-- `src/intelligence-v2/stages/gtm-analysis/rules.ts` — D10 delivery_fit_tension specificity fix
-- `src/intelligence-v2/stages/gtm-analysis/analyse-gtm.ts` — passes service_dependency to classifyPricingDeliveryFit
-
-**Test count: 174. All pass.**
+**No V2 files modified. Test count: 208. All pass.**
