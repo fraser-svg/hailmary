@@ -89,13 +89,13 @@ export const BANNED_PHRASES: string[] = Array.from(
 // Intervention framing lookup (spec 005 table)
 // ---------------------------------------------------------------------------
 
-const INTERVENTION_FRAMING: Record<InterventionType, string> = {
+export const INTERVENTION_FRAMING: Record<InterventionType, string> = {
   positioning_reset:
     "Frame as: we would help you clarify what you're actually selling, to whom, and why that earns the deal",
   icp_redefinition:
     "Frame as: we would help you identify the buyer profile where you actually win, and retool outreach around it",
   sales_motion_redesign:
-    "Frame as: we would help you build a pipeline motion that works without founder involvement",
+    "Frame as: we would help you design a pipeline where economic buyers move from awareness to decision without the journey stalling at technical evaluation",
   founder_gtm_transition:
     "Frame as: we would help you build the institutional credibility to close without you in the room",
   distribution_strategy_reset:
@@ -108,13 +108,13 @@ const INTERVENTION_FRAMING: Record<InterventionType, string> = {
 // CTA by intervention type — non-question, one clear ask
 // ---------------------------------------------------------------------------
 
-const CTA_BY_INTERVENTION: Record<InterventionType, string> = {
+export const CTA_BY_INTERVENTION: Record<InterventionType, string> = {
   positioning_reset:
     "If the gap between what you are selling and what is buying resonates, reply to this letter — 20 minutes is enough to test whether the framing shift is worth pursuing.",
   icp_redefinition:
     "If identifying the buyer profile where you actually win is worth exploring, reply to this letter — 20 minutes to establish whether this is the right lever.",
   sales_motion_redesign:
-    "If building a pipeline that works without you in every deal is the right next move, reply to this letter — 20 minutes to walk through what that motion looks like for your stage.",
+    "If the gap between who is engaged and who can actually sign is what is blocking growth, reply to this letter — 20 minutes to test whether the pipeline motion is the right lever.",
   founder_gtm_transition:
     "If building the credibility to close without you in the room is the problem to solve next, reply to this letter — 20 minutes to establish whether we can help.",
   distribution_strategy_reset:

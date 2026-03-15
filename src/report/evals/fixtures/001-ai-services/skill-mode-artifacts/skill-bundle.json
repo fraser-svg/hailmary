@@ -1,0 +1,763 @@
+{
+  "report_id": "rpt_001",
+  "company_id": "autoflow.ai",
+  "generated_at": "2026-03-13T13:58:42.606Z",
+  "sections": [
+    {
+      "section_id": "sec_01",
+      "title": "Executive Overview",
+      "purpose": "Summarize the core thesis, key findings, and most critical implications for decision-makers. This section frames the entire report.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [
+        {
+          "hypothesis_id": "hyp_001",
+          "title": "Automation narrative may be compensating for incomplete product automation",
+          "statement": "The company's automation-led positioning may be ahead of its actual delivery model, which appears to rely on meaningful human onboarding and implementation support. The strength of the automation narrative may exist precisely because the product cannot yet deliver autonomous operation — the messaging fills the gap between current capability and market expectation.",
+          "confidence": "medium",
+          "status": "survives",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Service-assisted delivery beneath automation narrative",
+            "Corroborated by 3 independent tensions across multiple observation categories",
+            "Evidence spans 6 signal categories (positioning, customer, talent, pricing, operations, credibility)"
+          ],
+          "residual_uncertainty": "Evidence of fully automated customer deployments without implementation support. Customer retention or NPS data comparing self-serve vs assisted onboarding cohorts.",
+          "missing_evidence": [
+            "Evidence of fully automated customer deployments without implementation support.",
+            "Customer retention or NPS data comparing self-serve vs assisted onboarding cohorts.",
+            "Product roadmap or engineering investment data showing automation capability progress."
+          ]
+        },
+        {
+          "hypothesis_id": "hyp_002",
+          "title": "Human onboarding may be structurally required because product automation is incomplete",
+          "statement": "The product may be unable to deliver value without significant human configuration and training. The onboarding and implementation program is not a temporary growth-stage artifact — it may be a structural requirement of the current product's capability level. The formalization of professional services as a department rather than its reduction suggests the company recognizes this dependency.",
+          "confidence": "medium",
+          "status": "survives",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Narrative-operating model mismatch",
+            "Corroborated by 3 independent tensions across multiple observation categories",
+            "Evidence spans 3 signal categories (talent, operations, credibility)"
+          ],
+          "residual_uncertainty": "Customer churn data comparing assisted vs unassisted onboarding outcomes. Internal product capability assessments or automation coverage metrics.",
+          "missing_evidence": [
+            "Customer churn data comparing assisted vs unassisted onboarding outcomes.",
+            "Internal product capability assessments or automation coverage metrics.",
+            "Evidence of successful fully-automated customer deployments.",
+            "Professional services revenue trend as a percentage of total revenue."
+          ]
+        }
+      ],
+      "relevant_implications": [
+        {
+          "implication_id": "imp_001",
+          "title": "Automation claims may overstate operational leverage",
+          "statement": "If the product cannot deliver autonomous value without significant human setup and implementation, the company's unit economics may be closer to a professional services firm than a SaaS platform. Gross margins, customer acquisition costs, and scalability projections may all be weaker than the automation narrative implies. Operational leverage may be overstated in investor materials and market positioning.",
+          "impact": "high",
+          "urgency": "high",
+          "confidence": "medium",
+          "key_questions": [
+            "What percentage of customer deployments complete without human implementation support?",
+            "How do gross margins compare to pure SaaS benchmarks vs professional services firms?",
+            "What is the true cost of customer acquisition including implementation labor?"
+          ]
+        },
+        {
+          "implication_id": "imp_005",
+          "title": "Scaling revenue may require scaling service capacity",
+          "statement": "If the current delivery model depends on human onboarding and implementation support as a structural requirement, revenue growth may require increasing service capacity rather than relying on product-led operational leverage. Each new customer cohort demands proportional human investment, producing linear cost scaling rather than the software-like leverage the platform positioning implies.",
+          "impact": "high",
+          "urgency": "high",
+          "confidence": "medium",
+          "key_questions": [
+            "What is the current ratio of implementation specialists to active customers?",
+            "Can onboarding be partially automated without reducing customer outcomes?",
+            "How does service capacity growth compare to revenue growth targets?"
+          ]
+        },
+        {
+          "implication_id": "imp_002",
+          "title": "Positioning risk increases as customer base grows",
+          "statement": "If early customers discover — or publicly share — that the automation platform requires significant human onboarding and implementation, the narrative gap could become a trust liability. This positioning risk increases with visibility: more customers means more public reviews describing the service-heavy reality, which may conflict with the automation-first marketing message.",
+          "impact": "high",
+          "urgency": "medium",
+          "confidence": "medium",
+          "key_questions": [
+            "How are existing customers describing their experience in public reviews?",
+            "What is the gap between marketing claims and customer-reported onboarding experience?",
+            "Does the company monitor and respond to narrative risks in customer feedback channels?"
+          ]
+        }
+      ],
+      "relevant_patterns": [
+        {
+          "pattern_id": "pat_001",
+          "title": "Service-assisted delivery beneath automation narrative",
+          "summary": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative. This structural dependency is visible across marketing vs customer experience, pricing vs product positioning, hiring priorities vs stated investment narrative.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_002",
+          "title": "Narrative-operating model mismatch",
+          "summary": "The company's external narrative — AI-first, technology-led, scalable — is structurally misaligned with its operating model, which appears services-heavy and consultant-dependent with linear scaling characteristics. This mismatch is visible across external press framing vs internal employee perception, stated priorities vs actual resource allocation, and product marketing vs customer-described experience.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_003",
+          "title": "Customer value attribution pattern",
+          "summary": "Across multiple independent customer sources, customers consistently attribute value to human support and onboarding specialists rather than autonomous AI capability. This pattern strengthens the service-dependency observation by showing it from the customer's perspective across review platforms and case studies.",
+          "strategic_weight": "medium"
+        },
+        {
+          "pattern_id": "pat_004",
+          "title": "Hiring-as-strategy-reveal pattern",
+          "summary": "The company's hiring activity reveals strategic priorities more accurately than its public messaging. Services and implementation roles dominate observable hiring, professional services is being scaled as a function, and solutions engineering is growing — all signals of a service-led strategy beneath a technology narrative.",
+          "strategic_weight": "medium"
+        }
+      ],
+      "relevant_tensions": [],
+      "relevant_signals": [],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the Executive Overview section.\nSummarise the core thesis and key findings for decision-makers.\nFrame the report by referencing the most critical implications.\nKeep this section concise and authoritative."
+    },
+    {
+      "section_id": "sec_02",
+      "title": "What the Evidence Shows",
+      "purpose": "Present observable signals and structural patterns in the evidence, establishing the factual foundation before interpretation.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [],
+      "relevant_implications": [],
+      "relevant_patterns": [
+        {
+          "pattern_id": "pat_001",
+          "title": "Service-assisted delivery beneath automation narrative",
+          "summary": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative. This structural dependency is visible across marketing vs customer experience, pricing vs product positioning, hiring priorities vs stated investment narrative.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_002",
+          "title": "Narrative-operating model mismatch",
+          "summary": "The company's external narrative — AI-first, technology-led, scalable — is structurally misaligned with its operating model, which appears services-heavy and consultant-dependent with linear scaling characteristics. This mismatch is visible across external press framing vs internal employee perception, stated priorities vs actual resource allocation, and product marketing vs customer-described experience.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_003",
+          "title": "Customer value attribution pattern",
+          "summary": "Across multiple independent customer sources, customers consistently attribute value to human support and onboarding specialists rather than autonomous AI capability. This pattern strengthens the service-dependency observation by showing it from the customer's perspective across review platforms and case studies.",
+          "strategic_weight": "medium"
+        },
+        {
+          "pattern_id": "pat_004",
+          "title": "Hiring-as-strategy-reveal pattern",
+          "summary": "The company's hiring activity reveals strategic priorities more accurately than its public messaging. Services and implementation roles dominate observable hiring, professional services is being scaled as a function, and solutions engineering is growing — all signals of a service-led strategy beneath a technology narrative.",
+          "strategic_weight": "medium"
+        }
+      ],
+      "relevant_tensions": [],
+      "relevant_signals": [
+        {
+          "signal_id": "sig_001",
+          "title": "Narrative gap: Automation promise vs service-dependent delivery",
+          "statement": "Company markets autonomous AI automation, but customer experience centers on human-delivered implementation services.. Company language emphasizes Zero-touch automation, AI replaces SDRs, while customer language describes Their team configured everything, Onboarding took 6 weeks.",
+          "relevance": "high",
+          "kind": "positioning"
+        },
+        {
+          "signal_id": "sig_002",
+          "title": "Customer language diverges from company positioning toward Hands-on support",
+          "statement": "Value realization appears to come from service delivery, not autonomous product capability. Customer language patterns suggest a different value perception than the company narrative implies.",
+          "relevance": "high",
+          "kind": "customer"
+        },
+        {
+          "signal_id": "sig_003",
+          "title": "Implementation and services hiring disproportionate to company size",
+          "statement": "Hiring activity skews heavily toward implementation, onboarding, and services roles rather than engineering. 13 open services-oriented roles at a 110-person company. 3 hiring signals indicate scaling of human delivery capacity.",
+          "relevance": "high",
+          "kind": "talent"
+        },
+        {
+          "signal_id": "sig_004",
+          "title": "Pricing structure includes mandatory implementation service fees",
+          "statement": "Three tiers: Starter ($499/mo), Growth ($1,499/mo), Enterprise (custom). All tiers above Starter include mandatory onboarding fee ranging from $5,000 to $25,000.. Mandatory fees for implementation suggest setup is not self-serve despite automation positioning.",
+          "relevance": "high",
+          "kind": "pricing"
+        },
+        {
+          "signal_id": "sig_005",
+          "title": "Case study reveals consulting-style engagement model",
+          "statement": "Company-published case study describes a 12 weeks consulting engagement with implementation team involvement and strategy sessions — a service model rather than a product-led model.",
+          "relevance": "high",
+          "kind": "operations"
+        },
+        {
+          "signal_id": "sig_006",
+          "title": "Internal employee perception diverges from external company narrative",
+          "statement": "Employee evidence describes the organization differently from its external positioning. Internal characterization suggests a services-oriented operating model, while external narrative emphasizes technology-led automation.",
+          "relevance": "high",
+          "kind": "credibility"
+        },
+        {
+          "signal_id": "sig_007",
+          "title": "Stated use of funds contradicts observable hiring pattern",
+          "statement": "Leadership stated investment priority is AI engineering expansion, but observable hiring activity concentrates in implementation and services roles rather than engineering.",
+          "relevance": "high",
+          "kind": "operations"
+        },
+        {
+          "signal_id": "sig_008",
+          "title": "Professional services fees indicate meaningful revenue stream",
+          "statement": "Implementation fees are substantial relative to subscription pricing, suggesting professional services function as a meaningful revenue stream rather than a cost center.",
+          "relevance": "medium",
+          "kind": "pricing"
+        },
+        {
+          "signal_id": "sig_009",
+          "title": "Pricing tiers align with SMB or mid-market adoption",
+          "statement": "Pricing structure indicates targeting of smaller organizations. Implementation fee ranges from $5,000 to $25,000 — high for a self-serve AI product.",
+          "relevance": "high",
+          "kind": "pricing"
+        }
+      ],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the \"What the Evidence Shows\" section.\nPresent the observable signals and structural patterns.\nEstablish the factual foundation without interpretation.\nOrder signals by relevance. Group patterns after individual signals."
+    },
+    {
+      "section_id": "sec_03",
+      "title": "Where the Tensions Are",
+      "purpose": "Identify structural contradictions and misalignments between observable signals, revealing strain points that demand explanation.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [],
+      "relevant_implications": [],
+      "relevant_patterns": [],
+      "relevant_tensions": [
+        {
+          "tension_id": "ten_001",
+          "title": "Automation narrative vs service-heavy delivery",
+          "statement": "The company's outward automation narrative appears to conflict with multiple signals indicating meaningful human involvement in onboarding, implementation, and delivery. Customer language, hiring patterns, and case study evidence all point toward a service-dependent operating model.",
+          "severity": "high"
+        },
+        {
+          "tension_id": "ten_002",
+          "title": "Product positioning vs operational reality",
+          "statement": "The company positions as a self-serve AI platform, but pricing structure includes mandatory implementation fees and the go-to-market motion appears sales-led with high-touch onboarding rather than product-led.",
+          "severity": "high"
+        },
+        {
+          "tension_id": "ten_003",
+          "title": "External narrative vs internal perception",
+          "statement": "Leadership's external narrative about investment priorities and company direction diverges from internal employee perception of the company's operating model. The external narrative emphasizes technology and AI, while internal signals characterize the organization as services-oriented.",
+          "severity": "medium"
+        },
+        {
+          "tension_id": "ten_004",
+          "title": "Scalability claim vs service dependency",
+          "statement": "The company's growth narrative implies scalable technology leverage, but delivery appears to require proportional human scaling. Hiring patterns and case study evidence suggest each new customer engagement demands significant implementation resources.",
+          "severity": "medium"
+        },
+        {
+          "tension_id": "ten_005",
+          "title": "AI investment narrative vs services hiring pattern",
+          "statement": "Leadership's stated investment priorities emphasize AI engineering expansion, but observable hiring activity concentrates in implementation, onboarding, and services roles rather than engineering or research positions.",
+          "severity": "medium"
+        },
+        {
+          "tension_id": "ten_006",
+          "title": "Ambition vs proof",
+          "statement": "The company's ambition is visible in marketing, press, and product feature emphasis. However, observable evidence — pricing structure, hiring patterns, deal sizes — does not demonstrate the adoption or scale implied by the positioning. Ambition outpaces demonstrated capability.",
+          "severity": "high"
+        },
+        {
+          "tension_id": "ten_008",
+          "title": "Positioning vs market fit",
+          "statement": "The company's positioning targets one market segment, but customer language describes value in terms that align with a different segment. Customers perceive the product in a competitive frame that differs from the company's intended positioning, suggesting product-market fit may be in a different segment than claimed.",
+          "severity": "medium"
+        }
+      ],
+      "relevant_signals": [],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the \"Where the Tensions Are\" section.\nDescribe the structural contradictions and misalignments found in the evidence.\nExplain each tension clearly and concisely.\nOrder by severity, highest first."
+    },
+    {
+      "section_id": "sec_04",
+      "title": "What May Really Be Happening",
+      "purpose": "Present the most plausible explanations for observed tensions, grounded in evidence and pattern analysis.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [
+        {
+          "hypothesis_id": "hyp_001",
+          "title": "Automation narrative may be compensating for incomplete product automation",
+          "statement": "The company's automation-led positioning may be ahead of its actual delivery model, which appears to rely on meaningful human onboarding and implementation support. The strength of the automation narrative may exist precisely because the product cannot yet deliver autonomous operation — the messaging fills the gap between current capability and market expectation.",
+          "confidence": "medium",
+          "status": "survives",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Service-assisted delivery beneath automation narrative",
+            "Corroborated by 3 independent tensions across multiple observation categories",
+            "Evidence spans 6 signal categories (positioning, customer, talent, pricing, operations, credibility)"
+          ],
+          "residual_uncertainty": "Evidence of fully automated customer deployments without implementation support. Customer retention or NPS data comparing self-serve vs assisted onboarding cohorts.",
+          "missing_evidence": [
+            "Evidence of fully automated customer deployments without implementation support.",
+            "Customer retention or NPS data comparing self-serve vs assisted onboarding cohorts.",
+            "Product roadmap or engineering investment data showing automation capability progress."
+          ]
+        },
+        {
+          "hypothesis_id": "hyp_002",
+          "title": "Human onboarding may be structurally required because product automation is incomplete",
+          "statement": "The product may be unable to deliver value without significant human configuration and training. The onboarding and implementation program is not a temporary growth-stage artifact — it may be a structural requirement of the current product's capability level. The formalization of professional services as a department rather than its reduction suggests the company recognizes this dependency.",
+          "confidence": "medium",
+          "status": "survives",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Narrative-operating model mismatch",
+            "Corroborated by 3 independent tensions across multiple observation categories",
+            "Evidence spans 3 signal categories (talent, operations, credibility)"
+          ],
+          "residual_uncertainty": "Customer churn data comparing assisted vs unassisted onboarding outcomes. Internal product capability assessments or automation coverage metrics.",
+          "missing_evidence": [
+            "Customer churn data comparing assisted vs unassisted onboarding outcomes.",
+            "Internal product capability assessments or automation coverage metrics.",
+            "Evidence of successful fully-automated customer deployments.",
+            "Professional services revenue trend as a percentage of total revenue."
+          ]
+        }
+      ],
+      "relevant_implications": [],
+      "relevant_patterns": [
+        {
+          "pattern_id": "pat_001",
+          "title": "Service-assisted delivery beneath automation narrative",
+          "summary": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative. This structural dependency is visible across marketing vs customer experience, pricing vs product positioning, hiring priorities vs stated investment narrative.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_002",
+          "title": "Narrative-operating model mismatch",
+          "summary": "The company's external narrative — AI-first, technology-led, scalable — is structurally misaligned with its operating model, which appears services-heavy and consultant-dependent with linear scaling characteristics. This mismatch is visible across external press framing vs internal employee perception, stated priorities vs actual resource allocation, and product marketing vs customer-described experience.",
+          "strategic_weight": "high"
+        },
+        {
+          "pattern_id": "pat_003",
+          "title": "Customer value attribution pattern",
+          "summary": "Across multiple independent customer sources, customers consistently attribute value to human support and onboarding specialists rather than autonomous AI capability. This pattern strengthens the service-dependency observation by showing it from the customer's perspective across review platforms and case studies.",
+          "strategic_weight": "medium"
+        },
+        {
+          "pattern_id": "pat_004",
+          "title": "Hiring-as-strategy-reveal pattern",
+          "summary": "The company's hiring activity reveals strategic priorities more accurately than its public messaging. Services and implementation roles dominate observable hiring, professional services is being scaled as a function, and solutions engineering is growing — all signals of a service-led strategy beneath a technology narrative.",
+          "strategic_weight": "medium"
+        }
+      ],
+      "relevant_tensions": [],
+      "relevant_signals": [],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the \"What May Really Be Happening\" section.\nPresent the surviving hypotheses as plausible explanations for observed tensions.\nUse confidence-appropriate language from the style_rules.confidence_language field.\nInclude supporting evidence points and residual uncertainty where available."
+    },
+    {
+      "section_id": "sec_05",
+      "title": "Strategic Implications",
+      "purpose": "Translate surviving hypotheses into concrete consequences for stakeholders, prioritized by impact and urgency.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [],
+      "relevant_implications": [
+        {
+          "implication_id": "imp_001",
+          "title": "Automation claims may overstate operational leverage",
+          "statement": "If the product cannot deliver autonomous value without significant human setup and implementation, the company's unit economics may be closer to a professional services firm than a SaaS platform. Gross margins, customer acquisition costs, and scalability projections may all be weaker than the automation narrative implies. Operational leverage may be overstated in investor materials and market positioning.",
+          "impact": "high",
+          "urgency": "high",
+          "confidence": "medium",
+          "key_questions": [
+            "What percentage of customer deployments complete without human implementation support?",
+            "How do gross margins compare to pure SaaS benchmarks vs professional services firms?",
+            "What is the true cost of customer acquisition including implementation labor?"
+          ]
+        },
+        {
+          "implication_id": "imp_005",
+          "title": "Scaling revenue may require scaling service capacity",
+          "statement": "If the current delivery model depends on human onboarding and implementation support as a structural requirement, revenue growth may require increasing service capacity rather than relying on product-led operational leverage. Each new customer cohort demands proportional human investment, producing linear cost scaling rather than the software-like leverage the platform positioning implies.",
+          "impact": "high",
+          "urgency": "high",
+          "confidence": "medium",
+          "key_questions": [
+            "What is the current ratio of implementation specialists to active customers?",
+            "Can onboarding be partially automated without reducing customer outcomes?",
+            "How does service capacity growth compare to revenue growth targets?"
+          ]
+        },
+        {
+          "implication_id": "imp_002",
+          "title": "Positioning risk increases as customer base grows",
+          "statement": "If early customers discover — or publicly share — that the automation platform requires significant human onboarding and implementation, the narrative gap could become a trust liability. This positioning risk increases with visibility: more customers means more public reviews describing the service-heavy reality, which may conflict with the automation-first marketing message.",
+          "impact": "high",
+          "urgency": "medium",
+          "confidence": "medium",
+          "key_questions": [
+            "How are existing customers describing their experience in public reviews?",
+            "What is the gap between marketing claims and customer-reported onboarding experience?",
+            "Does the company monitor and respond to narrative risks in customer feedback channels?"
+          ]
+        },
+        {
+          "implication_id": "imp_006",
+          "title": "Services team quality becomes a critical competitive variable",
+          "statement": "If customer success depends on implementation specialists rather than product capability alone, then hiring quality, training programs, and consultant retention become critical competitive variables — not peripheral support functions. The services team may be the actual value delivery mechanism, making its quality and consistency a competitive differentiator or vulnerability.",
+          "impact": "high",
+          "urgency": "medium",
+          "confidence": "medium",
+          "key_questions": [
+            "What is the current attrition rate among implementation specialists?",
+            "How standardized is the implementation methodology across the services team?",
+            "Does the company invest in services team development as a competitive priority?",
+            "How does service delivery quality vary across team members?"
+          ]
+        },
+        {
+          "implication_id": "imp_003",
+          "title": "Investor narrative may face scrutiny at scale",
+          "statement": "If the company raised capital on an AI-first thesis but operates as a services-heavy business, future fundraising rounds may require reconciling the positioning gap. Investor due diligence at scale examines gross margins, services revenue mix, and customer acquisition costs — metrics that may reveal the gap between the automation narrative and operational reality.",
+          "impact": "medium",
+          "urgency": "medium",
+          "confidence": "medium",
+          "key_questions": [
+            "How does the company classify services revenue in financial reporting?",
+            "What gross margin does the company report, and how does it compare to SaaS benchmarks?",
+            "Has investor due diligence previously examined the services dependency?"
+          ]
+        },
+        {
+          "implication_id": "imp_004",
+          "title": "Product roadmap pressure intensifies as automation gap persists",
+          "statement": "If the company acknowledges the automation gap internally, product engineering faces increasing pressure to close the gap between marketing claims and product capability. This product roadmap pressure may lead to rushed feature releases, quality trade-offs, or resource allocation conflicts between maintaining services capacity and investing in product automation.",
+          "impact": "medium",
+          "urgency": "medium",
+          "confidence": "medium",
+          "key_questions": [
+            "What percentage of engineering investment targets automation capability gaps?",
+            "Is there internal acknowledgment of the gap between product claims and capability?",
+            "How does the product roadmap prioritize closing automation gaps vs new features?"
+          ]
+        }
+      ],
+      "relevant_patterns": [],
+      "relevant_tensions": [],
+      "relevant_signals": [],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the \"Strategic Implications\" section.\nTranslate the hypotheses into concrete strategic consequences for stakeholders.\nUse conditional framing: \"If X, then Y may...\"\nInclude key questions where available.\nOrder by impact and urgency."
+    },
+    {
+      "section_id": "sec_06",
+      "title": "What Remains Uncertain",
+      "purpose": "Acknowledge hypotheses with insufficient support and identify evidence gaps that limit the analysis.",
+      "report_context": {
+        "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+        "tone_style": "forensic",
+        "tone_directness": "medium",
+        "tone_skepticism": "high"
+      },
+      "relevant_hypotheses": [
+        {
+          "hypothesis_id": "hyp_003",
+          "title": "Services-led GTM may be a deliberate competitive wedge rather than a product gap",
+          "statement": "The company may deliberately use high-touch onboarding and implementation as a competitive moat and land-and-expand strategy. Customer attribution of value to human consultants could indicate that the services layer creates switching costs and deep integration that product-only competitors cannot match. The gap between narrative and delivery may be strategic rather than a product maturity issue.",
+          "confidence": "low",
+          "status": "weak",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Customer value attribution pattern",
+            "Corroborated by 4 independent tensions across multiple observation categories",
+            "Evidence spans 5 signal categories (positioning, customer, talent, pricing, operations)"
+          ],
+          "residual_uncertainty": "Customer retention comparing high-touch vs low-touch cohorts. Competitive win/loss data showing whether services influence deal outcomes.",
+          "missing_evidence": [
+            "Customer retention comparing high-touch vs low-touch cohorts.",
+            "Competitive win/loss data showing whether services influence deal outcomes.",
+            "Internal strategy documents or leadership commentary on services as strategy vs necessity."
+          ]
+        },
+        {
+          "hypothesis_id": "hyp_004",
+          "title": "Hiring patterns may reveal actual strategy diverges from stated AI-first investment thesis",
+          "statement": "The company's hiring activity — concentrated in implementation, onboarding, and services roles — may more accurately reflect its actual strategic priorities than its public narrative about AI engineering investment. This could indicate the company privately recognizes its near-term growth depends on scaling human delivery capacity rather than product automation.",
+          "confidence": "low",
+          "status": "weak",
+          "strongest_support": [
+            "Supported by 1 structural pattern(s): Hiring-as-strategy-reveal pattern",
+            "Corroborated by 3 independent tensions across multiple observation categories",
+            "Evidence spans 4 signal categories (positioning, customer, talent, operations)"
+          ],
+          "residual_uncertainty": "Complete headcount breakdown by function over time. Engineering hiring data from internal sources or job boards.",
+          "missing_evidence": [
+            "Complete headcount breakdown by function over time.",
+            "Engineering hiring data from internal sources or job boards.",
+            "Revenue per employee trends that would reveal scaling efficiency."
+          ]
+        },
+        {
+          "hypothesis_id": "hyp_005",
+          "title": "The gap between automation narrative and service-dependent delivery may be widening",
+          "statement": "Multiple structural patterns suggest the distance between the company's external narrative and its operating reality may be increasing rather than narrowing. Services formalization, implementation hiring growth, and customer attribution of value to human support all point toward deepening service dependency, while the automation narrative continues to strengthen in marketing materials.",
+          "confidence": "low",
+          "status": "weak",
+          "strongest_support": [
+            "Supported by 2 structural pattern(s): Service-assisted delivery beneath automation narrative; Narrative-operating model mismatch",
+            "Corroborated by 5 independent tensions across multiple observation categories",
+            "Evidence spans 6 signal categories (positioning, customer, talent, pricing, operations, credibility)"
+          ],
+          "residual_uncertainty": "Historical trend data on services headcount vs engineering headcount. Product release cadence or automation feature shipping velocity.",
+          "missing_evidence": [
+            "Historical trend data on services headcount vs engineering headcount.",
+            "Product release cadence or automation feature shipping velocity.",
+            "Customer satisfaction trends over time that might reveal improving or worsening experience."
+          ]
+        }
+      ],
+      "relevant_implications": [],
+      "relevant_patterns": [],
+      "relevant_tensions": [],
+      "relevant_signals": [],
+      "style_rules": {
+        "language": "British English spelling throughout",
+        "paragraph_length": "2 to 4 sentences per paragraph",
+        "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+        "banned_phrases": [
+          "well positioned",
+          "robust value proposition",
+          "dynamic market landscape",
+          "innovative solution",
+          "leveraging synergies",
+          "industry leading",
+          "cutting edge",
+          "best-in-class",
+          "strong traction"
+        ],
+        "confidence_language": {
+          "high": "The evidence strongly suggests",
+          "medium": "There are signs that",
+          "low": "This may indicate"
+        },
+        "constraints": [
+          "Do not introduce new hypotheses, implications, or evidence.",
+          "Do not reinterpret evidence beyond what is provided.",
+          "Do not perform new research or reasoning.",
+          "Write only from the inputs provided.",
+          "Follow the section plan precisely.",
+          "Never use em dashes. Use commas, semicolons, or full stops instead.",
+          "Do not invent arguments beyond the supplied analytical objects."
+        ]
+      },
+      "section_instructions": "Write the \"What Remains Uncertain\" section.\nAcknowledge hypotheses that lack sufficient evidence for confident inclusion.\nFor each, describe what evidence would strengthen or refute it.\nFrame everything with appropriate uncertainty language."
+    }
+  ],
+  "summary_request": {
+    "core_thesis": "The company's delivery model relies meaningfully on human onboarding, implementation, plus support despite an automation-led outward narrative, suggesting that automation narrative may be compensating for incomplete product automation.",
+    "key_findings": [
+      "Automation narrative may be compensating for incomplete product automation",
+      "Human onboarding may be structurally required because product automation is incomplete",
+      "Automation claims may overstate operational leverage",
+      "Scaling revenue may require scaling service capacity",
+      "Positioning risk increases as customer base grows"
+    ],
+    "section_count": 6,
+    "style_rules": {
+      "language": "British English spelling throughout",
+      "paragraph_length": "2 to 4 sentences per paragraph",
+      "tone": "Forensic, precise, and calm. Avoid consulting fluff and dramatic rhetoric.",
+      "banned_phrases": [
+        "well positioned",
+        "robust value proposition",
+        "dynamic market landscape",
+        "innovative solution",
+        "leveraging synergies",
+        "industry leading",
+        "cutting edge",
+        "best-in-class",
+        "strong traction"
+      ],
+      "confidence_language": {
+        "high": "The evidence strongly suggests",
+        "medium": "There are signs that",
+        "low": "This may indicate"
+      },
+      "constraints": [
+        "Do not introduce new hypotheses, implications, or evidence.",
+        "Do not reinterpret evidence beyond what is provided.",
+        "Do not perform new research or reasoning.",
+        "Write only from the inputs provided.",
+        "Follow the section plan precisely.",
+        "Never use em dashes. Use commas, semicolons, or full stops instead.",
+        "Do not invent arguments beyond the supplied analytical objects."
+      ]
+    }
+  }
+}

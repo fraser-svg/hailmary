@@ -37,7 +37,7 @@
 import { describe, it, expect } from "vitest";
 import { adjudicateDiagnosis } from "../memo/adjudicate-diagnosis.js";
 import type { AdjudicateDiagnosisInput } from "../memo/adjudicate-diagnosis.js";
-import { buildMemoBrief, BANNED_PHRASES } from "../memo/build-memo-brief.js";
+import { buildMemoBrief, BANNED_PHRASES, INTERVENTION_FRAMING, CTA_BY_INTERVENTION } from "../memo/build-memo-brief.js";
 import type { BuildMemoBriefInput } from "../memo/build-memo-brief.js";
 import type { Diagnosis } from "../../intelligence-v2/types/diagnosis.js";
 import type { Pattern } from "../../intelligence-v2/types/pattern.js";
@@ -981,5 +981,78 @@ describe("buildMemoBrief — no invented fields", () => {
       target_company_name: "Acme Corp",
     });
     expect(brief.target_company).toBe("Acme Corp");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression guard: intervention framing + CTA must not drift toward
+// founder-removal language for sales_motion_redesign or other archetypes
+// ---------------------------------------------------------------------------
+
+describe("INTERVENTION_FRAMING — regression guard", () => {
+  it("positioning_reset references positioning or clarify", () => {
+    const text = INTERVENTION_FRAMING.positioning_reset.toLowerCase();
+    expect(text.includes("clarif") || text.includes("position")).toBe(true);
+  });
+
+  it("icp_redefinition references buyer profile or ICP", () => {
+    const text = INTERVENTION_FRAMING.icp_redefinition.toLowerCase();
+    expect(text.includes("buyer profile") || text.includes("icp") || text.includes("buyer")).toBe(true);
+  });
+
+  it("sales_motion_redesign references buyer journey or pipeline (not founder removal)", () => {
+    const text = INTERVENTION_FRAMING.sales_motion_redesign.toLowerCase();
+    expect(text.includes("buyer") || text.includes("pipeline")).toBe(true);
+    expect(text.includes("without founder involvement")).toBe(false);
+    expect(text.includes("without you")).toBe(false);
+  });
+
+  it("founder_gtm_transition references institutional credibility or closing", () => {
+    const text = INTERVENTION_FRAMING.founder_gtm_transition.toLowerCase();
+    expect(text.includes("institutional") || text.includes("credib") || text.includes("close")).toBe(true);
+  });
+
+  it("distribution_strategy_reset references distribution or channel", () => {
+    const text = INTERVENTION_FRAMING.distribution_strategy_reset.toLowerCase();
+    expect(text.includes("distribution") || text.includes("channel")).toBe(true);
+  });
+
+  it("proof_architecture_design references proof or buyer", () => {
+    const text = INTERVENTION_FRAMING.proof_architecture_design.toLowerCase();
+    expect(text.includes("proof") || text.includes("buyer")).toBe(true);
+  });
+
+  it("sales_motion_redesign and founder_gtm_transition are semantically distinct", () => {
+    const smr = INTERVENTION_FRAMING.sales_motion_redesign.toLowerCase();
+    const fgt = INTERVENTION_FRAMING.founder_gtm_transition.toLowerCase();
+    expect(smr.includes("institutional") && fgt.includes("institutional")).toBe(false);
+  });
+});
+
+describe("CTA_BY_INTERVENTION — regression guard", () => {
+  it("sales_motion_redesign CTA does not use founder-removal language", () => {
+    const text = CTA_BY_INTERVENTION.sales_motion_redesign.toLowerCase();
+    expect(text.includes("without you in every deal")).toBe(false);
+    expect(text.includes("without you in the room")).toBe(false);
+  });
+
+  it("founder_gtm_transition CTA retains closing/credibility language", () => {
+    const text = CTA_BY_INTERVENTION.founder_gtm_transition.toLowerCase();
+    expect(text.includes("close") || text.includes("room") || text.includes("credib")).toBe(true);
+  });
+
+  it("all 6 CTA entries are non-empty strings", () => {
+    const types: Array<keyof typeof CTA_BY_INTERVENTION> = [
+      "positioning_reset",
+      "icp_redefinition",
+      "sales_motion_redesign",
+      "founder_gtm_transition",
+      "distribution_strategy_reset",
+      "proof_architecture_design",
+    ];
+    for (const t of types) {
+      expect(typeof CTA_BY_INTERVENTION[t]).toBe("string");
+      expect(CTA_BY_INTERVENTION[t].length).toBeGreaterThan(20);
+    }
   });
 });
