@@ -28,12 +28,18 @@
  *   founder_pushback_severity 10 pts
  */
 
-import type { MarkdownMemo } from "../types/memo";
-import type { MemoCriticResult } from "../types/memo-critic";
-import type { AdjudicationResult } from "../types/adjudication";
-import type { EvidencePack } from "../types/evidence-pack";
-import type { SendGateResult } from "../types/send-gate";
-import { BANNED_PHRASES } from "./build-memo-brief";
+import type { MarkdownMemo } from "../types/memo.js";
+import type { MemoCriticResult } from "../types/memo-critic.js";
+import type { AdjudicationResult } from "../types/adjudication.js";
+import type { EvidencePack } from "../types/evidence-pack.js";
+import type {
+  SendGateResult,
+  GateCriteriaResult,
+  GateCriterion,
+  BlockingReason,
+  GateSummary,
+} from "../types/send-gate.js";
+import { BANNED_PHRASES } from "./build-memo-brief.js";
 
 export interface RunSendGateInput {
   memo: MarkdownMemo;
@@ -42,19 +48,350 @@ export interface RunSendGateInput {
   evidencePack: EvidencePack;
 }
 
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+function detectBannedPhrase(markdown: string): string | null {
+  const lower = markdown.toLowerCase();
+  for (const phrase of BANNED_PHRASES) {
+    if (lower.includes(phrase.toLowerCase())) {
+      return phrase;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Criterion evaluators
+// ---------------------------------------------------------------------------
+
+function evalCriticOverallPass(
+  criticResult: MemoCriticResult
+): GateCriteriaResult {
+  const pass = criticResult.overall_pass;
+  if (pass) {
+    return {
+      criterion_id: "critic_overall_pass",
+      pass: true,
+      observed_value: true,
+      threshold: "criticResult.overall_pass = true",
+    };
+  }
+
+  // Determine failure type: genericity test failure = hard; dimension-only = conditional
+  const genericityFailed = criticResult.genericity_test.result === "fail";
+  const failure_type: "hard" | "conditional" = genericityFailed ? "hard" : "conditional";
+
+  const notes = genericityFailed
+    ? `Genericity test failed: ${criticResult.genericity_test.reasoning}`
+    : `Dimension(s) below threshold: ${Object.entries(criticResult.dimensions)
+        .filter(([, v]) => !v.pass)
+        .map(([k]) => k)
+        .join(", ")}`;
+
+  return {
+    criterion_id: "critic_overall_pass",
+    pass: false,
+    failure_type,
+    observed_value: false,
+    threshold: "criticResult.overall_pass = true",
+    notes,
+  };
+}
+
+function evalEvidenceRefCount(memo: MarkdownMemo): GateCriteriaResult {
+  const count = memo.evidence_ids.length;
+  const pass = count >= 3;
+
+  if (pass) {
+    return {
+      criterion_id: "evidence_ref_count",
+      pass: true,
+      observed_value: count,
+      threshold: "memo.evidence_ids.length >= 3",
+    };
+  }
+
+  // < 2 = hard; == 2 = conditional
+  const failure_type: "hard" | "conditional" = count < 2 ? "hard" : "conditional";
+  return {
+    criterion_id: "evidence_ref_count",
+    pass: false,
+    failure_type,
+    observed_value: count,
+    threshold: "memo.evidence_ids.length >= 3",
+    notes:
+      count < 2
+        ? `Only ${count} evidence reference(s) — memo is essentially ungrounded`
+        : "Only 2 evidence references — conditional failure",
+  };
+}
+
+function evalAdjudicationNotAborted(
+  adjudication: AdjudicationResult
+): GateCriteriaResult {
+  const pass = adjudication.adjudication_mode !== "abort";
+  if (pass) {
+    return {
+      criterion_id: "adjudication_not_aborted",
+      pass: true,
+      observed_value: adjudication.adjudication_mode,
+      threshold: "adjudication.adjudication_mode !== 'abort'",
+    };
+  }
+  return {
+    criterion_id: "adjudication_not_aborted",
+    pass: false,
+    failure_type: "hard",
+    observed_value: "abort",
+    threshold: "adjudication.adjudication_mode !== 'abort'",
+    notes: "Aborted adjudication must never reach the send gate",
+  };
+}
+
+function evalNoBannedPhrases(memo: MarkdownMemo): GateCriteriaResult {
+  const hit = detectBannedPhrase(memo.markdown);
+  const pass = hit === null;
+  if (pass) {
+    return {
+      criterion_id: "no_banned_phrases",
+      pass: true,
+      observed_value: "none detected",
+      threshold: "zero banned phrases in memo.markdown",
+    };
+  }
+  return {
+    criterion_id: "no_banned_phrases",
+    pass: false,
+    failure_type: "hard",
+    observed_value: `"${hit}"`,
+    threshold: "zero banned phrases in memo.markdown",
+    notes: `Banned phrase detected: "${hit}"`,
+  };
+}
+
+function evalCtaPresentSingular(memo: MarkdownMemo): GateCriteriaResult {
+  const ctaSection = memo.sections.find(s => s.name === "cta");
+  if (!ctaSection) {
+    return {
+      criterion_id: "cta_present_singular",
+      pass: false,
+      failure_type: "conditional",
+      observed_value: "absent",
+      threshold: "exactly one cta section present, ≤50 words",
+      notes: "No CTA section found in memo",
+    };
+  }
+
+  const wc = countWords(ctaSection.markdown);
+  const pass = wc <= 50;
+  if (pass) {
+    return {
+      criterion_id: "cta_present_singular",
+      pass: true,
+      observed_value: wc,
+      threshold: "exactly one cta section present, ≤50 words",
+    };
+  }
+  return {
+    criterion_id: "cta_present_singular",
+    pass: false,
+    failure_type: "conditional",
+    observed_value: wc,
+    threshold: "exactly one cta section present, ≤50 words",
+    notes: `CTA section has ${wc} words (exceeds 50-word limit)`,
+  };
+}
+
+function evalWordCountInRange(memo: MarkdownMemo): GateCriteriaResult {
+  const wc = memo.word_count;
+  const pass = wc >= 300 && wc <= 850;
+
+  if (pass) {
+    return {
+      criterion_id: "word_count_in_range",
+      pass: true,
+      observed_value: wc,
+      threshold: "300 ≤ word_count ≤ 850",
+    };
+  }
+
+  // Hard: < 200 or > 850
+  // Conditional: 200–299
+  const failure_type: "hard" | "conditional" =
+    wc > 850 || wc < 200 ? "hard" : "conditional";
+  return {
+    criterion_id: "word_count_in_range",
+    pass: false,
+    failure_type,
+    observed_value: wc,
+    threshold: "300 ≤ word_count ≤ 850",
+    notes:
+      wc > 850
+        ? `Word count ${wc} exceeds hard max (850)`
+        : wc < 200
+        ? `Word count ${wc} is below minimum (200 — not a memo)`
+        : `Word count ${wc} is in conditional range (200–299)`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Quality score computation
+// ---------------------------------------------------------------------------
+
+function computeQualityScore(
+  criticResult: MemoCriticResult,
+  memo: MarkdownMemo
+): number {
+  // critic_dimensions: 4 × score × 2 = max 40
+  const { evidence_grounding, commercial_sharpness, cta_clarity, tone_compliance } =
+    criticResult.dimensions;
+  const dimScore =
+    (evidence_grounding.score + commercial_sharpness.score + cta_clarity.score + tone_compliance.score) * 2;
+
+  // evidence_ref_count: 0–20
+  const evCount = memo.evidence_ids.length;
+  let evScore: number;
+  if (evCount >= 5) evScore = 20;
+  else if (evCount === 4) evScore = 15;
+  else if (evCount === 3) evScore = 10;
+  else if (evCount === 2) evScore = 5;
+  else evScore = 0;
+
+  // word_count_target_range: 0–15
+  const wc = memo.word_count;
+  let wcScore: number;
+  if (wc >= 500 && wc <= 700) wcScore = 15;
+  else if ((wc >= 400 && wc < 500) || (wc > 700 && wc <= 750)) wcScore = 10;
+  else if ((wc >= 300 && wc < 400) || (wc > 750 && wc <= 850)) wcScore = 5;
+  else wcScore = 0;
+
+  // genericity_test: 0 or 15
+  const genScore = criticResult.genericity_test.result === "pass" ? 15 : 0;
+
+  // founder_pushback_severity: low=10, medium=5, high=0
+  const severityMap: Record<string, number> = { low: 10, medium: 5, high: 0 };
+  const pushScore = severityMap[criticResult.founder_pushback_test.severity] ?? 5;
+
+  return Math.min(100, Math.max(0, dimScore + evScore + wcScore + genScore + pushScore));
+}
+
+// ---------------------------------------------------------------------------
+// Gate summary builder
+// ---------------------------------------------------------------------------
+
+function buildGateSummary(
+  criteriaResults: GateCriteriaResult[],
+  qualityScore: number,
+  result: "pass" | "fail",
+  blockingReasons: BlockingReason[]
+): GateSummary {
+  const passed = criteriaResults.filter(c => c.pass).length;
+  const failed = criteriaResults.filter(c => !c.pass).length;
+  const hard = blockingReasons.filter(r => r.failure_type === "hard").length;
+  const conditional = blockingReasons.filter(r => r.failure_type === "conditional").length;
+
+  let recommendation: string;
+  if (result === "pass") {
+    recommendation = `Memo passed all 6 criteria with quality score ${qualityScore}/100. Ready to send.`;
+  } else if (hard > 0) {
+    const firstHard = blockingReasons.find(r => r.failure_type === "hard");
+    recommendation = `Memo failed hard criterion: ${firstHard?.criterion_id ?? "unknown"}. ${firstHard?.description ?? "Revision required."}`;
+  } else {
+    const firstCond = blockingReasons[0];
+    recommendation = `Memo failed ${failed} criterion${failed !== 1 ? "a" : "on"} (${firstCond?.criterion_id}). Conditional failure — human review path available.`;
+  }
+
+  return {
+    total_criteria: 6,
+    criteria_passed: passed,
+    criteria_failed: failed,
+    hard_failures: hard,
+    conditional_failures: conditional,
+    memo_quality_score: qualityScore,
+    recommendation,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main entry
+// ---------------------------------------------------------------------------
+
 /**
  * Evaluate the memo against all 6 gate criteria and compute quality score.
+ * Fully deterministic — no LLM call.
  *
- * TODO: Implement
- * - Evaluate each of the 6 criteria; classify failures as hard or conditional
- * - Run independent banned phrase scan using BANNED_PHRASES list
- * - Compute memo_quality_score (0–100) per spec formula
- * - result = "pass" only if all 6 criteria pass
- * - Populate blocking_reasons and has_hard_failures on failure
- * - Set ready_to_send = true and passed_at on pass
- * - Build GateSummary with human-readable recommendation
+ * @param input - RunSendGateInput with memo, criticResult, adjudication, evidencePack
+ * @returns SendGateResult — pass/fail with quality score, blocking reasons, and summary
  */
 export function runSendGate(input: RunSendGateInput): SendGateResult {
-  // TODO: implement
-  throw new Error("Not implemented: runSendGate");
+  const { memo, criticResult, adjudication } = input;
+
+  // Evaluate all 6 criteria
+  const criteriaResults: GateCriteriaResult[] = [
+    evalCriticOverallPass(criticResult),
+    evalEvidenceRefCount(memo),
+    evalAdjudicationNotAborted(adjudication),
+    evalNoBannedPhrases(memo),
+    evalCtaPresentSingular(memo),
+    evalWordCountInRange(memo),
+  ];
+
+  // Collect blocking reasons
+  const blockingReasons: BlockingReason[] = criteriaResults
+    .filter(c => !c.pass)
+    .map(c => ({
+      criterion_id: c.criterion_id,
+      failure_type: c.failure_type!,
+      description: c.notes ?? `${c.criterion_id} failed (observed: ${c.observed_value}, threshold: ${c.threshold})`,
+    }));
+
+  const hasHardFailures = blockingReasons.some(r => r.failure_type === "hard");
+  const allPass = criteriaResults.every(c => c.pass);
+  const result: "pass" | "fail" = allPass ? "pass" : "fail";
+
+  const qualityScore = computeQualityScore(criticResult, memo);
+
+  // Extract company_id from memo
+  const company_id = memo.company_id;
+
+  const timestamp = Date.now();
+  const gate_id = `gate_${company_id}_${timestamp}`;
+  const evaluated_at = new Date().toISOString();
+
+  const gateSummary = buildGateSummary(criteriaResults, qualityScore, result, blockingReasons);
+
+  if (result === "pass") {
+    return {
+      gate_id,
+      company_id,
+      memo_id: memo.memo_id,
+      evaluated_at,
+      result: "pass",
+      memo_quality_score: qualityScore,
+      passed_at: evaluated_at,
+      ready_to_send: true,
+      has_hard_failures: false,
+      gate_summary: gateSummary,
+      criteria_results: criteriaResults,
+    };
+  }
+
+  return {
+    gate_id,
+    company_id,
+    memo_id: memo.memo_id,
+    evaluated_at,
+    result: "fail",
+    memo_quality_score: qualityScore,
+    blocking_reasons: blockingReasons,
+    has_hard_failures: hasHardFailures,
+    gate_summary: gateSummary,
+    criteria_results: criteriaResults,
+  };
 }

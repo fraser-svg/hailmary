@@ -5,3 +5,4 @@ reports/
 src/report/evals/results/
 *.tsbuildinfo
 .DS_Store
+.env

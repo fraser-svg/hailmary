@@ -82,6 +82,10 @@ export interface MemoBrief {
   adjudication_mode: AdjudicationMode;
   memo_framing: MemoFraming;
 
+  // Upstream IDs — carried so writeMemo can populate MarkdownMemo without extra params
+  diagnosis_id: string;             // From diagnosis.id
+  intervention_id: string;         // From intervention.id
+
   // Argument structure
   hook: MemoHook;
   thesis: string;                           // Single sentence derived from diagnosis.statement

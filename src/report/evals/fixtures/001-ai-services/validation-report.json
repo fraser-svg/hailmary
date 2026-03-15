@@ -1,0 +1,24 @@
+{
+  "valid": false,
+  "schema_valid": false,
+  "evidence_links_valid": true,
+  "source_links_valid": true,
+  "errors": [
+    "Schema: /run_metadata must have required property 'evidence_summary' {\"missingProperty\":\"evidence_summary\"}",
+    "Schema: /narrative_intelligence must have required property 'negative_signals' {\"missingProperty\":\"negative_signals\"}",
+    "Schema: /narrative_intelligence must have required property 'value_alignment_summary' {\"missingProperty\":\"value_alignment_summary\"}"
+  ],
+  "warnings": [
+    "Narrative gap \"Automation promise vs service-dependent delivery\": narrative gap language not traceable to evidence excerpts"
+  ],
+  "stats": {
+    "source_count": 8,
+    "evidence_count": 10,
+    "sections_populated": 10,
+    "sections_empty": 0,
+    "evidence_ids_referenced": 10,
+    "evidence_ids_resolved": 10,
+    "source_ids_referenced": 8,
+    "source_ids_resolved": 8
+  }
+}
