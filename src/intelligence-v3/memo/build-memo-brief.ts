@@ -34,6 +34,7 @@ import type {
   WordBudget,
   MemoSectionName,
 } from "../types/memo-brief.js";
+import type { ArgumentSynthesis } from "../types/argument-synthesis.js";
 import { BANNED_PHRASES as V2_BANNED_PHRASES } from "../../intelligence-v2/stages/report/prompt.js";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,14 @@ export interface BuildMemoBriefInput {
   };
   /** Human-readable company name. Falls back to company_id (slug) if not provided. */
   target_company_name?: string;
+  /**
+   * V4 addition: ArgumentSynthesis from synthesiseArgument().
+   * When present and fallback_to_template = false, V4 fields are populated
+   * in the brief (synthesised_thesis, mechanism_narratives, argument_skeleton,
+   * hook_strategy) and hook.framing_instruction is set from hookStrategy.framing.
+   * When absent or fallback_to_template = true, brief is identical to V3.
+   */
+  argumentSynthesis?: ArgumentSynthesis;
 }
 
 // ---------------------------------------------------------------------------
@@ -374,7 +383,16 @@ const REQUIRED_SECTIONS: MemoSectionName[] = [
  * Throws ERR_ADJUDICATION_ABORT if adjudication_mode is "abort".
  */
 export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
-  const { adjudication, diagnosis, mechanisms, intervention, evidencePack, founderContext, target_company_name } = input;
+  const {
+    adjudication,
+    diagnosis,
+    mechanisms,
+    intervention,
+    evidencePack,
+    founderContext,
+    target_company_name,
+    argumentSynthesis,
+  } = input;
 
   // Guard: abort mode means no memo can be written
   if (adjudication.adjudication_mode === "abort") {
@@ -386,10 +404,20 @@ export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
 
   const companyId = evidencePack.company_id;
   const timestamp = Date.now();
-  const now = new Date().toISOString();
+  const nowStr = new Date().toISOString();
 
-  // Select hook — highest-scoring hook_candidate; founder_statement preferred if available
-  const hook = selectHook(evidencePack, founderContext?.name);
+  // Determine whether synthesis is active (present and not in fallback mode)
+  const synthActive =
+    argumentSynthesis !== undefined && !argumentSynthesis.fallback_to_template;
+
+  // Select hook — V4: override framing_instruction from synthesis when active
+  let hook = selectHook(evidencePack, founderContext?.name);
+  if (synthActive && argumentSynthesis!.hook_strategy.framing) {
+    hook = {
+      ...hook,
+      framing_instruction: argumentSynthesis!.hook_strategy.framing,
+    };
+  }
 
   // Derive thesis — single sentence from diagnosis.statement, framing-adjusted
   const thesis = buildThesis(diagnosis, adjudication.recommended_memo_framing);
@@ -410,10 +438,10 @@ export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
   // Company name: use human-readable name if provided, fall back to slug
   const targetCompany = target_company_name ?? companyId;
 
-  return {
+  const brief: MemoBrief = {
     brief_id: `brief_${companyId}_${timestamp}`,
     company_id: companyId,
-    created_at: now,
+    created_at: nowStr,
 
     target_company: targetCompany,
     founder_name: founderContext?.name,
@@ -438,4 +466,14 @@ export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
     word_budget: WORD_BUDGET,
     required_sections: REQUIRED_SECTIONS,
   };
+
+  // V4 additions — populate when synthesis is active
+  if (synthActive) {
+    brief.synthesised_thesis = argumentSynthesis!.company_specific_thesis;
+    brief.mechanism_narratives = argumentSynthesis!.mechanism_narratives;
+    brief.argument_skeleton = argumentSynthesis!.argument_skeleton;
+    brief.hook_strategy = argumentSynthesis!.hook_strategy;
+  }
+
+  return brief;
 }

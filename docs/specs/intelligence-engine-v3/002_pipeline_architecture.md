@@ -332,3 +332,131 @@ const v3Result = await runV3Pipeline({ dossier: existingDossier });
 | V2-R5 | No diagnosis produced | `ERR_V2_NO_DIAGNOSIS` |
 | V3-M2 | Adjudication = abort | `ERR_ADJUDICATION_ABORT` |
 | V3-M5 | Critic fails after 2 revisions | `ERR_MEMO_CRITIC_FAIL` |
+
+---
+
+## DRAFT ADDITIONS — Perplexity + Cloudflare Acquisition Layer
+
+> **Status**: DRAFT. These additions reflect the planned live-provider integration.
+> See Spec 005 (acquisition providers) and Spec 006 (evidence schema v2) for full detail.
+> Verify live API documentation before implementation. Do not implement from draft wording alone.
+
+---
+
+### [DRAFT] V3-U1 — siteCorpusAcquisition (live provider mode)
+
+When `provider` is supplied (Mode B), the live provider is **CloudflareRenderingProvider**.
+
+- Uses **Cloudflare Browser Rendering REST API** — not Workers bindings, not `/crawl`
+- Fetches each target URL by rendering it in a headless browser (waits for `networkidle2`)
+- Returns normalized plain text (HTML stripped; nav/scripts/cookies removed; `<header>` hero text preserved)
+- Falls back to plain HTTP fetch if Cloudflare render fails
+- Homepage failure + plain fetch failure → `ERR_CORPUS_EMPTY` (unchanged)
+- Max 2 concurrent Cloudflare requests (caller-side semaphore)
+- Per-page timeout: 10 seconds
+- Per-page token cap: 5,000 tokens
+
+**New hard failure conditions** (addition to existing table):
+
+| Stage | Condition | Error |
+|---|---|---|
+| V3-U1 | `CLOUDFLARE_ACCOUNT_ID` or `CLOUDFLARE_API_TOKEN` missing | `ERR_MISSING_CREDENTIAL` |
+| V3-U1 | Cloudflare auth rejected (HTTP 401) | `ERR_CLOUDFLARE_AUTH_FAILED` |
+
+---
+
+### [DRAFT] V3-U2 — externalResearchAcquisition (live provider mode)
+
+When `provider` is supplied (Mode B), the live provider is **PerplexitySearchProvider**.
+
+- Uses **Perplexity Search API** (`sonar` model) — not `sonar-pro`
+- Runs 7 fixed query families per run (Phase 1 — no domain-aware query planning)
+- Returns citations from source pages; discards AI-generated completion text entirely
+- Secondary fetches (for URL-only citations): max 3 concurrent, 150ms gap, 5s timeout
+- Max 5 citations per query; max 500 character excerpt per citation
+- All queries run concurrently (max 3 in-flight)
+- Per-query timeout: 8 seconds
+
+**Evidence contamination rule** (binding constraint, not optional):
+The AI-generated synthesis portion (`choices[0].message.content`) of any Perplexity response MUST be discarded. Only citation URLs and their source-page verbatim excerpts may enter the evidence layer. This applies without exception.
+
+**New hard failure conditions** (addition to existing table):
+
+| Stage | Condition | Error |
+|---|---|---|
+| V3-U2 | `PERPLEXITY_API_KEY` missing | `ERR_MISSING_CREDENTIAL` |
+| V3-U2 | Perplexity auth rejected (HTTP 401) | `ERR_PERPLEXITY_AUTH_FAILED` |
+
+---
+
+### [DRAFT] Parallel Acquisition Contract
+
+V3-U1 and V3-U2 launch concurrently, not sequentially:
+
+```
+Input: { company, domain }
+     │
+     ├────────────────────────────────────────┐
+     │  Promise.all([                          │
+     │    siteCorpusAcquisition(),             │  externalResearchAcquisition()
+     │    (CloudflareRenderingProvider)        │  (PerplexitySearchProvider)
+     │  ])                                     │
+     └────────────────────────────────────────┘
+                        │
+                        ▼
+              V3-U3: mergeResearchCorpus()
+```
+
+Error isolation: if `siteCorpusAcquisition()` throws `ERR_CORPUS_EMPTY`, abort. If `externalResearchAcquisition()` throws non-SPARSE error, catch and continue with empty `ExternalCorpus`.
+
+---
+
+### [DRAFT] Latency Contract
+
+| Stage | Target | Hard Cap | On Timeout |
+|---|---|---|---|
+| Cloudflare per-page render | 3s | 10s | Skip page (non-fatal) |
+| Perplexity per-query | 3s | 8s | Skip query (non-fatal) |
+| Secondary citation fetch | 2s | 5s | Skip citation (non-fatal) |
+| Total acquisition (U1+U2) | 45s | 60s | `ERR_ACQUISITION_TIMEOUT` |
+
+---
+
+### [DRAFT] Early Validation Gate
+
+After V3-U4 (`corpusToDossierAdapter`) and before V2 reasoning:
+
+```typescript
+const validation = validate(dossier);  // src/validate-core.ts
+if (!validation.valid) {
+  throw new Error(`ERR_DOSSIER_INVALID: ${validation.errors.join('; ')}`);
+}
+// Log validation.warnings (non-fatal, existing behavior)
+```
+
+Catching dossier schema errors earlier saves expensive V2 + memo stage execution.
+
+---
+
+### [DRAFT] V3PipelineResult Update
+
+Add `acquisitionQuality` field (see Spec 006):
+
+```typescript
+interface V3PipelineResult {
+  // ... existing fields unchanged ...
+
+  // NEW: acquisition observability — populated when live providers are used
+  acquisitionQuality?: AcquisitionQualityReport;
+}
+```
+
+---
+
+### [DRAFT] Additional Constraints
+
+5. **Evidence contamination rule**: No AI-generated text from any external service may enter `ExternalSource.excerpt` or `CorpusPage.raw_text`. Raw corpus content may not cross into LLM stages directly; only structured `EvidencePackRecord` objects may.
+6. **No AcquisitionQueryPlanner in Phase 1**: Query families and page targets are fixed. Defer domain-aware planning.
+7. **Providers are stateless**: No instance-level cache, no mutable state beyond constructor config.
+8. **Tier assignment in merge only**: Canonical `source_tier` is set by `tier-classifier.ts` in `mergeResearchCorpus()`, not by providers.
+9. **Verify live API docs before coding**: Cloudflare endpoint path and Perplexity citation format must be confirmed from live documentation. Do not code from draft spec wording alone.

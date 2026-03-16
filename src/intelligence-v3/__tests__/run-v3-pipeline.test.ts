@@ -1121,3 +1121,267 @@ describe("runV3Pipeline — revision loop", () => {
     expect(revisedBrief.revision_instructions!.failing_dimensions).toContain("genericity_test");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests: V4 synthesis fallback integration
+// ---------------------------------------------------------------------------
+
+describe("runV3Pipeline — V4 synthesis fallback path", () => {
+  it("when synthesis returns fallback_to_template=true, memoBrief is still built with V3 template logic", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    // Inject a mock synth client that returns invalid JSON → forces fallback
+    const badSynthClient = {
+      messages: {
+        create: async () => ({
+          content: [{ type: "text", text: "not valid json {{{{" }],
+        }),
+      },
+    };
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v4",
+      synthConfig: {
+        client: badSynthClient as unknown as import("@anthropic-ai/sdk").default,
+      },
+    });
+
+    // Synthesis ran but fell back
+    expect(result.argumentSynthesis).toBeDefined();
+    expect(result.argumentSynthesis?.fallback_to_template).toBe(true);
+
+    // Brief is still built (adjudication is not abort for this dossier)
+    if (result.adjudication.adjudication_mode !== "abort") {
+      expect(result.memoBrief).toBeDefined();
+      // V4 synthesis fields must be absent when fallback is true
+      expect(result.memoBrief?.synthesised_thesis).toBeUndefined();
+      expect(result.memoBrief?.mechanism_narratives).toBeUndefined();
+      expect(result.memoBrief?.argument_skeleton).toBeUndefined();
+      expect(result.memoBrief?.hook_strategy).toBeUndefined();
+      // Template thesis is still set
+      expect(result.memoBrief?.thesis).toBeTruthy();
+    }
+  });
+
+  it("when synthesis succeeds (mock client), brief contains all V4 fields", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    // Build a valid synthesis JSON using the test dossier's evidence IDs
+    const validSynthJSON = JSON.stringify({
+      company_specific_thesis:
+        "Acme's enterprise positioning without customer proof limits pipeline velocity (ev_001), " +
+        "meaning deals stall at the proof-of-concept stage and sales cycles lengthen past 90 days.",
+      mechanism_narratives: [
+        {
+          mechanism_id: "mech_001",
+          mechanism_type: "investor_signalling",
+          company_specific_narrative:
+            "Acme's investor-driven enterprise framing (ev_003) positions it above " +
+            "its actual deal size, creating a category mismatch that repels the SMB " +
+            "buyers who would convert fastest.",
+          evidence_refs: ["ev_003"],
+        },
+        {
+          mechanism_id: "mech_002",
+          mechanism_type: "category_gravity",
+          company_specific_narrative:
+            "Case study pricing signals ($2,000/month enterprise plans, ev_006) attract " +
+            "procurement scrutiny the product cannot yet survive, extending close rates past 90 days.",
+          evidence_refs: ["ev_006"],
+        },
+      ],
+      argument_skeleton: [
+        {
+          step_order: 1,
+          evidence_id: "ev_001",
+          logical_role: "observation",
+          connector: "which means",
+          purpose: "Shows enterprise claim from customer review — the observable surface-level signal.",
+        },
+        {
+          step_order: 2,
+          evidence_id: "ev_003",
+          logical_role: "mechanism",
+          connector: "because",
+          purpose: "Investor signalling explains WHY the company adopted enterprise framing without evidence.",
+        },
+        {
+          step_order: 3,
+          evidence_id: "ev_006",
+          logical_role: "diagnosis",
+          connector: "meaning",
+          purpose: "Connects the claim gap to commercial consequence: pricing creates approval overhead.",
+        },
+      ],
+      hook_strategy: {
+        evidence_id: "ev_001",
+        tension_type: "contradiction",
+        framing: "Open with the customer review that names the enterprise positioning directly.",
+        why_it_matters:
+          "The founder believes enterprise positioning is an asset; this customer review shows it is creating qualification friction.",
+      },
+      evidence_refs: ["ev_001", "ev_003", "ev_006"],
+      synthesis_confidence: "high",
+      diagnosis_fit: "strong",
+    });
+
+    const goodSynthClient = {
+      messages: {
+        create: async () => ({
+          content: [{ type: "text", text: validSynthJSON }],
+        }),
+      },
+    };
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v4",
+      synthConfig: {
+        client: goodSynthClient as unknown as import("@anthropic-ai/sdk").default,
+      },
+    });
+
+    // Synthesis ran and succeeded
+    expect(result.argumentSynthesis).toBeDefined();
+    expect(result.argumentSynthesis?.fallback_to_template).toBe(false);
+
+    // Brief contains all V4 synthesis fields
+    if (result.adjudication.adjudication_mode !== "abort") {
+      expect(result.memoBrief).toBeDefined();
+      expect(result.memoBrief?.synthesised_thesis).toBeTruthy();
+      expect(result.memoBrief?.mechanism_narratives).toHaveLength(2);
+      expect(result.memoBrief?.argument_skeleton).toBeDefined();
+      expect(result.memoBrief?.argument_skeleton?.length).toBeGreaterThanOrEqual(3);
+      expect(result.memoBrief?.hook_strategy).toBeDefined();
+      // Hook framing_instruction should come from synthesis
+      expect(result.memoBrief?.hook?.framing_instruction).toBe(
+        "Open with the customer review that names the enterprise positioning directly."
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: V4 rollout flag — Phase 1 scaffolding
+// ---------------------------------------------------------------------------
+
+describe("runV3Pipeline — memoIntelligenceVersion flag (Phase 1)", () => {
+  it("defaults to 'v4' when memoIntelligenceVersion is not provided", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+    });
+
+    expect(result.memo_intelligence_version).toBe("v4");
+  });
+
+  it("propagates 'v4' when explicitly set", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v4",
+    });
+
+    expect(result.memo_intelligence_version).toBe("v4");
+  });
+
+  it("propagates 'v3' when explicitly set", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v3",
+    });
+
+    expect(result.memo_intelligence_version).toBe("v3");
+  });
+
+  it("v4 mode: argumentSynthesis is present in result (fallback when no API key)", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v4",
+    });
+
+    // synthesiseArgument is called; without API key it returns fallback_to_template = true
+    expect(result.argumentSynthesis).toBeDefined();
+    expect(result.argumentSynthesis?.fallback_to_template).toBe(true);
+  });
+
+  it("v3 mode: argumentSynthesis is undefined (synthesis skipped)", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v3",
+    });
+
+    expect(result.argumentSynthesis).toBeUndefined();
+  });
+
+  it("memo behavior is identical for 'v3' and 'v4' in Phase 1 (no synthesis yet)", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+    const v3result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v3",
+    });
+
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+    const v4result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      memoIntelligenceVersion: "v4",
+    });
+
+    // Memo pipeline behavior is unchanged in Phase 1 — writer and critic called same number of times
+    // (2 total for both runs: once per run)
+    expect(mockWriter).toHaveBeenCalledTimes(2);
+    expect(mockCritic).toHaveBeenCalledTimes(2);
+
+    // memo_intelligence_version differs between runs
+    expect(v3result.memo_intelligence_version).toBe("v3");
+    expect(v4result.memo_intelligence_version).toBe("v4");
+
+    // Both produce a memo and criticResult (same mock)
+    expect(v3result.memo).toBeDefined();
+    expect(v4result.memo).toBeDefined();
+  });
+});

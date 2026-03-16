@@ -1,0 +1,17 @@
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "Trigger.dev is a background jobs and workflow engine for Node.js. It provides durable execution with retries, real-time logging, and a developer-friendly SDK. The platform is widely used for long-running tasks, scheduled jobs, and event-driven workflows. [1][2][3][4]"
+      }
+    }
+  ],
+  "citations": [
+    "https://techcrunch.com/2024/01/trigger-dev-series-a",
+    "https://venturebeat.com/2024/02/trigger-dev-raises",
+    "https://businesswire.com/news/trigger-dev-funding",
+    "https://crunchbase.com/organization/trigger-dev",
+    "https://forbes.com/sites/trigger-dev-funding-round"
+  ]
+}

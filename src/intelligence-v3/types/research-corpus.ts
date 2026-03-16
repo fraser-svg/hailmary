@@ -38,20 +38,29 @@ export interface CorpusPage {
   url: string;
   page_type: SitePageType;
   fetched_at: string;          // ISO 8601
-  raw_text: string;            // Extracted text content (not HTML)
+  raw_text: string;            // Extracted text content (not HTML) — NEVER AI-generated text
   token_count: number;
   fetch_success: boolean;
   source_tier: 1;              // All site pages are Tier 1 (company-controlled)
+  // SHA-256(raw_text).slice(0, 16) — set by mergeResearchCorpus() after dedup
+  content_hash?: string;
+  // How this page was fetched — set by provider
+  acquisition_method?: 'cloudflare' | 'playwright' | 'websearch' | 'webfetch' | 'fixture';
 }
 
 /** A single external source record */
 export interface ExternalSource {
   url: string;
   source_type: ExternalSourceType;
-  gathered_at: string;         // ISO 8601
-  excerpt: string;             // The specific content extracted (snippet or full text)
+  gathered_at: string;         // ISO 8601 — when HailMary fetched/queried this source
+  published_at?: string;       // ISO 8601 — when the source was originally published (from Perplexity metadata)
+  excerpt: string;             // Verbatim text from the source page — NEVER AI-generated text
   token_count: number;
   source_tier: SourceTier;     // Typically 2 or 3
+  // How this source was acquired — set by provider
+  acquisition_method?: 'perplexity' | 'websearch' | 'webfetch' | 'fixture';
+  // Set by mergeResearchCorpus() — true when published_at or captured_at > 24 months old
+  is_stale?: boolean;
 }
 
 /** A community mention (Reddit, HN, Slack leak, Discord) — optional bucket */
@@ -95,6 +104,13 @@ export interface ExternalCorpus {
     source_types_attempted: ExternalSourceType[];
     source_types_successful: ExternalSourceType[];
     search_queries_used: string[];
+    /** Present when provider mode was used (not fixture mode). */
+    filter_stats?: {
+      total_before_filter: number;
+      total_after_filter: number;
+      own_domain_rejected: number;
+      no_match_rejected: number;
+    };
   };
 }
 
@@ -121,7 +137,11 @@ export interface ResearchCorpus {
   merge_metadata: {
     total_items: number;
     deduplicated_count: number;
+    // Items removed because same URL appeared in both Cloudflare and Perplexity corpora
+    cross_corpus_deduplicated: number;
     tier_distribution: Partial<Record<SourceTier, number>>;
+    // Items tagged "stale" across all buckets
+    stale_item_count: number;
   };
 }
 

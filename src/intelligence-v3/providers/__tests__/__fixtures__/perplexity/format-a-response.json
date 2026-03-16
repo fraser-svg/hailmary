@@ -1,0 +1,35 @@
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "Trigger.dev has generally positive reviews. Users appreciate the reliability and ease of use for background jobs. Some users mention that the documentation could be more comprehensive. Overall, it is rated highly for developer experience. [1][2][3]"
+      }
+    }
+  ],
+  "citations": [
+    "https://www.trustpilot.com/reviews/trigger-dev-1",
+    "https://www.trustpilot.com/reviews/trigger-dev-2",
+    "https://g2.com/products/trigger-dev/reviews/123"
+  ],
+  "search_results": [
+    {
+      "url": "https://www.trustpilot.com/reviews/trigger-dev-1",
+      "title": "Trigger.dev Review - Great for background jobs",
+      "snippet": "We switched from cron jobs to Trigger.dev and the experience has been fantastic. The retry logic works perfectly and we never miss a job.",
+      "date": "2024-11-15"
+    },
+    {
+      "url": "https://www.trustpilot.com/reviews/trigger-dev-2",
+      "title": "Solid platform with good observability",
+      "snippet": "The dashboard is really helpful for debugging failed jobs. Pricing is fair for what you get. Would recommend to any team running Node.js background tasks.",
+      "date": "2024-09-03"
+    },
+    {
+      "url": "https://g2.com/products/trigger-dev/reviews/123",
+      "title": "Trigger.dev on G2 - 4.5 stars",
+      "snippet": "Setup was straightforward and the SDK is well-designed. The main limitation is that complex branching workflows require more boilerplate than expected.",
+      "date": "2024-10-22"
+    }
+  ]
+}

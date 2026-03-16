@@ -21,6 +21,7 @@
  */
 
 import type { ExternalCorpus, ExternalSource, ExternalSourceType } from '../types/research-corpus.js';
+import { filterExternalSources } from './source-filter.js';
 import { now } from '../../utils/timestamps.js';
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,51 @@ function loadFromFixture(
 }
 
 // ---------------------------------------------------------------------------
+// Query builder — exported for tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the Perplexity query map for a given company + domain.
+ *
+ * Disambiguation strategy:
+ *   - Review queries use domain as primary anchor (e.g. "trigger.dev") rather
+ *     than company name alone, because domain names are unique identifiers
+ *     whereas company names can be generic keywords ("Trigger", "Relay", etc.)
+ *   - Press / competitor / funding / investor queries use both company name AND
+ *     domain for dual-anchor disambiguation.
+ *
+ * This is intentionally a pure function so it can be unit-tested.
+ */
+export function buildQueryMap(
+  company: string,
+  domain: string,
+): Array<[ExternalSourceType, string]> {
+  return [
+    // Review sites: domain is the most specific, unambiguous anchor.
+    // Using "trigger.dev" rather than "Trigger.dev" avoids matching unrelated
+    // pages that mention "Trigger" (PM software, automation concepts, etc.).
+    ['review_trustpilot', `"${domain}" reviews site:trustpilot.com`],
+    ['review_g2_snippet', `"${domain}" reviews site:g2.com`],
+    ['review_capterra_snippet', `"${domain}" reviews site:capterra.com`],
+
+    // Press: both company name and domain for dual-anchor disambiguation.
+    ['press_mention', `"${company}" "${domain}" news announcement`],
+
+    // Competitors: domain anchor + explicit alternatives framing.
+    ['competitor_search_snippet', `"${company}" "${domain}" competitors alternatives vs`],
+
+    // Funding: company + domain + investment terms.
+    ['funding_announcement', `"${company}" "${domain}" funding investment round`],
+
+    // LinkedIn: company + domain (avoids generic company-name pages).
+    ['linkedin_snippet', `"${company}" "${domain}" linkedin`],
+
+    // Investors: company + domain + key funding databases.
+    ['investor_mention', `"${company}" "${domain}" investors ycombinator crunchbase`],
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Mode B — provider
 // ---------------------------------------------------------------------------
 
@@ -116,27 +162,42 @@ async function fetchFromProvider(
   const queriesUsed: string[] = [];
   const sourceTypesAttempted: ExternalSourceType[] = [];
   const sourceTypesSuccessful: ExternalSourceType[] = [];
+  let totalBeforeFilter = 0;
+  let totalOwnDomainRejected = 0;
+  let totalNoMatchRejected = 0;
 
-  // TODO: Make queries configurable and extend with domain-aware variants
-  const queryMap: Array<[ExternalSourceType, string]> = [
-    ['review_trustpilot', `${company} reviews site:trustpilot.com`],
-    ['review_g2_snippet', `${company} reviews site:g2.com`],
-    ['review_capterra_snippet', `${company} reviews site:capterra.com`],
-    ['press_mention', `${company} ${domain} news coverage`],
-    ['competitor_search_snippet', `${company} competitors alternatives`],
-    ['funding_announcement', `${company} funding round investment`],
-    ['linkedin_snippet', `${company} linkedin company`],
-    ['investor_mention', `${company} investors crunchbase`],
-  ];
+  const queryMap = buildQueryMap(company, domain);
 
   for (const [sourceType, query] of queryMap) {
     sourceTypesAttempted.push(sourceType);
     queriesUsed.push(query);
 
     try {
-      const sources = await provider.search(query, sourceType);
-      if (sources.length > 0) {
-        allSources.push(...sources);
+      const raw = await provider.search(query, sourceType);
+      totalBeforeFilter += raw.length;
+
+      // Apply company-relevance filter to each batch before accepting
+      const { accepted, own_domain_count, no_match_count } = filterExternalSources(raw, {
+        company,
+        domain,
+      });
+
+      totalOwnDomainRejected += own_domain_count;
+      totalNoMatchRejected += no_match_count;
+
+      if (own_domain_count > 0) {
+        console.warn(
+          `WARN_OWN_DOMAIN_FILTERED: ${own_domain_count} own-domain source(s) removed from ${sourceType}`,
+        );
+      }
+      if (no_match_count > 0) {
+        console.warn(
+          `WARN_COMPANY_MISMATCH_FILTERED: ${no_match_count} irrelevant source(s) removed from ${sourceType}`,
+        );
+      }
+
+      if (accepted.length > 0) {
+        allSources.push(...accepted);
         sourceTypesSuccessful.push(sourceType);
       }
     } catch (err) {
@@ -159,8 +220,29 @@ async function fetchFromProvider(
       source_types_attempted: sourceTypesAttempted,
       source_types_successful: sourceTypesSuccessful,
       search_queries_used: queriesUsed,
+      filter_stats: {
+        total_before_filter: totalBeforeFilter,
+        total_after_filter: allSources.length,
+        own_domain_rejected: totalOwnDomainRejected,
+        no_match_rejected: totalNoMatchRejected,
+      },
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Auto-provider (lazy) — loaded only when PERPLEXITY_API_KEY is present
+// ---------------------------------------------------------------------------
+
+let _perplexityProvider: ExternalResearchProvider | null = null;
+
+async function getPerplexityProvider(): Promise<ExternalResearchProvider | null> {
+  if (!process.env['PERPLEXITY_API_KEY']) return null;
+  if (!_perplexityProvider) {
+    const { PerplexitySearchProvider } = await import('../providers/perplexity-adapter.js');
+    _perplexityProvider = PerplexitySearchProvider.fromEnv();
+  }
+  return _perplexityProvider;
 }
 
 // ---------------------------------------------------------------------------
@@ -176,8 +258,14 @@ export async function externalResearchAcquisition(
   }
 
   if (input.provider !== undefined) {
-    // Mode B: live provider
+    // Mode B: caller-supplied provider
     return fetchFromProvider(input.company, input.domain, input.provider);
+  }
+
+  // Mode B (auto): try to instantiate PerplexitySearchProvider from env vars
+  const autoProvider = await getPerplexityProvider();
+  if (autoProvider) {
+    return fetchFromProvider(input.company, input.domain, autoProvider);
   }
 
   // Neither configured — return empty corpus (non-fatal per spec)

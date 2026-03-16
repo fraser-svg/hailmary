@@ -10,6 +10,7 @@
 
 import type { AdjudicationMode, MemoFraming } from "./adjudication";
 import type { EvidencePackRecord, MemoRole } from "./evidence-pack";
+import type { MechanismNarrative, ArgumentStep, HookStrategy } from "./argument-synthesis";
 
 /** Names of the 5 required memo sections */
 export type MemoSectionName =
@@ -104,6 +105,31 @@ export interface MemoBrief {
 
   // Populated on revision loop only
   revision_instructions?: RevisionInstructions;
+
+  // V4 additions — all optional; absent in v3 mode or when synthesis falls back to template
+  /**
+   * Company-specific diagnostic thesis from ArgumentSynthesis.
+   * Contains GTM condition + commercial consequence + observable company fact.
+   * Replaces the template thesis string for the writer when present.
+   * MemoBrief.thesis (template string) retained alongside for diagnostics.
+   */
+  synthesised_thesis?: string;
+  /**
+   * 2 company-specific mechanism narratives from synthesis.
+   * Replaces template mechanism framing in writeMemo user prompt when present.
+   */
+  mechanism_narratives?: MechanismNarrative[];
+  /**
+   * Ordered argument sequence (3–6 steps) from synthesis.
+   * Presented as advisory argument flow in writeMemo user prompt.
+   */
+  argument_skeleton?: ArgumentStep[];
+  /**
+   * Full hook strategy from synthesis.
+   * When present, hook.framing_instruction is overridden with hookStrategy.framing.
+   * All fields (including evidence_id, tension_type, why_it_matters) are exposed to the writer.
+   */
+  hook_strategy?: HookStrategy;
 }
 
 /** Revision instructions appended to the brief on a failed critic pass */

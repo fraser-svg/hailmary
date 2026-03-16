@@ -19,6 +19,27 @@
 import type { SiteCorpus, CorpusPage, CrawlConfig, SitePageType } from '../types/research-corpus.js';
 import { now } from '../../utils/timestamps.js';
 
+// Lazy import — PlaywrightRenderingProvider is the default live provider.
+// Loaded on first use to avoid top-level Chromium import overhead.
+let _pwProvider: SiteCorpusProvider | null = null;
+async function getPlaywrightProvider(): Promise<SiteCorpusProvider> {
+  if (!_pwProvider) {
+    const { PlaywrightRenderingProvider } = await import('../providers/playwright-adapter.js');
+    _pwProvider = new PlaywrightRenderingProvider();
+  }
+  return _pwProvider;
+}
+
+// Cloudflare provider kept as a named fallback (env-vars required).
+// Not used by default — wire explicitly via input.provider if needed.
+async function getCloudflareProvider(): Promise<SiteCorpusProvider | null> {
+  const accountId = process.env['CLOUDFLARE_ACCOUNT_ID'];
+  const apiToken = process.env['CLOUDFLARE_API_TOKEN'];
+  if (!accountId || !apiToken) return null;
+  const { CloudflareRenderingProvider } = await import('../providers/cloudflare-adapter.js');
+  return new CloudflareRenderingProvider({ accountId, apiToken });
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -43,13 +64,14 @@ const OPTIONAL_PAGE_PRIORITY: SitePageType[] = [
 
 /**
  * Pluggable provider for fetching site pages.
- * Future: Cloudflare Browser Rendering / crawl integration.
  */
 export interface SiteCorpusProvider {
   fetchPage(url: string): Promise<{
     text: string;
     success: boolean;
   }>;
+  /** Optional: identifies how pages acquired by this provider were fetched (set on CorpusPage) */
+  acquisition_method?: CorpusPage['acquisition_method'];
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +224,9 @@ function loadFromFixture(
 // Mode B — provider
 // ---------------------------------------------------------------------------
 
+// Minimum gap between consecutive provider requests (rate-limit protection)
+const PROVIDER_REQUEST_GAP_MS = 300;
+
 async function fetchFromProvider(
   domain: string,
   provider: SiteCorpusProvider,
@@ -219,12 +244,20 @@ async function fetchFromProvider(
   const failedPages: string[] = [];
   const pages: CorpusPage[] = [];
   let totalTokens = 0;
+  let lastRequestAt = 0;
 
   for (const pageType of uniqueTypes) {
     if (pages.length >= maxPages) break;
 
+    // 300ms pacing between requests (rate-limit protection)
+    const elapsed = Date.now() - lastRequestAt;
+    if (lastRequestAt > 0 && elapsed < PROVIDER_REQUEST_GAP_MS) {
+      await new Promise(resolve => setTimeout(resolve, PROVIDER_REQUEST_GAP_MS - elapsed));
+    }
+
     const url = buildPageUrl(domain, pageType);
     attemptedUrls.push(url);
+    lastRequestAt = Date.now();
 
     const result = await provider.fetchPage(url);
     const tokenCount = estimateTokenCount(result.text);
@@ -250,6 +283,8 @@ async function fetchFromProvider(
       token_count: tokenCount,
       fetch_success: true,
       source_tier: 1,
+      // Propagate acquisition method from provider (e.g. 'cloudflare')
+      ...(provider.acquisition_method ? { acquisition_method: provider.acquisition_method } : {}),
     });
     totalTokens += tokenCount;
   }
@@ -285,10 +320,11 @@ export async function siteCorpusAcquisition(
   }
 
   if (input.provider !== undefined) {
-    // Mode B: live provider
+    // Mode B: caller-supplied provider
     return fetchFromProvider(input.domain, input.provider, config);
   }
 
-  // Neither fixture nor provider configured
-  throw new Error('ERR_CORPUS_EMPTY: no provider or fixture_pages configured');
+  // Mode B (auto): use PlaywrightRenderingProvider (default live provider)
+  const autoProvider = await getPlaywrightProvider();
+  return fetchFromProvider(input.domain, autoProvider, config);
 }

@@ -552,8 +552,12 @@
         "title": { "type": "string" },
         "publisher_or_owner": { "type": "string" },
         "captured_at": { "type": "string" },
+        "published_at": { "type": "string", "description": "Original publication date of the source, if known" },
         "relevance_notes": { "type": "array", "items": { "type": "string" } },
-        "source_tier": { "type": "integer", "minimum": 1, "maximum": 5 }
+        "source_tier": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "acquisition_method": { "type": "string", "enum": ["cloudflare", "perplexity", "websearch", "webfetch", "fixture"], "description": "Which acquisition method produced this source record" },
+        "content_hash": { "type": "string", "description": "SHA-256 content hash (16 hex chars) for deduplication" },
+        "token_count": { "type": "number", "minimum": 0, "description": "Estimated token count for this source" }
       }
     },
     "evidence_record": {

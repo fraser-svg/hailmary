@@ -33,6 +33,8 @@ import type { MemoBrief } from "../types/memo-brief.js";
 import type { MarkdownMemo } from "../types/memo.js";
 import type { MemoCriticResult } from "../types/memo-critic.js";
 import type { SendGateResult } from "../types/send-gate.js";
+import type { AcquisitionQualityReport } from "../types/acquisition-quality.js";
+import type { ArgumentSynthesis } from "../types/argument-synthesis.js";
 
 // V2 pipeline — import as-is, no modifications
 import { runV2Pipeline } from "../../intelligence-v2/pipeline.js";
@@ -54,6 +56,10 @@ import { buildEvidencePack } from "../memo/build-evidence-pack.js";
 // V3-M2
 import { adjudicateDiagnosis } from "../memo/adjudicate-diagnosis.js";
 
+// V4-M2a
+import { synthesiseArgument } from "../memo/synthesise-argument.js";
+import type { SynthesiseArgumentConfig } from "../memo/synthesise-argument.js";
+
 // V3-M3
 import { buildMemoBrief } from "../memo/build-memo-brief.js";
 
@@ -71,6 +77,7 @@ import { runSendGate } from "../memo/run-send-gate.js";
 // Utilities
 import { slugify, makeRunId } from "../../utils/ids.js";
 import { now } from "../../utils/timestamps.js";
+import { validateDossierObject } from "../../validate-core.js";
 
 // ---------------------------------------------------------------------------
 // Input contract
@@ -101,10 +108,27 @@ export interface V3PipelineInput {
   criticConfig?: CriticConfig;
 
   /**
+   * Optional synthesis config — inject a mock Anthropic client in tests,
+   * or override model/token settings for synthesiseArgument (V4-M2a).
+   * Only used when memoIntelligenceVersion = "v4".
+   */
+  synthConfig?: SynthesiseArgumentConfig;
+
+  /**
    * Skip upstream acquisition and use a pre-built Dossier.
    * Useful for running on an existing V2 dossier or in tests.
    */
   dossier?: Dossier;
+
+  /**
+   * Controls which memo intelligence version is used.
+   *   "v4" (default): runs synthesiseArgument (V4-M2a) before brief assembly.
+   *   "v3": skips synthesis; uses V3 template-based brief logic.
+   *
+   * Used for side-by-side V3 vs V4 evaluation and safe rollback.
+   * Spec: docs/specs/v4-001-memo-intelligence.md §3
+   */
+  memoIntelligenceVersion?: "v3" | "v4";
 
   /**
    * Fixture pages for site corpus (Mode A — for tests / offline runs).
@@ -132,6 +156,8 @@ export interface V3PipelineResult {
   // Upstream layer (undefined if pre-built dossier was provided)
   corpus?: ResearchCorpus;
   dossier: Dossier;
+  // Acquisition observability — populated when live providers are used
+  acquisitionQuality?: AcquisitionQualityReport;
 
   // V2 reasoning layer
   v2Result: V2PipelineResult;
@@ -147,6 +173,16 @@ export interface V3PipelineResult {
   // Revision metadata — only present when the revision loop ran (attempt 1 failed critic)
   firstAttemptMemo?: MarkdownMemo;         // Attempt 1 memo before revision
   firstCriticResult?: MemoCriticResult;    // Attempt 1 critic result that triggered revision
+
+  // V4 memo intelligence
+  /** Which memo intelligence version was used (matches input flag, or "v4" when not specified). */
+  memo_intelligence_version: "v3" | "v4";
+  /**
+   * ArgumentSynthesis output from V4-M2a synthesiseArgument.
+   * Only present when memoIntelligenceVersion = "v4" and synthesis ran successfully.
+   * Undefined in Phase 1 (synthesiseArgument not yet implemented).
+   */
+  argumentSynthesis?: ArgumentSynthesis;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +235,15 @@ export async function runV3Pipeline(
 
     // V3-U4: Adapt corpus to standard Dossier
     dossier = corpusToDossierAdapter(corpus);
+
+    // Early validation gate — catch adapter bugs before V2 reasoning
+    const validation = validateDossierObject(dossier);
+    if (!validation.valid) {
+      throw new Error(`ERR_DOSSIER_INVALID: ${validation.errors.join('; ')}`);
+    }
+    if (validation.warnings.length > 0) {
+      console.warn('[V3 pipeline] Dossier validation warnings:', validation.warnings);
+    }
   }
 
   // Derive company_id: use company name from dossier, fall back to domain slugify
@@ -213,6 +258,9 @@ export async function runV3Pipeline(
 
   // Run V2 pipeline unchanged. Richer dossier = richer signals = better diagnosis.
   const v2Result = await runV2Pipeline(company_id, dossier);
+
+  // Resolve memo intelligence version — default is "v4"
+  const memoIntelligenceVersion = input.memoIntelligenceVersion ?? "v4";
 
   // ──────────────────────────────────────────────────────────────────────────
   // MEMO LAYER (V3-M1 – V3-M6)
@@ -233,6 +281,23 @@ export async function runV3Pipeline(
     patterns: v2Result.v2_patterns,
   });
 
+  // V4-M2a: synthesiseArgument — runs when memoIntelligenceVersion = "v4"
+  // Skipped when adjudication = "abort" (no memo will be written).
+  // Never throws; returns fallback_to_template = true on any failure.
+  let argumentSynthesis: ArgumentSynthesis | undefined;
+  if (memoIntelligenceVersion === "v4" && adjudication.adjudication_mode !== "abort") {
+    argumentSynthesis = await synthesiseArgument(
+      {
+        company_id,
+        company: input.company,
+        diagnosis: v2Result.diagnosis,
+        mechanisms: v2Result.mechanisms,
+        evidencePack,
+      },
+      input.synthConfig ?? {}
+    );
+  }
+
   // V3-M3: Build memo brief (skipped when adjudication = abort)
   // When abort: adjudication_report contains blocking_reasons and improvement_suggestions
   let memoBrief: MemoBrief | undefined;
@@ -245,6 +310,7 @@ export async function runV3Pipeline(
       evidencePack,
       founderContext: input.founderContext,
       target_company_name: input.company,
+      argumentSynthesis,
     });
   }
 
@@ -307,5 +373,7 @@ export async function runV3Pipeline(
     sendGate,
     firstAttemptMemo,
     firstCriticResult,
+    memo_intelligence_version: memoIntelligenceVersion,
+    argumentSynthesis,
   };
 }

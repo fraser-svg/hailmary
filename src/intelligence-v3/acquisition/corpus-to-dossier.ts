@@ -144,6 +144,8 @@ function externalSourceRecord(source: ExternalSource, idx: number): SourceRecord
     title: typeLabel[source.source_type] ?? source.source_type,
     publisher_or_owner: source.url.split('/')[2] ?? source.source_type,
     captured_at: source.gathered_at,
+    ...(source.published_at ? { published_at: source.published_at } : {}),
+    ...(source.acquisition_method ? { acquisition_method: source.acquisition_method } : {}),
     relevance_notes: [`${source.source_type} gathered during V3 external acquisition`],
     source_tier: source.source_tier,
   };
@@ -171,6 +173,8 @@ function sitePageEvidenceRecord(
   }
   if (page.page_type === 'blog') tags.push('content_strategy', 'thought_leadership');
   if (page.page_type === 'integrations') tags.push('channel', 'ecosystem');
+  // Acquisition provenance tags
+  if (page.acquisition_method === 'cloudflare') tags.push('acquisition_cloudflare');
 
   return {
     evidence_id: makeEvidenceId(idx),
@@ -202,6 +206,9 @@ function externalSourceEvidenceRecord(
   if (source.source_type === 'competitor_search_snippet') tags.push('competitor_positioning');
   if (source.source_type === 'funding_announcement') tags.push('funding', 'investor_signal');
   if (source.source_type === 'linkedin_snippet') tags.push('channel', 'social');
+  // Staleness and acquisition provenance tags
+  if (source.is_stale) tags.push('stale');
+  if (source.acquisition_method === 'perplexity') tags.push('acquisition_perplexity');
 
   return {
     evidence_id: makeEvidenceId(idx),

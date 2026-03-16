@@ -115,6 +115,16 @@ export function buildSystemPrompt(brief: MemoBrief): string {
       ? `\n10. Do not assert the following as established fact: ${brief.confidence_caveats.join("; ")}.`
       : "";
 
+  // V4 system prompt additions — included when synthesis fields are active
+  const synthActive =
+    brief.synthesised_thesis !== undefined &&
+    brief.mechanism_narratives !== undefined &&
+    brief.argument_skeleton !== undefined;
+
+  const v4Rules = synthActive
+    ? `\n10. The COMPANY-SPECIFIC DIAGNOSTIC STATEMENT names the GTM condition AND its commercial consequence, anchored in a specific observable company fact. Use it as-is or paraphrase — do not generalise it back to archetype-description.\n11. The CAUSAL MECHANISMS are company-specific. Render them; do not rewrite them into generic causal descriptions. You may adjust for prose flow.\n12. The SUGGESTED ARGUMENT FLOW orders evidence into the strongest logical sequence. The [diagnosis] step is where observation and mechanisms converge into the thesis — render this step with particular precision. Follow the flow unless a strongly superior structure presents itself.\n13. The HOOK STRATEGY tells you what kind of tension to create. Honor the tension_type: contradiction = expose gap between stated and real; commercial_cost = name the revenue/growth cost; hidden_pattern = reveal structure the founder hasn't seen framed this way; customer_signal = let customer evidence speak before analysis.`
+    : "";
+
   return `You are a commercial writing specialist producing a founder-facing strategic memo. You are a renderer, not a reasoner — all analysis has been completed upstream. Your job is to render the supplied brief into specific, commercially grounded prose.
 
 HARD RULES — violating any of these makes the output unusable:
@@ -126,7 +136,7 @@ HARD RULES — violating any of these makes the output unusable:
 6. Do not name specific pricing, product tiers, or implementation costs.
 7. Every section must contain company-specific facts — not generic advice that applies to any SaaS company.
 8. Name exactly 2 causal forces in the "why_this_is_happening" section — not 1, not 3.
-9. The CTA must not be a question and must contain exactly one action for the founder to take.${caveats}
+9. The CTA must not be a question and must contain exactly one action for the founder to take.${caveats}${v4Rules}
 
 TONE FRAMING: ${framingInstruction(brief.adjudication_mode)}
 
@@ -157,6 +167,51 @@ export function buildUserPrompt(brief: MemoBrief): string {
     .map((r, i) => `  [${i + 1}] "${r.excerpt}"\n      Section guidance: ${r.usage_instruction}`)
     .join("\n");
 
+  // V4 context blocks — built when synthesis fields are present in brief
+  const synthActive =
+    brief.synthesised_thesis !== undefined &&
+    brief.mechanism_narratives !== undefined &&
+    brief.argument_skeleton !== undefined &&
+    brief.hook_strategy !== undefined;
+
+  const hookStrategyBlock = synthActive
+    ? `\nHOOK STRATEGY — understand the strategic intent before rendering:
+  Evidence anchor: ${brief.hook_strategy!.evidence_id}
+  Tension type: ${brief.hook_strategy!.tension_type}
+  Framing instruction: ${brief.hook_strategy!.framing}
+  Why this matters to the founder: ${brief.hook_strategy!.why_it_matters}`
+    : "";
+
+  const thesisBlock = synthActive
+    ? `COMPANY-SPECIFIC DIAGNOSTIC STATEMENT — use this as the thesis:
+  ${brief.synthesised_thesis!}
+  (This names the specific GTM condition, anchored in an observable company fact,
+   and its commercial consequence. Use it as the basis for "what_this_means".
+   Do not generalise it.)`
+    : `THESIS — the central commercial claim to argue:
+${brief.thesis}`;
+
+  const mechanismsBlock =
+    synthActive && brief.mechanism_narratives!.length >= 2
+      ? `\nCAUSAL MECHANISMS — use these company-specific narratives in "why_this_is_happening":
+  Force 1 (${brief.mechanism_narratives![0].mechanism_type}): ${brief.mechanism_narratives![0].company_specific_narrative}
+    Evidence: ${brief.mechanism_narratives![0].evidence_refs.join(", ")}
+  Force 2 (${brief.mechanism_narratives![1].mechanism_type}): ${brief.mechanism_narratives![1].company_specific_narrative}
+    Evidence: ${brief.mechanism_narratives![1].evidence_refs.join(", ")}`
+      : "";
+
+  const skeletonBlock =
+    synthActive && brief.argument_skeleton!.length > 0
+      ? `\nSUGGESTED ARGUMENT FLOW — structure the argument in this order (advisory):\n${
+          brief.argument_skeleton!
+            .map(
+              s =>
+                `  Step ${s.step_order} [${s.logical_role}]: Evidence ${s.evidence_id} — ${s.purpose}${s.connector ? ` (${s.connector})` : ""}`
+            )
+            .join("\n")
+        }\n  (The step marked [diagnosis] connects observation and mechanisms into the thesis.)`
+      : "";
+
   let prompt = `Write a 5-section strategic memo for the following company.
 
 COMPANY: ${brief.target_company}
@@ -164,12 +219,14 @@ ${founderLine}
 OPENING HOOK — anchor the Observation section with this:
 Excerpt: "${brief.hook.excerpt}"
 Framing instruction: ${brief.hook.framing_instruction}
+${hookStrategyBlock}
 
-THESIS — the central commercial claim to argue:
-${brief.thesis}
+${thesisBlock}
 
 EVIDENCE SPINE — the only facts you may use (do not invent beyond these):
 ${spineLines}
+${mechanismsBlock}
+${skeletonBlock}
 
 INTERVENTION FRAMING — for the "what_we_would_change" section:
 ${brief.intervention_framing}

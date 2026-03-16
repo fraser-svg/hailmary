@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trigger.dev — Background Jobs Built for Developers</title>
+  <style>
+    body { font-family: sans-serif; }
+    .hero { background: #000; color: #fff; }
+    nav a { color: inherit; }
+  </style>
+  <script>
+    window._analytics = { track: function(e) { console.log(e); } };
+    document.addEventListener('DOMContentLoaded', function() {
+      window._analytics.track('page_view');
+    });
+  </script>
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="/pricing">Pricing</a></li>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="/blog">Blog</a></li>
+        <li><a href="/login">Login</a></li>
+        <li><a href="/signup">Get started</a></li>
+      </ul>
+    </nav>
+    <div class="hero-content">
+      <h1>Background jobs built for developers who care about reliability</h1>
+      <p>Trigger.dev is the open-source background jobs platform that lets you write long-running jobs directly in your codebase with full observability.</p>
+      <a href="/signup" class="cta-button">Start building for free</a>
+    </div>
+  </header>
+
+  <div class="cookie-banner" id="cookie-consent">
+    We use cookies to improve your experience. By continuing you agree to our cookie policy.
+    <button>Accept</button>
+  </div>
+
+  <main>
+    <section class="features">
+      <h2>Why teams choose Trigger.dev</h2>
+      <p>Write background jobs as regular TypeScript functions. Deploy them to our cloud or self-host.</p>
+
+      <div class="feature-card">
+        <h3>Durable execution with automatic retries</h3>
+        <p>Jobs resume from where they left off after failures. Never lose progress on long-running tasks.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Real-time logs and observability</h3>
+        <p>See exactly what your jobs are doing in real-time. Debug failures with full execution traces.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Built for modern TypeScript</h3>
+        <p>Native TypeScript SDK with full type safety. Works with any Node.js framework.</p>
+      </div>
+    </section>
+
+    <section class="social-proof">
+      <h2>Trusted by engineering teams at scale</h2>
+      <blockquote>
+        <p>"We migrated from a custom queue system to Trigger.dev and cut our infrastructure complexity by 60%. The reliability improvements were immediate."</p>
+        <cite>— Engineering Lead, Series B SaaS company</cite>
+      </blockquote>
+    </section>
+  </main>
+
+  <footer>
+    <nav>
+      <ul>
+        <li><a href="/privacy">Privacy Policy</a></li>
+        <li><a href="/terms">Terms of Service</a></li>
+        <li><a href="/contact">Contact</a></li>
+      </ul>
+    </nav>
+    <p>© 2024 Trigger.dev. All rights reserved.</p>
+  </footer>
+
+  <div class="intercom-container" id="intercom-frame">
+    <iframe src="https://widget.intercom.io/widget/abc123"></iframe>
+  </div>
+
+  <script>
+    // More tracking code
+    (function() {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.example.com/tracker.js';
+      document.head.appendChild(s);
+    })();
+  </script>
+</body>
+</html>

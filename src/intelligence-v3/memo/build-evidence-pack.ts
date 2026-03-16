@@ -226,17 +226,36 @@ const RECENCY_CUTOFF_DATE = new Date("2024-09-14");
 
 /**
  * recency (0–1): ≤ 18 months old = 1
+ *   "stale" tag → always 0 (merge layer confirmed > 24 months old)
  *   Current-state types (pricing, homepage, product) = always 1
+ *   published_at known + within 18 months = 1; older = 0
+ *   captured_at within 18 months = 1; older = 0
  *   Unparseable date = assume recent (1)
- *   Older than cutoff = 0
  */
-function scoreRecency(ev: EvidenceRecord): 0 | 1 {
+function scoreRecency(ev: EvidenceRecord, publishedAt?: string): 0 | 1 {
+  // Stale tag overrides everything — merge layer confirmed > 24 months old
+  if (ev.tags?.includes("stale")) return 0;
+
+  // Current-state types (pricing, homepage, product) are always considered fresh
   if (ALWAYS_CURRENT_TYPES.has(ev.evidence_type)) return 1;
+
+  const CUTOFF = RECENCY_CUTOFF_DATE;
+
+  // published_at from source metadata is more accurate than captured_at
+  if (publishedAt) {
+    try {
+      const pub = new Date(publishedAt);
+      if (!isNaN(pub.getTime())) return pub >= CUTOFF ? 1 : 0;
+    } catch {
+      // fall through to captured_at
+    }
+  }
+
   if (!ev.captured_at) return 1;
   try {
     const date = new Date(ev.captured_at);
     if (isNaN(date.getTime())) return 1;
-    return date >= RECENCY_CUTOFF_DATE ? 1 : 0;
+    return date >= CUTOFF ? 1 : 0;
   } catch {
     return 1;
   }
@@ -279,13 +298,14 @@ function scoreRecord(
   sourceTier: SourceTier,
   diagRefs: Set<string>,
   mechRefs: Set<string>,
-  interventionRefs: Set<string>
+  interventionRefs: Set<string>,
+  publishedAt?: string,
 ): ScoredRecord {
   const scores: PackScore = {
     commercial_salience: scoreCommercialSalience(ev, diagRefs, mechRefs, interventionRefs),
     specificity: scoreSpecificity(ev),
     customer_voice: scoreCustomerVoice(sourceTier),
-    recency: scoreRecency(ev),
+    recency: scoreRecency(ev, publishedAt),
   };
   const total_score = scores.commercial_salience + scores.specificity + scores.customer_voice + scores.recency;
   return { ev, sourceTier, scores, total_score };
@@ -500,8 +520,10 @@ export function buildEvidencePack(input: BuildEvidencePackInput): EvidencePack {
   // --- Step 0: Validate input integrity -----------------------------------------
   // Build source_id → source_tier lookup from dossier.sources
   const sourceTierMap = new Map<string, SourceTier>();
+  const sourcePublishedAtMap = new Map<string, string>();
   for (const src of dossier.sources) {
     sourceTierMap.set(src.source_id, src.source_tier as SourceTier);
+    if (src.published_at) sourcePublishedAtMap.set(src.source_id, src.published_at);
   }
 
   // Build known evidence_id set for orphan detection
@@ -522,7 +544,8 @@ export function buildEvidencePack(input: BuildEvidencePackInput): EvidencePack {
       throw new Error(`ERR_EVIDENCE_ORPHAN: ${ev.evidence_id} not found in dossier`);
     }
     const sourceTier = sourceTierMap.get(ev.source_id) ?? 1;
-    scoredAll.push(scoreRecord(ev, sourceTier, diagRefs, mechRefs, interventionRefs));
+    const publishedAt = sourcePublishedAtMap.get(ev.source_id);
+    scoredAll.push(scoreRecord(ev, sourceTier, diagRefs, mechRefs, interventionRefs, publishedAt));
   }
 
   // --- Step 2: Filter out records with total_score < 3 -------------------------

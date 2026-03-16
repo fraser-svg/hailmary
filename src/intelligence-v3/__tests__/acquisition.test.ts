@@ -43,12 +43,28 @@ function makeCorpusPage(
   };
 }
 
+// Use realistic external URLs so tier-classifier assigns correct canonical tiers:
+//   review_* → trustpilot.com / g2.com → Tier 3
+//   press_mention → techcrunch.com → Tier 2
+//   others → external sites → Tier 2-4
+const EXTERNAL_SOURCE_URLS: Partial<Record<ExternalSource['source_type'], string>> = {
+  review_trustpilot: 'https://trustpilot.com/review/example-co',
+  review_g2_snippet: 'https://g2.com/products/example-co/reviews',
+  review_capterra_snippet: 'https://capterra.com/software/example-co',
+  press_mention: 'https://techcrunch.com/2024/01/example-co-funding',
+  competitor_search_snippet: 'https://g2.com/compare/example-co-vs-competitor',
+  funding_announcement: 'https://crunchbase.com/organization/example-co',
+  linkedin_snippet: 'https://linkedin.com/company/example-co',
+  investor_mention: 'https://news.ycombinator.com/item?id=12345',
+};
+
 function makeExternalSource(
   type: ExternalSource['source_type'],
   overrides?: Partial<ExternalSource>,
 ): ExternalSource {
+  const url = EXTERNAL_SOURCE_URLS[type] ?? `https://techcrunch.com/${type}`;
   return {
-    url: `https://reviews.example.com/${type}`,
+    url,
     source_type: type,
     gathered_at: new Date().toISOString(),
     excerpt: `Review excerpt for ${type}. Great product, works well.`,
@@ -198,13 +214,6 @@ describe('siteCorpusAcquisition', () => {
     });
   });
 
-  describe('no provider/fixture configured', () => {
-    it('throws ERR_CORPUS_EMPTY', async () => {
-      await expect(
-        siteCorpusAcquisition({ domain: 'example.com' }),
-      ).rejects.toThrow('ERR_CORPUS_EMPTY');
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -580,6 +589,116 @@ describe('corpusToDossierAdapter', () => {
     const minimalCorpus = mergeResearchCorpus(minimalSiteCorpus, minimalExternalCorpus);
     const dossier = corpusToDossierAdapter(minimalCorpus);
     expect(dossier.confidence_and_gaps.overall_confidence).toBe('low');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// corpusToDossierAdapter — tag propagation
+// ---------------------------------------------------------------------------
+
+describe('corpusToDossierAdapter — tag propagation', () => {
+  function buildMinimalCorpusWithSource(
+    sourceOverrides: Partial<ExternalSource>,
+    pageOverrides?: Partial<CorpusPage>,
+  ) {
+    const siteCorpus = {
+      domain: 'https://acme.io',
+      fetched_at: new Date().toISOString(),
+      pages: [
+        makeCorpusPage('homepage', { url: 'https://acme.io/', token_count: 50, ...pageOverrides }),
+        makeCorpusPage('pricing', { url: 'https://acme.io/pricing', token_count: 30 }),
+        makeCorpusPage('about', { url: 'https://acme.io/about', token_count: 30 }),
+      ],
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 110 },
+    };
+    const source = makeExternalSource('review_trustpilot', sourceOverrides);
+    const externalCorpus = {
+      company: 'Acme',
+      gathered_at: new Date().toISOString(),
+      sources: [source],
+      source_metadata: {
+        source_types_attempted: ['review_trustpilot'] as ExternalSource['source_type'][],
+        source_types_successful: ['review_trustpilot'] as ExternalSource['source_type'][],
+        search_queries_used: ['acme reviews'],
+      },
+    };
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    return corpusToDossierAdapter(corpus);
+  }
+
+  it('adds "stale" tag on evidence record when source is_stale=true', () => {
+    // A source with published_at > 24 months ago triggers is_stale in merge
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setMonth(twoYearsAgo.getMonth() - 25);
+    const dossier = buildMinimalCorpusWithSource({
+      published_at: twoYearsAgo.toISOString(),
+    });
+    const reviewEvidence = dossier.evidence.find(
+      e => e.evidence_type === 'review_record',
+    );
+    expect(reviewEvidence?.tags).toContain('stale');
+  });
+
+  it('does NOT add "stale" tag when source is recent', () => {
+    const dossier = buildMinimalCorpusWithSource({
+      published_at: new Date().toISOString(), // today = fresh
+    });
+    const reviewEvidence = dossier.evidence.find(
+      e => e.evidence_type === 'review_record',
+    );
+    expect(reviewEvidence?.tags).not.toContain('stale');
+  });
+
+  it('adds "acquisition_perplexity" tag when acquisition_method=perplexity', () => {
+    const dossier = buildMinimalCorpusWithSource({
+      acquisition_method: 'perplexity',
+    });
+    const reviewEvidence = dossier.evidence.find(
+      e => e.evidence_type === 'review_record',
+    );
+    expect(reviewEvidence?.tags).toContain('acquisition_perplexity');
+  });
+
+  it('adds "acquisition_cloudflare" tag on site page evidence when acquisition_method=cloudflare', () => {
+    const siteCorpus = {
+      domain: 'https://acme.io',
+      fetched_at: new Date().toISOString(),
+      pages: [
+        makeCorpusPage('homepage', {
+          url: 'https://acme.io/',
+          token_count: 50,
+          acquisition_method: 'cloudflare' as const,
+        }),
+        makeCorpusPage('pricing', { url: 'https://acme.io/pricing', token_count: 30 }),
+        makeCorpusPage('about', { url: 'https://acme.io/about', token_count: 30 }),
+      ],
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 110 },
+    };
+    const externalCorpus = {
+      company: 'Acme',
+      gathered_at: new Date().toISOString(),
+      sources: [],
+      source_metadata: {
+        source_types_attempted: [] as ExternalSource['source_type'][],
+        source_types_successful: [] as ExternalSource['source_type'][],
+        search_queries_used: [],
+      },
+    };
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const dossier = corpusToDossierAdapter(corpus);
+    const homepageEvidence = dossier.evidence.find(
+      e => e.evidence_type === 'company_description_record',
+    );
+    expect(homepageEvidence?.tags).toContain('acquisition_cloudflare');
+  });
+
+  it('does NOT add acquisition tags when acquisition_method is undefined', () => {
+    const dossier = buildMinimalCorpusWithSource({});
+    const reviewEvidence = dossier.evidence.find(
+      e => e.evidence_type === 'review_record',
+    );
+    expect(reviewEvidence?.tags).not.toContain('acquisition_perplexity');
+    expect(reviewEvidence?.tags).not.toContain('acquisition_cloudflare');
   });
 });
 

@@ -102,6 +102,99 @@ export function isSectionPopulated(section: unknown): boolean {
   return false;
 }
 
+// --- In-memory validation (pipeline use) ---
+
+/**
+ * Validate an in-memory dossier object without file I/O.
+ * Runs structural checks only (no AJV schema validation).
+ * Used by the V3 pipeline as a post-acquisition gate.
+ */
+export function validateDossierObject(dossier: unknown): ValidationReport {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (dossier === null || typeof dossier !== 'object') {
+    return {
+      valid: false, schema_valid: false, evidence_links_valid: false, source_links_valid: false,
+      errors: ['Dossier is not an object'], warnings: [],
+      stats: { source_count: 0, evidence_count: 0, sections_populated: 0, sections_empty: 0,
+               evidence_ids_referenced: 0, evidence_ids_resolved: 0, source_ids_referenced: 0, source_ids_resolved: 0 },
+    };
+  }
+
+  const d = dossier as Record<string, unknown>;
+  const sources = (d.sources as Array<Record<string, unknown>>) ?? [];
+  const evidence = (d.evidence as Array<Record<string, unknown>>) ?? [];
+
+  const sourceIdSet = new Set(sources.map(s => s.source_id as string));
+  const evidenceIdSet = new Set(evidence.map(e => e.evidence_id as string));
+
+  // Check evidence link resolution
+  const dWithoutEv = { ...d };
+  delete dWithoutEv.evidence;
+  delete dWithoutEv.sources;
+  const referencedEvidenceIds = new Set(
+    collectValues(dWithoutEv, 'evidence_ids').filter((v): v is string => typeof v === 'string'),
+  );
+  let evidenceLinksValid = true;
+  for (const refId of referencedEvidenceIds) {
+    if (!evidenceIdSet.has(refId)) {
+      errors.push(`Evidence link: referenced evidence_id "${refId}" not found in evidence array`);
+      evidenceLinksValid = false;
+    }
+  }
+
+  // Check source link resolution
+  let sourceLinksValid = true;
+  for (const ev of evidence) {
+    const sourceId = ev.source_id as string;
+    if (!sourceIdSet.has(sourceId)) {
+      errors.push(`Source link: evidence "${ev.evidence_id}" references source_id "${sourceId}" not found in sources array`);
+      sourceLinksValid = false;
+    }
+  }
+
+  // Check confidence values
+  for (const conf of collectValues(dossier, 'confidence')) {
+    if (typeof conf === 'string' && !['low', 'medium', 'high'].includes(conf)) {
+      errors.push(`Confidence: invalid value "${conf}" (must be low/medium/high)`);
+    }
+  }
+
+  // Orphan evidence warnings (non-fatal)
+  for (const ev of evidence) {
+    if (!referencedEvidenceIds.has(ev.evidence_id as string)) {
+      warnings.push(`Orphan evidence: "${ev.evidence_id}" is not referenced by any section's evidence_ids`);
+    }
+  }
+
+  let sectionsPopulated = 0;
+  let sectionsEmpty = 0;
+  for (const section of CONTENT_SECTIONS) {
+    if (isSectionPopulated(d[section])) sectionsPopulated++;
+    else sectionsEmpty++;
+  }
+
+  return {
+    valid: errors.length === 0,
+    schema_valid: true, // schema check not run in in-memory mode
+    evidence_links_valid: evidenceLinksValid,
+    source_links_valid: sourceLinksValid,
+    errors,
+    warnings,
+    stats: {
+      source_count: sources.length,
+      evidence_count: evidence.length,
+      sections_populated: sectionsPopulated,
+      sections_empty: sectionsEmpty,
+      evidence_ids_referenced: referencedEvidenceIds.size,
+      evidence_ids_resolved: [...referencedEvidenceIds].filter(id => evidenceIdSet.has(id)).length,
+      source_ids_referenced: new Set(evidence.map(e => e.source_id)).size,
+      source_ids_resolved: [...new Set(evidence.map(e => e.source_id as string))].filter(id => sourceIdSet.has(id)).length,
+    },
+  };
+}
+
 // --- Main ---
 
 export function validate(dossierPath: string): ValidationReport {

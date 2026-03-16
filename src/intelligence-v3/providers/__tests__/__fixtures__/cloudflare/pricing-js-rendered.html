@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Pricing — Trigger.dev</title>
+  <style>
+    .pricing-table { display: grid; grid-template-columns: repeat(3, 1fr); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+  </nav>
+
+  <main>
+    <h1>Simple, transparent pricing</h1>
+    <p>Start free. Scale as you grow. No surprises.</p>
+
+    <div class="pricing-table">
+      <div class="plan">
+        <h2>Free</h2>
+        <p class="price">$0/month</p>
+        <ul>
+          <li>50,000 task runs/month</li>
+          <li>3 concurrent runs</li>
+          <li>7-day log retention</li>
+          <li>Community support</li>
+        </ul>
+        <a href="/signup">Get started free</a>
+      </div>
+
+      <div class="plan highlighted">
+        <h2>Pro</h2>
+        <p class="price">$20/month</p>
+        <ul>
+          <li>500,000 task runs/month</li>
+          <li>25 concurrent runs</li>
+          <li>30-day log retention</li>
+          <li>Priority support</li>
+          <li>Custom domains</li>
+        </ul>
+        <a href="/signup?plan=pro">Start Pro trial</a>
+      </div>
+
+      <div class="plan">
+        <h2>Enterprise</h2>
+        <p class="price">Custom pricing</p>
+        <ul>
+          <li>Unlimited task runs</li>
+          <li>Unlimited concurrency</li>
+          <li>90-day log retention</li>
+          <li>SLA guarantee</li>
+          <li>Dedicated support</li>
+          <li>SSO / SAML</li>
+          <li>Custom data retention</li>
+        </ul>
+        <a href="/contact-sales">Contact sales</a>
+      </div>
+    </div>
+
+    <section class="faq">
+      <h2>Frequently asked questions</h2>
+      <div class="faq-item">
+        <h3>What counts as a task run?</h3>
+        <p>A task run is a single execution of a background job. If your job calls child tasks, each child task counts as a separate run.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Can I self-host Trigger.dev?</h3>
+        <p>Yes, Trigger.dev is open source and can be self-hosted. The cloud version is managed for you with automatic scaling and updates.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2024 Trigger.dev</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "No relevant results found for the given query."
+      }
+    }
+  ],
+  "citations": []
+}

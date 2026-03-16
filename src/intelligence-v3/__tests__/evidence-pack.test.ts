@@ -380,6 +380,81 @@ describe("evidence scoring — recency", () => {
     const ev006 = pack.records.find(r => r.evidence_id === "ev_006");
     expect(ev006?.scores.recency).toBe(1);
   });
+
+  it("scores 0 when tags contains 'stale' (overrides everything)", () => {
+    const input = buildQualifyingInput();
+    // Create a stale-tagged review record (tier 3 — would otherwise have good scores)
+    const staleEv = makeEv({
+      evidence_id: "ev_stale",
+      source_id: "src_stale",
+      evidence_type: "review_record",
+      captured_at: "2025-10-01T00:00:00.000Z", // captured_at is recent, but stale tag overrides
+      excerpt: "Acme saved us 40% on procurement costs last year.",
+      tags: ["stale", "review_trustpilot", "customer_voice"],
+    });
+    const staleSource = { ...makeSrc("src_stale", 3), captured_at: "2025-10-01T00:00:00.000Z" };
+    const dossier = makeDossierWith(
+      [...input.dossier.evidence, staleEv],
+      [...input.dossier.sources, staleSource],
+    );
+    const pack = buildEvidencePack({ ...input, dossier });
+    const found = pack.records.find(r => r.evidence_id === "ev_stale");
+    if (found) {
+      expect(found.scores.recency).toBe(0);
+    }
+  });
+
+  it("scores 1 when source has published_at within 18 months", () => {
+    const input = buildQualifyingInput();
+    const recentEv = makeEv({
+      evidence_id: "ev_pub_recent",
+      source_id: "src_pub_recent",
+      evidence_type: "press_record",
+      captured_at: "2020-01-01T00:00:00.000Z", // captured_at would give 0, but published_at overrides
+      excerpt: "Acme secured $10M Series A funding for procurement automation.",
+      tags: ["press_mention"],
+    });
+    const pubSrc: typeof input.dossier.sources[number] = {
+      ...makeSrc("src_pub_recent", 2),
+      captured_at: "2020-01-01T00:00:00.000Z",
+      published_at: "2025-12-01T00:00:00.000Z", // recent publish date
+    };
+    const dossier = makeDossierWith(
+      [...input.dossier.evidence, recentEv],
+      [...input.dossier.sources, pubSrc],
+    );
+    const pack = buildEvidencePack({ ...input, dossier });
+    const found = pack.records.find(r => r.evidence_id === "ev_pub_recent");
+    if (found) {
+      expect(found.scores.recency).toBe(1);
+    }
+  });
+
+  it("scores 0 when source has published_at older than 18 months", () => {
+    const input = buildQualifyingInput();
+    const oldPubEv = makeEv({
+      evidence_id: "ev_pub_old",
+      source_id: "src_pub_old",
+      evidence_type: "press_record",
+      captured_at: "2025-10-01T00:00:00.000Z", // captured_at would give 1, but published_at overrides
+      excerpt: "Acme raised $5M Series A in 2022.",
+      tags: ["press_mention"],
+    });
+    const oldPubSrc: typeof input.dossier.sources[number] = {
+      ...makeSrc("src_pub_old", 2),
+      captured_at: "2025-10-01T00:00:00.000Z",
+      published_at: "2022-01-01T00:00:00.000Z", // old publish date
+    };
+    const dossier = makeDossierWith(
+      [...input.dossier.evidence, oldPubEv],
+      [...input.dossier.sources, oldPubSrc],
+    );
+    const pack = buildEvidencePack({ ...input, dossier });
+    const found = pack.records.find(r => r.evidence_id === "ev_pub_old");
+    if (found) {
+      expect(found.scores.recency).toBe(0);
+    }
+  });
 });
 
 describe("evidence scoring — total_score", () => {
