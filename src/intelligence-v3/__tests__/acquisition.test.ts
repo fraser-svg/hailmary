@@ -19,6 +19,7 @@ import {
   MAX_TOKENS,
 } from '../acquisition/site-corpus.js';
 import { externalResearchAcquisition } from '../acquisition/external-research.js';
+import type { ExternalResearchProvider } from '../acquisition/external-research.js';
 import { mergeResearchCorpus } from '../acquisition/merge-corpus.js';
 import { corpusToDossierAdapter, domainToCompanyName } from '../acquisition/corpus-to-dossier.js';
 import type { CorpusPage, ExternalSource } from '../types/research-corpus.js';
@@ -713,4 +714,163 @@ describe('domainToCompanyName', () => {
     expect(domainToCompanyName('https://acme.io')).toBe('Acme');
     expect(domainToCompanyName('https://www.example.com/')).toBe('Example');
   });
+});
+
+// ---------------------------------------------------------------------------
+// externalResearchAcquisition — CN budget timeout + sparse warning (Spec 008)
+// ---------------------------------------------------------------------------
+
+describe('externalResearchAcquisition — provider mode CN budget', () => {
+  /**
+   * Build a mock provider that:
+   *   - returns 1 source for standard queries
+   *   - for CN queries, takes `cnDelayMs` before returning (to simulate slow search)
+   */
+  function makeMockProvider(options: {
+    cnDelayMs?: number;
+    cnReturnEmpty?: boolean;
+  }): ExternalResearchProvider {
+    const { cnDelayMs = 0, cnReturnEmpty = false } = options;
+    const cnTypes = new Set([
+      'reddit_thread',
+      'hackernews_thread',
+      'github_issues_snippet',
+      'comparison_article',
+      'critical_review',
+    ]);
+
+    return {
+      async search(_query: string, sourceType: ExternalSource['source_type']) {
+        const isCN = cnTypes.has(sourceType);
+
+        if (isCN && cnDelayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, cnDelayMs));
+        }
+
+        if (isCN && cnReturnEmpty) {
+          return [];
+        }
+
+        // Use external (non-own-domain) URLs and mention the company/domain
+        // in the excerpt so filterExternalSources() accepts them.
+        return [
+          {
+            url: `https://reddit.com/r/saas/${sourceType}`,
+            source_type: sourceType,
+            gathered_at: new Date().toISOString(),
+            excerpt: `example.com ${sourceType} result. Relevant review of the product.`,
+            token_count: 15,
+            source_tier: 3 as const,
+          },
+        ];
+      },
+    };
+  }
+
+  it('emits WARN_COUNTER_NARRATIVE_SPARSE when all CN queries return no results', async () => {
+    const warnMessages: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => { warnMessages.push(String(args[0])); };
+
+    try {
+      await externalResearchAcquisition({
+        company: 'Example',
+        domain: 'example.com',
+        provider: makeMockProvider({ cnReturnEmpty: true }),
+      });
+    } finally {
+      console.warn = origWarn;
+    }
+
+    expect(warnMessages.some(m => m.includes('WARN_COUNTER_NARRATIVE_SPARSE'))).toBe(true);
+  });
+
+  it('does NOT emit WARN_COUNTER_NARRATIVE_SPARSE when at least one CN query returns results', async () => {
+    const warnMessages: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => { warnMessages.push(String(args[0])); };
+
+    try {
+      await externalResearchAcquisition({
+        company: 'Example',
+        domain: 'example.com',
+        provider: makeMockProvider({ cnReturnEmpty: false }),
+      });
+    } finally {
+      console.warn = origWarn;
+    }
+
+    expect(warnMessages.some(m => m.includes('WARN_COUNTER_NARRATIVE_SPARSE'))).toBe(false);
+  });
+
+  it('emits COUNTER_NARRATIVE_ACQUISITION log line when CN queries are attempted', async () => {
+    const logMessages: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => { logMessages.push(String(args[0])); };
+
+    try {
+      await externalResearchAcquisition({
+        company: 'Example',
+        domain: 'example.com',
+        provider: makeMockProvider({}),
+      });
+    } finally {
+      console.log = origLog;
+    }
+
+    expect(logMessages.some(m => m.includes('COUNTER_NARRATIVE_ACQUISITION'))).toBe(true);
+  });
+
+  it('COUNTER_NARRATIVE_ACQUISITION log includes queries_attempted and sources_acquired', async () => {
+    const logMessages: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => { logMessages.push(args.join(' ')); };
+
+    try {
+      await externalResearchAcquisition({
+        company: 'Example',
+        domain: 'example.com',
+        provider: makeMockProvider({}),
+      });
+    } finally {
+      console.log = origLog;
+    }
+
+    const cnLog = logMessages.find(m => m.includes('COUNTER_NARRATIVE_ACQUISITION'));
+    expect(cnLog).toBeDefined();
+    const parsed = JSON.parse(cnLog!.replace('COUNTER_NARRATIVE_ACQUISITION ', ''));
+    expect(parsed).toHaveProperty('queries_attempted');
+    expect(parsed).toHaveProperty('queries_success');
+    expect(parsed).toHaveProperty('sources_acquired');
+    expect(parsed).toHaveProperty('budget_exceeded');
+    expect(parsed.queries_attempted).toBe(5); // 5 CN query types
+  });
+
+  it('emits WARN_COUNTER_NARRATIVE_TIMEOUT and stops remaining CN queries when budget exceeded', async () => {
+    const warnMessages: string[] = [];
+    const logMessages: string[] = [];
+    const origWarn = console.warn;
+    const origLog = console.log;
+    console.warn = (...args: unknown[]) => { warnMessages.push(String(args[0])); };
+    console.log = (...args: unknown[]) => { logMessages.push(args.join(' ')); };
+
+    try {
+      // Each CN query takes 25s (> 20s budget) — budget exceeded on first CN query
+      await externalResearchAcquisition({
+        company: 'Example',
+        domain: 'example.com',
+        provider: makeMockProvider({ cnDelayMs: 25_000 }),
+      });
+    } finally {
+      console.warn = origWarn;
+      console.log = origLog;
+    }
+
+    expect(warnMessages.some(m => m.includes('WARN_COUNTER_NARRATIVE_TIMEOUT'))).toBe(true);
+
+    const cnLog = logMessages.find(m => m.includes('COUNTER_NARRATIVE_ACQUISITION'));
+    expect(cnLog).toBeDefined();
+    const parsed = JSON.parse(cnLog!.replace('COUNTER_NARRATIVE_ACQUISITION ', ''));
+    expect(parsed.budget_exceeded).toBe(true);
+  }, 30_000); // 30s timeout — allows for the one 25s delay + overhead
 });
