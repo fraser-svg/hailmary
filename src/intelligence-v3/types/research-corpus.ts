@@ -31,7 +31,13 @@ export type ExternalSourceType =
   | "competitor_search_snippet"
   | "funding_announcement"
   | "linkedin_snippet"
-  | "investor_mention";
+  | "investor_mention"
+  // Counter-narrative sources (Spec 008)
+  | "reddit_thread"
+  | "hackernews_thread"
+  | "github_issues_snippet"
+  | "comparison_article"
+  | "critical_review";
 
 /** A single fetched or extracted web page from the company's own domain */
 export interface CorpusPage {

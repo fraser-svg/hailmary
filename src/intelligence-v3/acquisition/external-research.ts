@@ -73,6 +73,12 @@ const SOURCE_TYPE_PRIORITY: ExternalSourceType[] = [
   'funding_announcement',
   'linkedin_snippet',
   'investor_mention',
+  // Counter-narrative sources (Spec 008) — appended after standard sources
+  'reddit_thread',
+  'hackernews_thread',
+  'github_issues_snippet',
+  'comparison_article',
+  'critical_review',
 ];
 
 // ---------------------------------------------------------------------------
@@ -146,12 +152,33 @@ export function buildQueryMap(
 
     // Investors: company + domain + key funding databases.
     ['investor_mention', `"${company}" "${domain}" investors ycombinator crunchbase`],
+
+    // Counter-narrative queries (Spec 008 §5) — domain anchor for precision.
+    // reddit_thread / hackernews_thread / critical_review: recency filter = year
+    // github_issues_snippet / comparison_article: no recency filter (issues accumulate)
+    ['reddit_thread',         `"${domain}" (complaints OR problems OR issues OR disappointed) site:reddit.com`],
+    ['hackernews_thread',     `"${domain}" site:news.ycombinator.com`],
+    ['github_issues_snippet', `"${domain}" (issues OR bugs OR broken) site:github.com`],
+    ['comparison_article',    `"${company}" "${domain}" vs alternatives -site:${domain}`],
+    ['critical_review',       `"${domain}" (disappointed OR "doesn't work" OR avoid OR broken) review`],
   ];
 }
 
 // ---------------------------------------------------------------------------
 // Mode B — provider
 // ---------------------------------------------------------------------------
+
+// Counter-narrative source types (Spec 008) — used for budget tracking in fetchFromProvider
+const CN_SOURCE_TYPES = new Set<ExternalSourceType>([
+  'reddit_thread',
+  'hackernews_thread',
+  'github_issues_snippet',
+  'comparison_article',
+  'critical_review',
+]);
+
+/** Wall-clock budget for the entire CN query batch (ms). */
+const CN_BUDGET_MS = 20_000;
 
 async function fetchFromProvider(
   company: string,
@@ -166,9 +193,34 @@ async function fetchFromProvider(
   let totalOwnDomainRejected = 0;
   let totalNoMatchRejected = 0;
 
+  // CN batch observability counters
+  let cnBatchStart: number | null = null;
+  let cnQueriesAttempted = 0;
+  let cnQueriesSuccessful = 0;
+  let cnSourcesAccepted = 0;
+  let cnBudgetExceeded = false;
+
   const queryMap = buildQueryMap(company, domain);
 
   for (const [sourceType, query] of queryMap) {
+    const isCN = CN_SOURCE_TYPES.has(sourceType);
+
+    // CN batch timing — start wall-clock on first CN query
+    if (isCN) {
+      if (cnBatchStart === null) cnBatchStart = Date.now();
+
+      // Budget check: abort CN batch if elapsed > 20s
+      if (Date.now() - cnBatchStart > CN_BUDGET_MS) {
+        cnBudgetExceeded = true;
+        console.warn(
+          `WARN_COUNTER_NARRATIVE_TIMEOUT: CN batch budget exceeded (${CN_BUDGET_MS}ms), skipping remaining CN queries`,
+        );
+        break;
+      }
+
+      cnQueriesAttempted++;
+    }
+
     sourceTypesAttempted.push(sourceType);
     queriesUsed.push(query);
 
@@ -199,6 +251,10 @@ async function fetchFromProvider(
       if (accepted.length > 0) {
         allSources.push(...accepted);
         sourceTypesSuccessful.push(sourceType);
+        if (isCN) {
+          cnQueriesSuccessful++;
+          cnSourcesAccepted += accepted.length;
+        }
       }
     } catch (err) {
       // Non-fatal — individual source type failure does not abort the pipeline
@@ -206,6 +262,23 @@ async function fetchFromProvider(
         `WARN_EXTERNAL_RESEARCH_SPARSE: provider search failed for ${sourceType}: ${String(err)}`,
       );
     }
+  }
+
+  // Warn when CN queries were attempted but none returned results
+  if (cnQueriesAttempted > 0 && cnQueriesSuccessful === 0) {
+    console.warn(
+      'WARN_COUNTER_NARRATIVE_SPARSE: CN queries attempted but no sources acquired',
+    );
+  }
+
+  // Structured CN acquisition log (Amendment 1 — replaces AcquisitionQualityReport block)
+  if (cnQueriesAttempted > 0) {
+    console.log('COUNTER_NARRATIVE_ACQUISITION', JSON.stringify({
+      queries_attempted: cnQueriesAttempted,
+      queries_success: cnQueriesSuccessful,
+      sources_acquired: cnSourcesAccepted,
+      budget_exceeded: cnBudgetExceeded,
+    }));
   }
 
   if (allSources.length === 0) {
