@@ -64,6 +64,12 @@ const EXTERNAL_SOURCE_EVIDENCE_TYPE: Record<ExternalSourceType, EvidenceType> = 
   funding_announcement: 'funding_record',
   linkedin_snippet: 'channel_record',
   investor_mention: 'funding_record',
+  // Counter-narrative sources (Spec 008)
+  reddit_thread: 'pain_point_record',
+  hackernews_thread: 'customer_language_record',
+  github_issues_snippet: 'pain_point_record',
+  comparison_article: 'comparison_record',
+  critical_review: 'review_record',
 };
 
 /** Tier → source_quality mapping for EvidenceRecord */
@@ -135,6 +141,11 @@ function externalSourceRecord(source: ExternalSource, idx: number): SourceRecord
     funding_announcement: 'Funding Announcement',
     linkedin_snippet: 'LinkedIn Company Snippet',
     investor_mention: 'Investor Mention',
+    reddit_thread: 'Reddit Thread',
+    hackernews_thread: 'Hacker News Thread',
+    github_issues_snippet: 'GitHub Issues Snippet',
+    comparison_article: 'Comparison Article',
+    critical_review: 'Critical Review',
   };
 
   return {
@@ -192,6 +203,85 @@ function sitePageEvidenceRecord(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Counter-narrative tagging (Spec 008 §7)
+// ---------------------------------------------------------------------------
+
+const FRICTION_KEYWORDS = [
+  "slow", "broken", "doesn't work", "hard to", "difficult", "painful", "janky",
+  "fails", "error", "bug", "crashes", "unstable", "unreliable", "confusing",
+  "clunky", "cumbersome", "frustrating to use", "poor documentation",
+  "steep learning curve", "setup is", "hard to set up", "complex to",
+];
+
+const COMPLAINT_KEYWORDS = [
+  "disappointed", "frustrated", "waste", "regret", "avoid", "terrible", "awful",
+  "worst", "not worth", "switched away", "cancelled", "churned", "left for",
+  "moved to", "went back to", "not recommended", "stay away", "overpriced",
+  "poor support", "no support", "ignored our",
+];
+
+const CONTRADICTION_KEYWORDS = [
+  "claims", "but actually", "marketed as", "vs reality", "in practice",
+  "supposed to", "advertised as", "promised", "reality is", "truth is",
+  "misleading", "overstated", "doesn't actually", "in theory", "on paper",
+];
+
+/**
+ * Tag an evidence excerpt with friction/complaint/contradiction signals.
+ *
+ * Returns an array of tag strings to append to the evidence record's tags[].
+ * Returns [] on empty/undefined excerpt.
+ * Does NOT modify the excerpt — only derives tags from it.
+ *
+ * Tags emitted:
+ *   "friction"           — excerpt contains a friction keyword
+ *   "complaint"          — excerpt contains a complaint keyword
+ *   "contradiction"      — excerpt contains a contradiction keyword
+ *   "buyer_disappointment" — excerpt contains BOTH friction AND complaint keywords
+ */
+export function tagFrictionSignals(
+  excerpt: string | undefined,
+  _sourceType: ExternalSourceType,
+): string[] {
+  if (!excerpt) return [];
+
+  const lower = excerpt.toLowerCase();
+  const hasFriction = FRICTION_KEYWORDS.some(kw => lower.includes(kw));
+  const hasComplaint = COMPLAINT_KEYWORDS.some(kw => lower.includes(kw));
+  const hasContradiction = CONTRADICTION_KEYWORDS.some(kw => lower.includes(kw));
+
+  const tags: string[] = [];
+  if (hasFriction) tags.push('friction');
+  if (hasComplaint) tags.push('complaint');
+  if (hasContradiction) tags.push('contradiction');
+  if (hasFriction && hasComplaint) tags.push('buyer_disappointment');
+
+  return tags;
+}
+
+/**
+ * Compute negative_signal_depth from the full evidence array.
+ *
+ * Counts evidence records with a 'friction' or 'complaint' tag.
+ * Thresholds (Spec 008 Amendment 2):
+ *   0     → 'none'
+ *   1–2   → 'thin'
+ *   3–5   → 'moderate'
+ *   ≥6    → 'rich'
+ */
+function computeNegativeSignalDepth(
+  evidence: EvidenceRecord[],
+): 'none' | 'thin' | 'moderate' | 'rich' {
+  const count = evidence.filter(ev =>
+    (ev.tags ?? []).some(t => t === 'friction' || t === 'complaint'),
+  ).length;
+  if (count === 0) return 'none';
+  if (count <= 2) return 'thin';
+  if (count <= 5) return 'moderate';
+  return 'rich';
+}
+
 function externalSourceEvidenceRecord(
   source: ExternalSource,
   sourceId: string,
@@ -206,9 +296,17 @@ function externalSourceEvidenceRecord(
   if (source.source_type === 'competitor_search_snippet') tags.push('competitor_positioning');
   if (source.source_type === 'funding_announcement') tags.push('funding', 'investor_signal');
   if (source.source_type === 'linkedin_snippet') tags.push('channel', 'social');
+  // Counter-narrative base tags (Spec 008 §7)
+  if (source.source_type === 'reddit_thread') tags.push('community_voice', 'buyer_language');
+  if (source.source_type === 'hackernews_thread') tags.push('community_voice', 'developer_voice');
+  if (source.source_type === 'github_issues_snippet') tags.push('developer_voice', 'product_friction');
+  if (source.source_type === 'comparison_article') tags.push('competitor_positioning', 'buyer_language');
+  if (source.source_type === 'critical_review') tags.push('customer_voice', 'buyer_language');
   // Staleness and acquisition provenance tags
   if (source.is_stale) tags.push('stale');
   if (source.acquisition_method === 'perplexity') tags.push('acquisition_perplexity');
+  // Friction/complaint/contradiction tagging (Spec 008 §7)
+  tags.push(...tagFrictionSignals(source.excerpt, source.source_type));
 
   return {
     evidence_id: makeEvidenceId(idx),
@@ -396,7 +494,7 @@ function computeEvidenceSummary(
     direct_count: evidence.length - inferred,
     customer_voice_depth: (reviewCount >= 3 ? 'rich' : reviewCount >= 1 ? 'thin' : 'none') as
       'none' | 'thin' | 'moderate' | 'rich',
-    negative_signal_depth: 'none' as const,
+    negative_signal_depth: computeNegativeSignalDepth(evidence),
   };
 }
 

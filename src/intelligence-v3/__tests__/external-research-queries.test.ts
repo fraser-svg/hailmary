@@ -108,11 +108,11 @@ describe('buildQueryMap — structure invariants', () => {
     describe(`${company}`, () => {
       const entries = buildQueryMap(company, domain);
 
-      it('returns exactly 8 entries', () => {
-        expect(entries).toHaveLength(8);
+      it('returns exactly 13 entries (8 standard + 5 CN)', () => {
+        expect(entries).toHaveLength(13);
       });
 
-      it('covers all required source types', () => {
+      it('covers all required standard source types', () => {
         const types = entries.map(([t]) => t);
         expect(types).toContain('review_trustpilot');
         expect(types).toContain('review_g2_snippet');
@@ -122,6 +122,26 @@ describe('buildQueryMap — structure invariants', () => {
         expect(types).toContain('funding_announcement');
         expect(types).toContain('linkedin_snippet');
         expect(types).toContain('investor_mention');
+      });
+
+      it('covers all 5 CN source types', () => {
+        const types = entries.map(([t]) => t);
+        expect(types).toContain('reddit_thread');
+        expect(types).toContain('hackernews_thread');
+        expect(types).toContain('github_issues_snippet');
+        expect(types).toContain('comparison_article');
+        expect(types).toContain('critical_review');
+      });
+
+      it('CN queries appear after standard queries (indices 8–12)', () => {
+        const cnTypes = entries.slice(8).map(([t]) => t);
+        expect(cnTypes).toEqual([
+          'reddit_thread',
+          'hackernews_thread',
+          'github_issues_snippet',
+          'comparison_article',
+          'critical_review',
+        ]);
       });
 
       it('all query strings are non-empty', () => {
@@ -138,13 +158,60 @@ describe('buildQueryMap — structure invariants', () => {
         }
       });
 
-      it('non-review queries all contain the domain', () => {
+      it('non-review standard queries all contain the domain', () => {
         const nonReviewTypes = ['press_mention', 'competitor_search_snippet', 'funding_announcement', 'linkedin_snippet', 'investor_mention'];
         const queryMapObj = Object.fromEntries(entries);
         for (const type of nonReviewTypes) {
           expect(queryMapObj[type]).toContain(domain);
         }
       });
+
+      it('CN queries all contain the domain', () => {
+        const cnTypes = ['reddit_thread', 'hackernews_thread', 'github_issues_snippet', 'comparison_article', 'critical_review'];
+        const queryMapObj = Object.fromEntries(entries);
+        for (const type of cnTypes) {
+          expect(queryMapObj[type]).toContain(domain);
+        }
+      });
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// CN query content anchors
+// ---------------------------------------------------------------------------
+
+describe('buildQueryMap — CN query content', () => {
+  const map = Object.fromEntries(buildQueryMap('Trigger.dev', 'trigger.dev'));
+
+  it('reddit_thread: anchors on domain with complaint terms and reddit.com', () => {
+    expect(map['reddit_thread']).toContain('"trigger.dev"');
+    expect(map['reddit_thread']).toContain('site:reddit.com');
+    expect(map['reddit_thread']).toMatch(/complaints|problems|issues|disappointed/);
+  });
+
+  it('hackernews_thread: anchors on domain with news.ycombinator.com', () => {
+    expect(map['hackernews_thread']).toContain('"trigger.dev"');
+    expect(map['hackernews_thread']).toContain('site:news.ycombinator.com');
+  });
+
+  it('github_issues_snippet: anchors on domain with github.com and issue terms', () => {
+    expect(map['github_issues_snippet']).toContain('"trigger.dev"');
+    expect(map['github_issues_snippet']).toContain('site:github.com');
+    expect(map['github_issues_snippet']).toMatch(/issues|bugs|broken/);
+  });
+
+  it('comparison_article: contains both company name and domain with vs alternatives', () => {
+    expect(map['comparison_article']).toContain('"Trigger.dev"');
+    expect(map['comparison_article']).toContain('"trigger.dev"');
+    expect(map['comparison_article']).toContain('vs alternatives');
+    // Excludes own domain to avoid company-controlled comparisons
+    expect(map['comparison_article']).toContain('-site:trigger.dev');
+  });
+
+  it('critical_review: anchors on domain with negative review terms', () => {
+    expect(map['critical_review']).toContain('"trigger.dev"');
+    expect(map['critical_review']).toMatch(/disappointed|avoid|broken/);
+    expect(map['critical_review']).toContain('review');
+  });
 });
