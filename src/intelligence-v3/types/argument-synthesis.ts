@@ -164,4 +164,11 @@ export interface ArgumentSynthesis {
    * retry exhausted. When true, buildMemoBrief falls back to full V3 logic.
    */
   fallback_to_template: boolean;
+
+  /**
+   * True when the thesis retry path fired — i.e. attempt 1 returned an empty
+   * company_specific_thesis and a second LLM call was made with an explicit
+   * thesis instruction. Diagnostic/observability only; does not affect routing.
+   */
+  synthesis_retry_triggered?: boolean;
 }

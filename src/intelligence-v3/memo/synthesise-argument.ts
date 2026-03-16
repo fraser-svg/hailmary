@@ -227,6 +227,10 @@ RULES:
 6. hook_strategy must identify the specific evidence record (evidence_id) that anchors the hook, the tension type, and explain why this specific observation matters to this founder — not a generic framing instruction. framing must be ≤ 30 words.
 7. argument_skeleton orders 3–6 evidence records into a logical chain. Exactly one step must have logical_role = "diagnosis" — this step connects the observation and mechanisms into the thesis. This is required. Each step must include a one-sentence purpose explaining its logical role.
 8. diagnosis_fit and diagnosis_tension_note reflect your honest assessment of how well the evidence supports the selected diagnosis rhetorically. These do not change the diagnosis. They are diagnostics only.
+9. company_specific_thesis MUST NEVER be empty or blank. This field is required in all cases.
+   - Even with weak evidence, produce the weakest defensible thesis grounded in ≥1 evidence record from the pack.
+   - If the commercial consequence is unclear, state the likely constraint or commercial risk based on the diagnosis type.
+   - Never leave company_specific_thesis as an empty string, null, or placeholder. A minimal, evidence-grounded thesis is always better than an empty field.
 
 HALLUCINATION CONTROLS:
 - If you cannot ground a claim in a specific evidence_id, omit it.
@@ -350,6 +354,23 @@ export function buildRetryPrompt(
   "company_specific_narrative": "... (ev_XXX)",
   "evidence_refs": ["ev_XXX"]
 }`;
+}
+
+// ---------------------------------------------------------------------------
+// Thesis retry prompt (exported for testing)
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the user prompt for a thesis retry attempt.
+ * Called when attempt 1 returns an empty company_specific_thesis.
+ * Appends an explicit instruction to the original prompt.
+ */
+export function buildThesisRetryUserPrompt(originalUserPrompt: string): string {
+  return `${originalUserPrompt}
+
+IMPORTANT — YOUR PREVIOUS RESPONSE HAD AN EMPTY THESIS FIELD. This is not acceptable. You must populate company_specific_thesis.
+
+Produce a concrete company-specific thesis grounded in at least one evidence record from the pack. Even if evidence is limited, state the weakest defensible claim: name the specific condition affecting this company, the commercial constraint or risk it creates, and cite at least one evidence_id. Do not leave company_specific_thesis empty. Return the full JSON object again.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -882,9 +903,27 @@ export async function synthesiseArgument(
     return makeFallback(input, timestamp);
   }
 
+  // ── Thesis retry (if thesis is empty after attempt 1) ─────────────────────
+  // A missing thesis cascades to fallback_to_template. Retry once with an
+  // explicit instruction before full validation runs.
+  let thesisRetryTriggered = false;
+  if (!raw1.company_specific_thesis.trim()) {
+    thesisRetryTriggered = true;
+    const thesisRetryPrompt = buildThesisRetryUserPrompt(userPrompt);
+    try {
+      const retryText = await callLLMWithTimeout(
+        client, model, maxTokens, temperature, systemPrompt, thesisRetryPrompt, timeoutMs
+      );
+      raw1 = parseSynthesisResponse(retryText);
+    } catch {
+      return { ...makeFallback(input, timestamp), synthesis_retry_triggered: true };
+    }
+    // If thesis is still empty after retry, validateSynthesis will catch it below
+  }
+
   const val1 = validateSynthesis(raw1, packIds);
   if (!val1.valid || !val1.mechanisms || !val1.skeleton || !val1.hookStrategy) {
-    return makeFallback(input, timestamp);
+    return { ...makeFallback(input, timestamp), synthesis_retry_triggered: thesisRetryTriggered };
   }
 
   let [mech1, mech2] = val1.mechanisms;
@@ -932,6 +971,7 @@ export async function synthesiseArgument(
       // Second attempt also failed — fallback
       return {
         ...makeFallback(input, timestamp),
+        synthesis_retry_triggered: thesisRetryTriggered,
         distinctness_check: {
           passed: false,
           notes: distinctNotes.length > 0 ? distinctNotes : undefined,
@@ -958,5 +998,6 @@ export async function synthesiseArgument(
       notes: distinctNotes.length > 0 ? distinctNotes : undefined,
     },
     fallback_to_template: false,
+    synthesis_retry_triggered: thesisRetryTriggered,
   };
 }
