@@ -265,19 +265,104 @@ function getClient(injected?: Anthropic): Anthropic {
 
 type RawSections = Record<MemoSectionName, string>;
 
+/**
+ * Extract JSON text from an LLM response.
+ *
+ * Handles three common failure modes:
+ *   1. JSON wrapped in markdown code fences (```json...``` or ```...```)
+ *   2. JSON embedded in prose (LLM adds preamble/postamble)
+ *   3. Plain JSON (pass-through)
+ */
+function extractJson(text: string): string {
+  const trimmed = text.trim();
+
+  // Strategy 1: extract content between markdown code fences
+  // Matches both ```json\n{...}\n``` and ```\n{...}\n```
+  // Also handles fences anywhere in the response (e.g. with leading prose)
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenceMatch && fenceMatch[1]) {
+    return fenceMatch[1].trim();
+  }
+
+  // Strategy 2: find the outermost JSON object within prose
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+
+  // Strategy 3: return as-is
+  return trimmed;
+}
+
+/**
+ * Best-effort repair for the most common JSON encoding issue: unescaped
+ * double quotes inside string values. Walks the text character by character
+ * and escapes bare quotes that appear to be inside a string value (i.e. not
+ * followed by a JSON structural character).
+ *
+ * This handles many real-world LLM outputs but is not a general JSON fixer.
+ */
+function repairUnescapedQuotes(jsonText: string): string {
+  let result = "";
+  let inString = false;
+  let i = 0;
+
+  while (i < jsonText.length) {
+    const ch = jsonText[i];
+
+    // Pass through escape sequences unchanged
+    if (ch === "\\" && i + 1 < jsonText.length) {
+      result += ch + jsonText[i + 1];
+      i += 2;
+      continue;
+    }
+
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        result += ch;
+      } else {
+        // Peek ahead (skip spaces/tabs) to decide if this closes the string
+        let j = i + 1;
+        while (j < jsonText.length && (jsonText[j] === " " || jsonText[j] === "\t")) j++;
+        const next = j < jsonText.length ? jsonText[j] : "";
+
+        if (!next || /[,:\}\]]/.test(next)) {
+          // Structural character follows — treat as closing quote
+          inString = false;
+          result += ch;
+        } else {
+          // Non-structural character follows — treat as unescaped quote inside value
+          result += '\\"';
+        }
+      }
+      i++;
+      continue;
+    }
+
+    result += ch;
+    i++;
+  }
+
+  return result;
+}
+
 export function parseResponse(text: string): RawSections {
-  const cleaned = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/, "")
-    .trim();
+  const extracted = extractJson(text);
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(extracted);
   } catch {
-    throw new Error(
-      `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
-    );
+    // Best-effort repair for unescaped quotes, then retry
+    try {
+      parsed = JSON.parse(repairUnescapedQuotes(extracted));
+    } catch {
+      throw new Error(
+        `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
+      );
+    }
   }
 
   if (typeof parsed !== "object" || parsed === null) {

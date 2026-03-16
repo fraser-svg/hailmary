@@ -72,6 +72,14 @@ export interface ComparisonSummary {
   v3_word_count: number | null;
   v4_word_count: number | null;
 
+  // ── Founder stop power (from critic pushback test) ──────────────────────
+  v3_founder_stop_power: "low" | "medium" | "high" | null;
+  v4_founder_stop_power: "low" | "medium" | "high" | null;
+
+  // ── Synthesis retry ─────────────────────────────────────────────────────
+  /** True when the thesis retry fired during V4 synthesis */
+  v4_synthesis_retry_triggered: boolean;
+
   // ── Heuristics (deterministic, computed from synthesis output) ─────────
   /** Thesis contains at least one capitalised word that reads as a proper noun */
   v4_thesis_has_company_proper_noun: boolean;
@@ -207,6 +215,13 @@ export function buildComparisonSummary(
     // Memo
     v3_word_count: v3.memo?.word_count ?? null,
     v4_word_count: v4.memo?.word_count ?? null,
+
+    // Founder stop power
+    v3_founder_stop_power: v3.criticResult?.founder_pushback_test.severity ?? null,
+    v4_founder_stop_power: v4.criticResult?.founder_pushback_test.severity ?? null,
+
+    // Synthesis retry
+    v4_synthesis_retry_triggered: synthesis?.synthesis_retry_triggered ?? false,
 
     // Heuristics
     v4_thesis_has_company_proper_noun: synthActive
@@ -565,6 +580,13 @@ export function printComparisonTable(result: RunComparison): void {
   console.log("\nMEMO");
   console.log(fmt("V3 word count:", c.v3_word_count));
   console.log(fmt("V4 word count:", c.v4_word_count));
+
+  console.log("\nFOUNDER STOP POWER");
+  console.log(fmt("V3 founder stop power:", c.v3_founder_stop_power));
+  console.log(fmt("V4 founder stop power:", c.v4_founder_stop_power));
+
+  console.log("\nSYNTHESIS RETRY");
+  console.log(fmt("V4 synthesis retry triggered:", c.v4_synthesis_retry_triggered));
 
   console.log("\nHEURISTICS (V4 synthesis only)");
   console.log(fmt("Thesis has proper noun:", c.v4_thesis_has_company_proper_noun));

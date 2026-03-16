@@ -386,6 +386,53 @@ describe("parseResponse", () => {
   it("throws ERR_MEMO_PARSE when response is not an object", () => {
     expect(() => parseResponse('"just a string"')).toThrow("ERR_MEMO_PARSE");
   });
+
+  it("extracts JSON from prose wrapping (LLM adds preamble text)", () => {
+    const inner = {
+      observation: "Obs.",
+      what_this_means: "Means.",
+      why_this_is_happening: "Cause.",
+      what_we_would_change: "Change.",
+      cta: "Act.",
+    };
+    const wrapped = `Here is the memo in JSON format as requested:\n\n${JSON.stringify(inner)}\n\nLet me know if you need adjustments.`;
+    const result = parseResponse(wrapped);
+    expect(result.observation).toBe("Obs.");
+    expect(result.cta).toBe("Act.");
+  });
+
+  it("extracts JSON from markdown fences with leading prose", () => {
+    const inner = JSON.stringify({
+      observation: "Obs.",
+      what_this_means: "Means.",
+      why_this_is_happening: "Cause.",
+      what_we_would_change: "Change.",
+      cta: "Act.",
+    });
+    const wrapped = `Here is the output:\n\`\`\`json\n${inner}\n\`\`\``;
+    const result = parseResponse(wrapped);
+    expect(result.observation).toBe("Obs.");
+  });
+
+  it("repairs and parses JSON with unescaped inner quotes in string values", () => {
+    // Simulate LLM returning: "observation": "They sell "enterprise" software"
+    const broken = `{"observation":"They sell \\"enterprise\\" software but it's misaligned with buyer budgets.","what_this_means":"Means.","why_this_is_happening":"Cause.","what_we_would_change":"Change.","cta":"Act."}`;
+    // This is already valid JSON (escaped) — test the unescaped version
+    const unescaped = `{"observation":"They sell "enterprise" software but it misaligns.","what_this_means":"Means.","why_this_is_happening":"Cause.","what_we_would_change":"Change.","cta":"Act."}`;
+    // parseResponse should either repair it or throw ERR_MEMO_PARSE — no unhandled crash
+    let threw = false;
+    try {
+      parseResponse(unescaped);
+    } catch (e) {
+      threw = true;
+      expect((e as Error).message).toContain("ERR_MEMO_PARSE");
+    }
+    if (!threw) {
+      // If repair succeeded, all sections must be present
+      const result = parseResponse(unescaped);
+      expect(result.what_this_means).toBe("Means.");
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

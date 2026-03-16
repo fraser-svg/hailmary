@@ -63,6 +63,7 @@ import {
   buildSynthesisSystemPrompt,
   buildSynthesisUserPrompt,
   buildRetryPrompt,
+  buildThesisRetryUserPrompt,
   parseSynthesisResponse,
   validateSynthesis,
   runDistinctnessChecks,
@@ -795,5 +796,130 @@ describe("synthesiseArgument", () => {
     });
 
     expect(result.fallback_to_template).toBe(true);
+  });
+
+  // ── Issue 2: thesis retry tests ───────────────────────────────────────────
+
+  it("empty thesis on attempt 1 → retry called → retry succeeds → fallback_to_template=false", async () => {
+    // Attempt 1: valid JSON but empty thesis
+    const emptyThesisObj = JSON.parse(validSynthesisJson(PACK_IDS)) as Record<string, unknown>;
+    emptyThesisObj["company_specific_thesis"] = "";
+    const attempt1 = JSON.stringify(emptyThesisObj);
+
+    // Attempt 2 (thesis retry): valid synthesis with non-empty thesis
+    const attempt2 = validSynthesisJson(PACK_IDS);
+
+    const client = makeMockClient([attempt1, attempt2]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    expect(result.fallback_to_template).toBe(false);
+    expect(result.company_specific_thesis).toBeTruthy();
+    expect(result.company_specific_thesis.trim()).not.toBe("");
+  });
+
+  it("empty thesis on attempt 1 → retry also empty → fallback_to_template=true", async () => {
+    // Both calls return empty thesis — retry failure path
+    const emptyThesisObj = JSON.parse(validSynthesisJson(PACK_IDS)) as Record<string, unknown>;
+    emptyThesisObj["company_specific_thesis"] = "";
+    const emptyThesisJson = JSON.stringify(emptyThesisObj);
+
+    const client = makeMockClient([emptyThesisJson, emptyThesisJson]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    expect(result.fallback_to_template).toBe(true);
+  });
+
+  it("empty thesis on attempt 1 → retry returns invalid JSON → fallback_to_template=true", async () => {
+    const emptyThesisObj = JSON.parse(validSynthesisJson(PACK_IDS)) as Record<string, unknown>;
+    emptyThesisObj["company_specific_thesis"] = "";
+    const attempt1 = JSON.stringify(emptyThesisObj);
+
+    const client = makeMockClient([attempt1, "this is not json"]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    expect(result.fallback_to_template).toBe(true);
+  });
+
+  it("weak evidence but non-empty thesis → succeeds (does not trigger thesis retry)", async () => {
+    // Thesis meets 20-word minimum with weak evidence — should pass without retry
+    const weakThesis =
+      "Acme's pipeline depends entirely on founder outreach because no repeatable demand generation exists, meaning growth is capped by the CEO's personal capacity (ev_001).";
+    const client = makeMockClient([validSynthesisJson(PACK_IDS, { company_specific_thesis: weakThesis })]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    // Should succeed without triggering retry — only 1 API call consumed
+    expect(result.fallback_to_template).toBe(false);
+    expect(result.company_specific_thesis).toBe(weakThesis);
+  });
+
+  it("whitespace-only thesis triggers retry, same as empty string", async () => {
+    const wsThesisObj = JSON.parse(validSynthesisJson(PACK_IDS)) as Record<string, unknown>;
+    wsThesisObj["company_specific_thesis"] = "   ";
+    const attempt1 = JSON.stringify(wsThesisObj);
+    const attempt2 = validSynthesisJson(PACK_IDS);
+
+    const client = makeMockClient([attempt1, attempt2]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    expect(result.fallback_to_template).toBe(false);
+    expect(result.company_specific_thesis.trim()).not.toBe("");
+  });
+
+  it("structural validation failure (not empty thesis) → fallback_to_template=true, no thesis retry", async () => {
+    // Skeleton has 0 diagnosis steps — validation failure unrelated to thesis
+    const obj = JSON.parse(validSynthesisJson(PACK_IDS)) as Record<string, unknown>;
+    (obj["argument_skeleton"] as Record<string, unknown>[])[2]["logical_role"] = "consequence";
+    const client = makeMockClient([JSON.stringify(obj)]);
+    const result = await synthesiseArgument(makeInput(), { client, timeout_ms: 5000 });
+
+    expect(result.fallback_to_template).toBe(true);
+    // Only 1 API call made (no thesis retry needed — thesis was non-empty)
+    const mockFn = (client.messages.create as ReturnType<typeof vi.fn>);
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildThesisRetryUserPrompt
+// ---------------------------------------------------------------------------
+
+describe("buildThesisRetryUserPrompt", () => {
+  it("contains the original prompt", () => {
+    const original = "Construct a company-specific argument for TestCo.";
+    const retry = buildThesisRetryUserPrompt(original);
+    expect(retry).toContain(original);
+  });
+
+  it("contains the empty-thesis error instruction", () => {
+    const retry = buildThesisRetryUserPrompt("original prompt");
+    expect(retry).toContain("EMPTY THESIS FIELD");
+    expect(retry).toContain("company_specific_thesis");
+  });
+
+  it("instructs to produce a grounded thesis from evidence", () => {
+    const retry = buildThesisRetryUserPrompt("original prompt");
+    expect(retry).toContain("evidence record");
+    expect(retry.toLowerCase()).toContain("weakest defensible");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildSynthesisSystemPrompt — thesis non-empty rule
+// ---------------------------------------------------------------------------
+
+describe("buildSynthesisSystemPrompt — Rule 9 (non-empty thesis)", () => {
+  it("states that company_specific_thesis must NEVER be empty", () => {
+    const prompt = buildSynthesisSystemPrompt();
+    expect(prompt).toContain("MUST NEVER be empty");
+  });
+
+  it("instructs weak-evidence fallback to produce weakest defensible thesis", () => {
+    const prompt = buildSynthesisSystemPrompt();
+    expect(prompt).toContain("weakest defensible thesis");
+  });
+
+  it("explicitly forbids empty string, null, or placeholder", () => {
+    const prompt = buildSynthesisSystemPrompt();
+    expect(prompt).toContain("empty string");
   });
 });
