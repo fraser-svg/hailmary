@@ -246,7 +246,7 @@ export function makeMockAnthropicClient(responseText: string): object {
 // Mock response JSON — writer
 // ---------------------------------------------------------------------------
 
-/** Pre-canned writer response: ~520 words, passes all validation checks */
+/** Pre-canned writer response: ~580 words, passes all validation checks */
 export const MOCK_WRITER_JSON = JSON.stringify({
   observation:
     "AutoFlow AI's pricing page charges $10,000–$25,000 in implementation fees " +
@@ -261,6 +261,12 @@ export const MOCK_WRITER_JSON = JSON.stringify({
     "a 12-week consulting engagement, and a Glassdoor employee who described the " +
     "company as 'a consulting company that happens to have a software product.'",
 
+  the_pattern:
+    "AutoFlow's customers describe the product as a managed implementation service " +
+    "where specialists do the work. AutoFlow positions it as zero-touch AI automation " +
+    "that deploys without human intervention. The gap between what customers experience " +
+    "and what the company sells is the central commercial tension.",
+
   what_this_means:
     "AutoFlow is not a software business with an onboarding cost centre. " +
     "It is a consulting operation with a software interface, and the revenue " +
@@ -271,28 +277,28 @@ export const MOCK_WRITER_JSON = JSON.stringify({
     "continuity, margin is constrained by headcount, and growth requires " +
     "proportional hiring of people rather than compute.",
 
-  why_this_is_happening:
-    "Two forces are reinforcing this structure. First, the product does not " +
+  why_this_happens:
+    "Two forces are reinforcing this structure. The product does not " +
     "deliver on its zero-touch automation claim without human configuration — " +
     "customers cannot progress through onboarding without specialist intervention, " +
     "which is why the pricing page monetises the specialist access separately. " +
-    "Second, the company is scaling its services capacity faster than its product: " +
+    "The company is scaling its services capacity faster than its product: " +
     "13 open services-oriented roles at a 110-person company represents roughly " +
     "12 percent headcount growth in the delivery layer alone. This is a structural " +
     "commitment, not an onboarding ramp.",
 
-  what_we_would_change:
+  what_this_changes:
     "Stop positioning implementation as a cost to be minimised and reframe it " +
     "as the core product. The implementation team is already what customers are " +
     "buying — the pricing page already reflects this. Give it a named product line " +
     "with its own sales motion, renewal framework, and expansion pricing. " +
     "The automation software becomes the delivery platform for the consulting " +
-    "service, not an autonomous product that sells itself. This shift unlocks " +
-    "the margin improvement that cannot come from engineering headcount alone.",
+    "service, not an autonomous product that sells itself.",
 
-  cta:
-    "Reply with a 20-minute window this week — there is a specific repositioning " +
-    "structure worth walking through before the next funding conversation.",
+  next_step:
+    "If the diagnosis is wrong, it would be useful to know. If it is right, " +
+    "there is a specific way companies resolve it. Twenty minutes is enough " +
+    "to test which it is.",
 });
 
 // ---------------------------------------------------------------------------
@@ -311,7 +317,19 @@ export const MOCK_CRITIC_JSON = JSON.stringify({
     score: 4,
     notes:
       "Company-specific throughout — $10,000–$25,000 fee, 13 open roles, 110 headcount, " +
-      "12-week consulting engagement. One generic sentence in what_we_would_change.",
+      "12-week consulting engagement. One generic sentence in what_this_changes.",
+  },
+  pattern_clarity: {
+    score: 5,
+    notes:
+      "The narrative gap is explicit: customers describe the product as a managed service; " +
+      "AutoFlow positions it as zero-touch automation. Contrast is unmistakable.",
+  },
+  signal_density: {
+    score: 5,
+    notes:
+      "5+ concrete signals with verbatim fragments from reviews, developer comments, " +
+      "and pricing observations.",
   },
   cta_clarity: {
     score: 5,
@@ -320,7 +338,7 @@ export const MOCK_CRITIC_JSON = JSON.stringify({
   tone_compliance: {
     score: 5,
     notes:
-      "Direct throughout. No jargon, no hedging, no feature-selling. Commercial advisor register maintained.",
+      "Direct throughout. No jargon, no hedging, no feature-selling. Strategic analyst register maintained.",
   },
   genericity_test: {
     result: "pass",

@@ -809,9 +809,9 @@ describe("buildMemoBrief — word budget", () => {
       intervention: makeIntervention(),
       evidencePack: buildStrongPack(),
     });
-    expect(brief.word_budget.target_min).toBe(500);
-    expect(brief.word_budget.target_max).toBe(700);
-    expect(brief.word_budget.hard_max).toBe(850);
+    expect(brief.word_budget.target_min).toBe(650);
+    expect(brief.word_budget.target_max).toBe(850);
+    expect(brief.word_budget.hard_max).toBe(1100);
   });
 });
 
@@ -903,7 +903,6 @@ describe("buildMemoBrief — intervention framing and CTA", () => {
       evidencePack: buildStrongPack(),
     });
     expect(brief.intervention_framing).toContain("buyer profile");
-    expect(brief.intervention_framing).toContain("Frame as:");
   });
 
   it("cta is a non-question direct ask", () => {
@@ -922,7 +921,7 @@ describe("buildMemoBrief — intervention framing and CTA", () => {
     expect(brief.cta.length).toBeGreaterThan(20);
   });
 
-  it("all 5 required_sections are present", () => {
+  it("all 6 required_sections are present", () => {
     const adj = makeAdjudicationResult("conditional", "indicative");
     const brief = buildMemoBrief({
       adjudication: adj,
@@ -932,11 +931,12 @@ describe("buildMemoBrief — intervention framing and CTA", () => {
       evidencePack: buildStrongPack(),
     });
     expect(brief.required_sections).toContain("observation");
+    expect(brief.required_sections).toContain("the_pattern");
     expect(brief.required_sections).toContain("what_this_means");
-    expect(brief.required_sections).toContain("why_this_is_happening");
-    expect(brief.required_sections).toContain("what_we_would_change");
-    expect(brief.required_sections).toContain("cta");
-    expect(brief.required_sections.length).toBe(5);
+    expect(brief.required_sections).toContain("why_this_happens");
+    expect(brief.required_sections).toContain("what_this_changes");
+    expect(brief.required_sections).toContain("next_step");
+    expect(brief.required_sections.length).toBe(6);
   });
 });
 
@@ -1036,9 +1036,9 @@ describe("CTA_BY_INTERVENTION — regression guard", () => {
     expect(text.includes("without you in the room")).toBe(false);
   });
 
-  it("founder_gtm_transition CTA retains closing/credibility language", () => {
+  it("founder_gtm_transition CTA uses the universal CTA (deprecated alias)", () => {
     const text = CTA_BY_INTERVENTION.founder_gtm_transition.toLowerCase();
-    expect(text.includes("close") || text.includes("room") || text.includes("credib")).toBe(true);
+    expect(text.includes("diagnosis") || text.includes("twenty minutes")).toBe(true);
   });
 
   it("all 6 CTA entries are non-empty strings", () => {

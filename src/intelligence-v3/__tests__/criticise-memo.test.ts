@@ -74,6 +74,8 @@ function makePassCriticJson(): string {
   return JSON.stringify({
     evidence_grounding: { score: 4, notes: "All claims trace to evidence spine." },
     commercial_sharpness: { score: 4, notes: "Company-specific throughout." },
+    pattern_clarity: { score: 4, notes: "Narrative gap clearly stated." },
+    signal_density: { score: 4, notes: "4 concrete signals with specific fragments." },
     cta_clarity: { score: 5, notes: "One unambiguous ask." },
     tone_compliance: { score: 5, notes: "No violations." },
     genericity_test: {
@@ -93,6 +95,8 @@ function makeReviseCriticJson(): string {
   return JSON.stringify({
     evidence_grounding: { score: 4, notes: "Solid grounding." },
     commercial_sharpness: { score: 2, notes: "Second paragraph reads like generic GTM advice." },
+    pattern_clarity: { score: 4, notes: "Gap is clear." },
+    signal_density: { score: 3, notes: "3 signals but references are vague." },
     cta_clarity: { score: 4, notes: "One clear ask." },
     tone_compliance: { score: 4, notes: "No violations." },
     genericity_test: {
@@ -112,6 +116,8 @@ function makeFailCriticJson(): string {
   return JSON.stringify({
     evidence_grounding: { score: 3, notes: "Mostly grounded." },
     commercial_sharpness: { score: 1, notes: "Could be sent to any SaaS company." },
+    pattern_clarity: { score: 2, notes: "Gap not explicitly named." },
+    signal_density: { score: 1, notes: "Vague claims with no concrete signals." },
     cta_clarity: { score: 2, notes: "Two asks embedded in closing." },
     tone_compliance: { score: 3, notes: "Minor issues." },
     genericity_test: {
@@ -157,17 +163,17 @@ function makeBrief(overrides: Partial<MemoBrief> = {}): MemoBrief {
       makeSpineRecord("ev_002"),
       makeSpineRecord("ev_003"),
     ],
-    intervention_framing: "Frame as: clarify what you're actually selling.",
+    intervention_framing: "Clarify what you're actually selling.",
     tone_constraints: {
       register: "direct",
-      perspective: "commercial_advisor",
+      perspective: "strategic_analyst",
       avoid: ["generic_advice", "jargon", "hedging_language", "feature_selling", "unsolicited_praise"],
     },
     banned_phrases: ["game-changing", "thought leader", "world-class"],
     confidence_caveats: [],
-    cta: "Reply to this letter to explore further.",
-    word_budget: { target_min: 500, target_max: 700, hard_max: 850 },
-    required_sections: ["observation", "what_this_means", "why_this_is_happening", "what_we_would_change", "cta"],
+    cta: "If the diagnosis is wrong, it would be useful to know. If it is right, there is a specific way companies resolve it. Twenty minutes is enough to test which it is.",
+    word_budget: { target_min: 650, target_max: 850, hard_max: 1100 },
+    required_sections: ["observation", "the_pattern", "what_this_means", "why_this_happens", "what_this_changes", "next_step"],
     ...overrides,
   };
 }
@@ -207,10 +213,12 @@ describe("buildCriticSystemPrompt", () => {
     expect(prompt.toLowerCase()).toContain("default to finding problems");
   });
 
-  it("describes all 4 scoring dimensions", () => {
+  it("describes all 6 scoring dimensions", () => {
     const prompt = buildCriticSystemPrompt();
     expect(prompt).toContain("evidence_grounding");
     expect(prompt).toContain("commercial_sharpness");
+    expect(prompt).toContain("pattern_clarity");
+    expect(prompt).toContain("signal_density");
     expect(prompt).toContain("cta_clarity");
     expect(prompt).toContain("tone_compliance");
   });
@@ -218,7 +226,7 @@ describe("buildCriticSystemPrompt", () => {
   it("includes pass threshold of 3 for each dimension", () => {
     const prompt = buildCriticSystemPrompt();
     // should appear multiple times — once per dimension
-    expect((prompt.match(/Pass threshold.*≥ 3/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((prompt.match(/Pass threshold.*≥ 3/g) ?? []).length).toBeGreaterThanOrEqual(6);
   });
 
   it("describes the Genericity Test", () => {
@@ -280,6 +288,8 @@ describe("parseCriticResponse", () => {
     const result = parseCriticResponse(makePassCriticJson());
     expect(result.evidence_grounding.score).toBe(4);
     expect(result.commercial_sharpness.score).toBe(4);
+    expect(result.pattern_clarity.score).toBe(4);
+    expect(result.signal_density.score).toBe(4);
     expect(result.cta_clarity.score).toBe(5);
     expect(result.tone_compliance.score).toBe(5);
     expect(result.genericity_test.result).toBe("pass");
@@ -335,6 +345,8 @@ describe("criticiseMemo", () => {
     expect(result.overall_pass).toBe(true);
     expect(result.dimensions.evidence_grounding.pass).toBe(true);
     expect(result.dimensions.commercial_sharpness.pass).toBe(true);
+    expect(result.dimensions.pattern_clarity.pass).toBe(true);
+    expect(result.dimensions.signal_density.pass).toBe(true);
     expect(result.dimensions.cta_clarity.pass).toBe(true);
     expect(result.dimensions.tone_compliance.pass).toBe(true);
     expect(result.genericity_test.result).toBe("pass");
@@ -462,6 +474,8 @@ describe("criticiseMemo", () => {
     const scores = [
       result.dimensions.evidence_grounding.score,
       result.dimensions.commercial_sharpness.score,
+      result.dimensions.pattern_clarity.score,
+      result.dimensions.signal_density.score,
       result.dimensions.cta_clarity.score,
       result.dimensions.tone_compliance.score,
     ];
