@@ -5,7 +5,7 @@
  * MemoCriticResult is the output of criticiseMemo() — an adversarial LLM evaluation
  * of the generated memo. The critic's default posture is to find problems.
  *
- * The critic evaluates 4 scoring dimensions (0–5 each, pass ≥ 3) plus
+ * The critic evaluates 6 scoring dimensions (0–5 each, pass ≥ 3) plus
  * 2 named explicit tests: the Genericity Test and the Founder Pushback Test.
  */
 
@@ -43,7 +43,7 @@ export interface FounderPushbackTest {
 
 /**
  * MemoCriticResult — output of criticiseMemo().
- * overall_pass = true only if all 4 dimensions ≥ 3 AND genericity_test = "pass".
+ * overall_pass = true only if all 6 dimensions ≥ 3 AND genericity_test = "pass".
  */
 export interface MemoCriticResult {
   critic_id: string;             // "critic_<company_id>_<timestamp>"
@@ -54,6 +54,8 @@ export interface MemoCriticResult {
   dimensions: {
     evidence_grounding: DimensionScore;
     commercial_sharpness: DimensionScore;
+    pattern_clarity: DimensionScore;
+    signal_density: DimensionScore;
     cta_clarity: DimensionScore;
     tone_compliance: DimensionScore;
   };

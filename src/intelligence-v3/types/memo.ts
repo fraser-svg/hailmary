@@ -20,12 +20,13 @@ export interface MemoSection {
  * MarkdownMemo — the generated founder-facing strategic memo.
  * Produced by writeMemo(). Evaluated by criticiseMemo().
  *
- * Sections must appear in order:
+ * Sections must appear in order (Dean & Wiseman doctrine):
  * 1. observation
- * 2. what_this_means
- * 3. why_this_is_happening
- * 4. what_we_would_change
- * 5. cta
+ * 2. the_pattern
+ * 3. what_this_means
+ * 4. why_this_happens
+ * 5. what_this_changes
+ * 6. next_step
  */
 export interface MarkdownMemo {
   memo_id: string;                  // "memo_<company_id>_<timestamp>"

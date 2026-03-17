@@ -35,8 +35,8 @@ import type { MarkdownMemo, MemoSection } from "../types/memo.js";
 // Config
 // ---------------------------------------------------------------------------
 
-const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
-const DEFAULT_MAX_TOKENS = 1500;
+const DEFAULT_MODEL = "claude-opus-4-6";
+const DEFAULT_MAX_TOKENS = 2500;
 const DEFAULT_TEMPERATURE = 0.3;
 
 export interface WriteMemoConfig {
@@ -53,18 +53,20 @@ export interface WriteMemoConfig {
 
 const SECTION_ORDER: MemoSectionName[] = [
   "observation",
+  "the_pattern",
   "what_this_means",
-  "why_this_is_happening",
-  "what_we_would_change",
-  "cta",
+  "why_this_happens",
+  "what_this_changes",
+  "next_step",
 ];
 
 const SECTION_HEADINGS: Record<MemoSectionName, string> = {
   observation: "## Observation",
-  what_this_means: "## What this means",
-  why_this_is_happening: "## Why this is happening",
-  what_we_would_change: "## What we would change",
-  cta: "## Next step",
+  the_pattern: "## The Pattern",
+  what_this_means: "## What This Means",
+  why_this_happens: "## Why This Happens",
+  what_this_changes: "## What This Changes",
+  next_step: "## Next Step",
 };
 
 // ---------------------------------------------------------------------------
@@ -107,12 +109,10 @@ function framingInstruction(mode: string): string {
 // ---------------------------------------------------------------------------
 
 export function buildSystemPrompt(brief: MemoBrief): string {
-  // Pass first 20 banned phrases to avoid token bloat; the validation layer
-  // catches any that slip through regardless.
-  const bannedSample = brief.banned_phrases.slice(0, 20).join(", ");
+  const bannedSample = brief.banned_phrases.slice(0, 25).join(", ");
   const caveats =
     brief.confidence_caveats.length > 0
-      ? `\n10. Do not assert the following as established fact: ${brief.confidence_caveats.join("; ")}.`
+      ? `\nDo not assert the following as established fact: ${brief.confidence_caveats.join("; ")}.`
       : "";
 
   // V4 system prompt additions — included when synthesis fields are active
@@ -122,34 +122,77 @@ export function buildSystemPrompt(brief: MemoBrief): string {
     brief.argument_skeleton !== undefined;
 
   const v4Rules = synthActive
-    ? `\n10. The COMPANY-SPECIFIC DIAGNOSTIC STATEMENT names the GTM condition AND its commercial consequence, anchored in a specific observable company fact. Use it as-is or paraphrase — do not generalise it back to archetype-description.\n11. The CAUSAL MECHANISMS are company-specific. Render them; do not rewrite them into generic causal descriptions. You may adjust for prose flow.\n12. The SUGGESTED ARGUMENT FLOW orders evidence into the strongest logical sequence. The [diagnosis] step is where observation and mechanisms converge into the thesis — render this step with particular precision. Follow the flow unless a strongly superior structure presents itself.\n13. The HOOK STRATEGY tells you what kind of tension to create. Honor the tension_type: contradiction = expose gap between stated and real; commercial_cost = name the revenue/growth cost; hidden_pattern = reveal structure the founder hasn't seen framed this way; customer_signal = let customer evidence speak before analysis.`
+    ? `\n- The COMPANY-SPECIFIC DIAGNOSTIC STATEMENT names the GTM condition AND its commercial consequence. Use it as-is or paraphrase — do not generalise.\n- The CAUSAL MECHANISMS are company-specific. Render them; do not rewrite into generic descriptions.\n- The SUGGESTED ARGUMENT FLOW orders evidence into the strongest logical sequence. Follow unless a superior structure presents itself.\n- The HOOK STRATEGY tells you what tension to create. Honor the tension_type.`
     : "";
 
-  return `You are a commercial writing specialist producing a founder-facing strategic memo. You are a renderer, not a reasoner — all analysis has been completed upstream. Your job is to render the supplied brief into specific, commercially grounded prose.
+  const hedgingBan =
+    brief.adjudication_mode === "full_confidence" || brief.adjudication_mode === "conditional"
+      ? `\nHEDGING BAN: Do not use "likely", "may indicate", "could be", "might", "it is possible", "the evidence leaves this open". State findings with the confidence the evidence warrants.`
+      : "";
 
-HARD RULES — violating any of these makes the output unusable:
-1. Do not invent any facts. Every claim must come from the evidence items in the brief.
-2. Do not invent customers, pricing, competitors, or metrics not present in the brief.
-3. Do not use these banned phrases (partial list): ${bannedSample}.
-4. Do not use internal analytical labels such as "diagnosis", "mechanism", "intervention", "evidence_spine", "hook_type", or similar taxonomy language in the memo text.
-5. Do not open with a compliment, question, or "I wanted to reach out" type phrasing.
+  return `You are writing a Dean & Wiseman strategic diagnostic — a short document sent directly to a company founder. It must read like an internal strategy memo, not outreach or marketing.
+
+PURPOSE: Demonstrate that someone has studied this company with unusual care and reached a specific, evidence-grounded conclusion about a narrative gap in its go-to-market. The founder's reaction must be: "How do these people understand our company this well?"
+
+THE THREE EFFECTS — every memo must produce all three:
+1. RECOGNITION: The founder instantly recognises the pattern. "That is exactly what's happening."
+2. SURPRISE: The memo frames the issue in a way they have not articulated. "I've never seen it described like that."
+3. CURIOSITY: The memo implies a solution without fully explaining it. "What do they mean by that intervention?"
+
+VOICE:
+- Internal strategy document tone. Restrained. Precise. Analytical.
+- No hype, no flattery, no urgency, no marketing language.
+- No first person ("we", "our", "us") anywhere except the final "next_step" section.
+- Every sentence must contain company-specific information. If a sentence could appear in a memo about another company, cut it.
+- Present causality as plain observation. Do not label structure ("Two forces...", "First: ... Second: ..."). The structure should be felt, not announced.
+- This is research, not interpretation. Use specific signals ("Multiple reviews emphasise onboarding speed") not opinion ("Customers seem to value speed").
+
+THE CORE INSIGHT — the Narrative Gap:
+The memo revolves around the difference between how the company positions its product and how the market actually experiences it. The "the_pattern" section must make this gap explicit and unmistakable:
+  Product experienced as X.
+  Product positioned as Y.
+
+HARD RULES:
+1. Do not invent any facts. Every claim must come from the evidence in the brief.
+2. Do not invent customers, pricing, competitors, or metrics not in the brief.
+3. Do not use these banned phrases: ${bannedSample}.
+4. Do not use internal labels ("diagnosis", "mechanism", "intervention", "evidence_spine") in the text.
+5. Do not open with a compliment, question, or "I wanted to reach out" phrasing.
 6. Do not name specific pricing, product tiers, or implementation costs.
-7. Every section must contain company-specific facts — not generic advice that applies to any SaaS company.
-8. Name exactly 2 causal forces in the "why_this_is_happening" section — not 1, not 3.
-9. The CTA must not be a question and must contain exactly one action for the founder to take.${caveats}${v4Rules}
+7. "why_this_happens" must present exactly 2 causal forces — but do NOT label or number them. Weave into a single analytical narrative.
+8. "what_this_changes" must reveal the strategic lever but NEVER fully explain the solution. Preserve curiosity. The founder should think: "What exactly do they mean?" — not "I understand the whole playbook."
+9. "next_step" must not feel like a meeting request. It should feel like continuing the analysis.${caveats}${v4Rules}
 
-TONE FRAMING: ${framingInstruction(brief.adjudication_mode)}
+EVIDENCE REQUIREMENT:
+The memo must reference at least three concrete external signals from the brief. Signals should be specific fragments when possible: review excerpts, developer comments, community discussion, documentation signals, pricing structure, competitor positioning. If fewer than three signals appear, the memo is invalid.
 
-WORD BUDGET: Target ${brief.word_budget.target_min}–${brief.word_budget.target_max} words total. Hard maximum: ${brief.word_budget.hard_max} words. Do not exceed the hard maximum.
+THE_PATTERN RULE:
+The "the_pattern" section must be expressed in no more than 4 sentences. It must clearly show: customers experience X, company positions Y. Example: "Customers describe the product as a speed tool. The company positions it as procurement infrastructure. That difference shifts evaluation from operators to procurement teams." This is the memo's moment of recognition. Do not overcomplicate it.
+
+OPENING PARAGRAPH REQUIREMENT:
+The "observation" section must contain: (1) a concrete signal about the company, (2) a signal about how the market perceives the product, and (3) a tension between the two. Without tension, the memo reads like research instead of strategy.
+
+SOLUTION LEAKAGE BAN:
+The "what_this_changes" section must describe the strategic lever only. Do NOT explain: how to implement it, messaging frameworks, GTM playbooks, or execution steps. Reveal the lever. Do not describe the playbook.
+
+READABILITY RULE:
+Each paragraph must contain at least one simple declarative sentence. Example: "The pattern is easy to miss." "The market describes the product differently than the company." Dense analytical paragraphs without plain statements lose authority.
+
+${framingInstruction(brief.adjudication_mode)}
+${hedgingBan}
+
+WORD BUDGET: Target ${brief.word_budget.target_min}–${brief.word_budget.target_max} words total. Hard maximum: ${brief.word_budget.hard_max}.
+Section targets: observation (100–150w), the_pattern (60–100w), what_this_means (120–180w), why_this_happens (120–180w), what_this_changes (80–120w), next_step (40–60w).
 
 OUTPUT FORMAT: Return valid JSON only. No markdown code fences. No text outside the JSON object.
-The JSON must have exactly these 5 keys (all required, none empty):
+The JSON must have exactly these 6 keys (all required, none empty):
 {
   "observation": "...",
+  "the_pattern": "...",
   "what_this_means": "...",
-  "why_this_is_happening": "...",
-  "what_we_would_change": "...",
-  "cta": "..."
+  "why_this_happens": "...",
+  "what_this_changes": "...",
+  "next_step": "..."
 }
 Each value is the full prose for that section (plain text, use \\n\\n for paragraph breaks within a section).`;
 }
@@ -212,7 +255,7 @@ ${brief.thesis}`;
         }\n  (The step marked [diagnosis] connects observation and mechanisms into the thesis.)`
       : "";
 
-  let prompt = `Write a 5-section strategic memo for the following company.
+  let prompt = `Write a 6-section Dean & Wiseman strategic diagnostic for the following company.
 
 COMPANY: ${brief.target_company}
 ${founderLine}
@@ -223,19 +266,24 @@ ${hookStrategyBlock}
 
 ${thesisBlock}
 
+NARRATIVE GAP — the "the_pattern" section must name this explicitly:
+The evidence shows what the market experiences. The thesis names what the company claims or positions.
+Make the gap unmistakable in 2-3 sentences. Format:
+  "[Company]'s customers describe the product as [X]. The company positions it as [Y]."
+
 EVIDENCE SPINE — the only facts you may use (do not invent beyond these):
 ${spineLines}
 ${mechanismsBlock}
 ${skeletonBlock}
 
-INTERVENTION FRAMING — for the "what_we_would_change" section:
+INTERVENTION FRAMING — for the "what_this_changes" section:
 ${brief.intervention_framing}
 
 CTA — use verbatim or paraphrase without changing the ask:
 ${brief.cta}
 
 ---
-Write the 5 sections. Return JSON only.`;
+Write the 6 sections. Return JSON only.`;
 
   if (brief.revision_instructions) {
     const rev = brief.revision_instructions;
@@ -296,10 +344,11 @@ export function parseResponse(text: string): RawSections {
 
   return {
     observation: (obj["observation"] as string).trim(),
+    the_pattern: (obj["the_pattern"] as string).trim(),
     what_this_means: (obj["what_this_means"] as string).trim(),
-    why_this_is_happening: (obj["why_this_is_happening"] as string).trim(),
-    what_we_would_change: (obj["what_we_would_change"] as string).trim(),
-    cta: (obj["cta"] as string).trim(),
+    why_this_happens: (obj["why_this_happens"] as string).trim(),
+    what_this_changes: (obj["what_this_changes"] as string).trim(),
+    next_step: (obj["next_step"] as string).trim(),
   };
 }
 
@@ -336,9 +385,9 @@ function validateMemo(
       `ERR_MEMO_TOO_SHORT: memo word count is ${wordCount} (minimum 300)`
     );
   }
-  if (wordCount > 850) {
+  if (wordCount > 1100) {
     throw new Error(
-      `ERR_MEMO_TOO_LONG: memo word count is ${wordCount} (hard max 850)`
+      `ERR_MEMO_TOO_LONG: memo word count is ${wordCount} (hard max 1100)`
     );
   }
   if (evidenceIds.length === 0) {
