@@ -7,7 +7,7 @@
  *   - adjudication mode = abort → hard failure on adjudication_not_aborted
  *   - genericity test failed → hard failure on critic_overall_pass
  *   - banned phrase in memo → hard failure on no_banned_phrases
- *   - word_count > 850 → hard failure on word_count_in_range
+ *   - word_count > 1100 → hard failure on word_count_in_range
  *   - evidence_ids.length < 2 → hard failure on evidence_ref_count
  *   - has_hard_failures = true when any hard failure present
  *
@@ -99,6 +99,8 @@ function makePassCriticResult(overrides: Partial<MemoCriticResult> = {}): MemoCr
     dimensions: {
       evidence_grounding: { score: 4, pass: true, notes: "Solid grounding." },
       commercial_sharpness: { score: 4, pass: true, notes: "Company-specific." },
+      pattern_clarity: { score: 4, pass: true, notes: "Gap clearly stated." },
+      signal_density: { score: 4, pass: true, notes: "4 concrete signals." },
       cta_clarity: { score: 5, pass: true, notes: "One clear ask." },
       tone_compliance: { score: 5, pass: true, notes: "No violations." },
     },
@@ -122,6 +124,8 @@ function makeFailCriticResult(overrides: Partial<MemoCriticResult> = {}): MemoCr
     dimensions: {
       evidence_grounding: { score: 3, pass: true, notes: "Mostly grounded." },
       commercial_sharpness: { score: 1, pass: false, notes: "Generic." },
+      pattern_clarity: { score: 2, pass: false, notes: "Gap not named." },
+      signal_density: { score: 1, pass: false, notes: "No concrete signals." },
       cta_clarity: { score: 2, pass: false, notes: "Two asks." },
       tone_compliance: { score: 3, pass: true, notes: "Minor issues." },
     },
@@ -134,7 +138,7 @@ function makeFailCriticResult(overrides: Partial<MemoCriticResult> = {}): MemoCr
     overall_pass: false,
     revision_instructions: {
       attempt_number: 1,
-      failing_dimensions: ["commercial_sharpness", "cta_clarity", "genericity_test"],
+      failing_dimensions: ["commercial_sharpness", "pattern_clarity", "signal_density", "cta_clarity", "genericity_test"],
       specific_issues: ["commercial_sharpness: Generic."],
       founder_pushback_context: "Severity: high.",
     },
@@ -265,15 +269,15 @@ describe("runSendGate — hard fail cases", () => {
     expect(noBanned?.failure_type).toBe("hard");
   });
 
-  it("word_count > 850 → hard failure on word_count_in_range", () => {
-    const longMemo = makeMemo({ word_count: 900 });
+  it("word_count > 1100 → hard failure on word_count_in_range", () => {
+    const longMemo = makeMemo({ word_count: 1200 });
     const input = makeInput({ memo: longMemo });
     const result = runSendGate(input);
     expect(result.result).toBe("fail");
     expect(result.has_hard_failures).toBe(true);
     const wc = result.criteria_results.find(c => c.criterion_id === "word_count_in_range");
     expect(wc?.failure_type).toBe("hard");
-    expect(wc?.observed_value).toBe(900);
+    expect(wc?.observed_value).toBe(1200);
   });
 
   it("word_count < 200 → hard failure", () => {
@@ -405,35 +409,39 @@ describe("runSendGate — score computation", () => {
     expect(fail.memo_quality_score).toBeLessThanOrEqual(100);
   });
 
-  it("all dims 5 + 5 evidence + 550 words + gen pass + low severity → max-ish score", () => {
+  it("all dims 5 + 5 evidence + 700 words + gen pass + low severity → max score", () => {
     const allFiveCritic = makePassCriticResult({
       dimensions: {
         evidence_grounding: { score: 5, pass: true, notes: "" },
         commercial_sharpness: { score: 5, pass: true, notes: "" },
+        pattern_clarity: { score: 5, pass: true, notes: "" },
+        signal_density: { score: 5, pass: true, notes: "" },
         cta_clarity: { score: 5, pass: true, notes: "" },
         tone_compliance: { score: 5, pass: true, notes: "" },
       },
     });
-    const fiveEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003", "ev_004", "ev_005"], word_count: 600 });
+    const fiveEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003", "ev_004", "ev_005"], word_count: 700 });
     const input = makeInput({ criticResult: allFiveCritic, memo: fiveEvMemo });
     const result = runSendGate(input);
-    // 4×5×2=40 + 20 + 15 + 15 + 10 = 100
+    // 6×5/30×40=40 + 20 + 15 + 15 + 10 = 100
     expect(result.memo_quality_score).toBe(100);
   });
 
-  it("dims all 3 + 3 evidence + 600 words + gen pass + low severity → moderate score", () => {
+  it("dims all 3 + 3 evidence + 700 words + gen pass + low severity → moderate score", () => {
     const allThreeCritic = makePassCriticResult({
       dimensions: {
         evidence_grounding: { score: 3, pass: true, notes: "" },
         commercial_sharpness: { score: 3, pass: true, notes: "" },
+        pattern_clarity: { score: 3, pass: true, notes: "" },
+        signal_density: { score: 3, pass: true, notes: "" },
         cta_clarity: { score: 3, pass: true, notes: "" },
         tone_compliance: { score: 3, pass: true, notes: "" },
       },
     });
-    const threeEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003"], word_count: 600 });
+    const threeEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003"], word_count: 700 });
     const input = makeInput({ criticResult: allThreeCritic, memo: threeEvMemo });
     const result = runSendGate(input);
-    // 4×3×2=24 + 10 + 15 + 15 + 10 = 74
+    // 6×3/30×40=24 + 10 + 15 + 15 + 10 = 74
     expect(result.memo_quality_score).toBe(74);
   });
 

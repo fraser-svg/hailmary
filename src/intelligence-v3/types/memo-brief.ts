@@ -12,13 +12,14 @@ import type { AdjudicationMode, MemoFraming } from "./adjudication";
 import type { EvidencePackRecord, MemoRole } from "./evidence-pack";
 import type { MechanismNarrative, ArgumentStep, HookStrategy } from "./argument-synthesis";
 
-/** Names of the 5 required memo sections */
+/** Names of the 6 required memo sections (Dean & Wiseman doctrine) */
 export type MemoSectionName =
   | "observation"
+  | "the_pattern"
   | "what_this_means"
-  | "why_this_is_happening"
-  | "what_we_would_change"
-  | "cta";
+  | "why_this_happens"
+  | "what_this_changes"
+  | "next_step";
 
 /** The type of hook being used in the opening Observation section */
 export type HookType =
@@ -48,7 +49,7 @@ export interface EvidenceSpineRecord {
 /** Tone constraints for the memo writer */
 export interface ToneConstraints {
   register: "direct";
-  perspective: "commercial_advisor";
+  perspective: "commercial_advisor" | "strategic_analyst";
   avoid: Array<
     | "generic_advice"
     | "jargon"
@@ -60,9 +61,9 @@ export interface ToneConstraints {
 
 /** Word budget for the memo */
 export interface WordBudget {
-  target_min: 500;
-  target_max: 700;
-  hard_max: 850;
+  target_min: number;
+  target_max: number;
+  hard_max: number;
 }
 
 /**

@@ -149,14 +149,14 @@ function makeMinimalV3PipelineResult(overrides: Partial<V3PipelineResult> = {}):
       intervention_framing: "Reposition as a consulting-led platform.",
       tone_constraints: {
         register: "direct",
-        perspective: "commercial_advisor",
+        perspective: "strategic_analyst",
         avoid: ["generic_advice", "jargon", "hedging_language", "feature_selling", "unsolicited_praise"],
       },
       banned_phrases: [],
       confidence_caveats: [],
-      cta: "Reply with a 20-minute window.",
-      word_budget: { target_min: 500, target_max: 700, hard_max: 850 },
-      required_sections: ["observation", "what_this_means", "why_this_is_happening", "what_we_would_change", "cta"],
+      cta: "If the diagnosis is wrong, it would be useful to know. If it is right, there is a specific way companies resolve it. Twenty minutes is enough to test which it is.",
+      word_budget: { target_min: 650, target_max: 850, hard_max: 1100 },
+      required_sections: ["observation", "the_pattern", "what_this_means", "why_this_happens", "what_this_changes", "next_step"],
     },
     memo: {
       memo_id: "memo_001",
@@ -180,6 +180,8 @@ function makeMinimalV3PipelineResult(overrides: Partial<V3PipelineResult> = {}):
       dimensions: {
         evidence_grounding: { score: 4, pass: true, notes: "Good." },
         commercial_sharpness: { score: 3, pass: true, notes: "Adequate." },
+        pattern_clarity: { score: 4, pass: true, notes: "Gap clear." },
+        signal_density: { score: 4, pass: true, notes: "Good signals." },
         cta_clarity: { score: 5, pass: true, notes: "Clear." },
         tone_compliance: { score: 5, pass: true, notes: "Clean." },
       },
@@ -510,18 +512,19 @@ describe("MOCK_WRITER_JSON", () => {
     expect(() => JSON.parse(MOCK_WRITER_JSON)).not.toThrow();
   });
 
-  it("contains all 5 required memo section keys", () => {
+  it("contains all 6 required memo section keys", () => {
     const parsed = JSON.parse(MOCK_WRITER_JSON);
     expect(parsed).toHaveProperty("observation");
+    expect(parsed).toHaveProperty("the_pattern");
     expect(parsed).toHaveProperty("what_this_means");
-    expect(parsed).toHaveProperty("why_this_is_happening");
-    expect(parsed).toHaveProperty("what_we_would_change");
-    expect(parsed).toHaveProperty("cta");
+    expect(parsed).toHaveProperty("why_this_happens");
+    expect(parsed).toHaveProperty("what_this_changes");
+    expect(parsed).toHaveProperty("next_step");
   });
 
   it("all section values are non-empty strings", () => {
     const parsed = JSON.parse(MOCK_WRITER_JSON);
-    for (const key of ["observation", "what_this_means", "why_this_is_happening", "what_we_would_change", "cta"]) {
+    for (const key of ["observation", "the_pattern", "what_this_means", "why_this_happens", "what_this_changes", "next_step"]) {
       expect(typeof parsed[key]).toBe("string");
       expect(parsed[key].length).toBeGreaterThan(20);
     }
@@ -540,10 +543,12 @@ describe("MOCK_CRITIC_JSON", () => {
     expect(() => JSON.parse(MOCK_CRITIC_JSON)).not.toThrow();
   });
 
-  it("contains all 4 dimension keys", () => {
+  it("contains all 6 dimension keys", () => {
     const parsed = JSON.parse(MOCK_CRITIC_JSON);
     expect(parsed).toHaveProperty("evidence_grounding");
     expect(parsed).toHaveProperty("commercial_sharpness");
+    expect(parsed).toHaveProperty("pattern_clarity");
+    expect(parsed).toHaveProperty("signal_density");
     expect(parsed).toHaveProperty("cta_clarity");
     expect(parsed).toHaveProperty("tone_compliance");
   });
@@ -559,10 +564,12 @@ describe("MOCK_CRITIC_JSON", () => {
     expect(parsed.genericity_test.result).toBe("pass");
   });
 
-  it("all 4 dimensions have score ≥ 3 (mock passes all)", () => {
+  it("all 6 dimensions have score ≥ 3 (mock passes all)", () => {
     const parsed = JSON.parse(MOCK_CRITIC_JSON);
     expect(parsed.evidence_grounding.score).toBeGreaterThanOrEqual(3);
     expect(parsed.commercial_sharpness.score).toBeGreaterThanOrEqual(3);
+    expect(parsed.pattern_clarity.score).toBeGreaterThanOrEqual(3);
+    expect(parsed.signal_density.score).toBeGreaterThanOrEqual(3);
     expect(parsed.cta_clarity.score).toBeGreaterThanOrEqual(3);
     expect(parsed.tone_compliance.score).toBeGreaterThanOrEqual(3);
   });

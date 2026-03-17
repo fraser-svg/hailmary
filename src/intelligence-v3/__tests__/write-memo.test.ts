@@ -80,18 +80,19 @@ function words(n: number, filler = "Acme delivers measurable procurement savings
   return Array(repeats).fill(filler).join(" ");
 }
 
-/** Build a JSON string representing valid 5-section LLM output with target word count. */
+/** Build a JSON string representing valid 6-section LLM output with target word count. */
 function validSectionsJson(wordsPerSection = 80): string {
-  // Section headings add ~19 words to assembledMarkdown; stay within budget.
-  // Default 80 × 5 + 19 = 419 total — within 300–850.
-  // All 5 sections use the same body so word count is predictable across tests.
+  // Section headings add ~22 words to assembledMarkdown; stay within budget.
+  // Default 80 × 6 + 22 = 502 total — within 300–1100.
+  // All 6 sections use the same body so word count is predictable across tests.
   const body = words(wordsPerSection);
   return JSON.stringify({
     observation: body,
+    the_pattern: body,
     what_this_means: body,
-    why_this_is_happening: body,
-    what_we_would_change: body,
-    cta: body,
+    why_this_happens: body,
+    what_this_changes: body,
+    next_step: body,
   });
 }
 
@@ -137,11 +138,11 @@ function makeBrief(overrides: Partial<MemoBrief> = {}): MemoBrief {
     ],
 
     intervention_framing:
-      "Frame as: we would help you identify the buyer profile where you actually win, and retool outreach around it",
+      "Identify the buyer profile where you actually win, and retool outreach around it",
 
     tone_constraints: {
       register: "direct",
-      perspective: "commercial_advisor",
+      perspective: "strategic_analyst",
       avoid: ["generic_advice", "jargon", "hedging_language", "feature_selling", "unsolicited_praise"],
     },
 
@@ -157,9 +158,9 @@ function makeBrief(overrides: Partial<MemoBrief> = {}): MemoBrief {
 
     confidence_caveats: [],
 
-    cta: "If identifying the buyer profile where you actually win is worth exploring, reply to this letter.",
-    word_budget: { target_min: 500, target_max: 700, hard_max: 850 },
-    required_sections: ["observation", "what_this_means", "why_this_is_happening", "what_we_would_change", "cta"],
+    cta: "If the diagnosis is wrong, it would be useful to know. If it is right, there is a specific way companies resolve it. Twenty minutes is enough to test which it is.",
+    word_budget: { target_min: 650, target_max: 850, hard_max: 1100 },
+    required_sections: ["observation", "the_pattern", "what_this_means", "why_this_happens", "what_this_changes", "next_step"],
     ...overrides,
   };
 }
@@ -184,9 +185,9 @@ describe("buildSystemPrompt", () => {
   it("contains word budget target range", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("500");
-    expect(prompt).toContain("700");
+    expect(prompt).toContain("650");
     expect(prompt).toContain("850");
+    expect(prompt).toContain("1100");
   });
 
   it("full_confidence framing is direct — no hedging language", () => {
@@ -224,17 +225,18 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("Do not assert the following as established fact");
   });
 
-  it("requires exactly 5 JSON keys in output format", () => {
+  it("requires exactly 6 JSON keys in output format", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
     expect(prompt).toContain('"observation"');
+    expect(prompt).toContain('"the_pattern"');
     expect(prompt).toContain('"what_this_means"');
-    expect(prompt).toContain('"why_this_is_happening"');
-    expect(prompt).toContain('"what_we_would_change"');
-    expect(prompt).toContain('"cta"');
+    expect(prompt).toContain('"why_this_happens"');
+    expect(prompt).toContain('"what_this_changes"');
+    expect(prompt).toContain('"next_step"');
   });
 
-  it("instructs: exactly 2 causal forces in why_this_is_happening", () => {
+  it("instructs: exactly 2 causal forces in why_this_happens", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
     expect(prompt).toContain("exactly 2 causal forces");
@@ -287,13 +289,13 @@ describe("buildUserPrompt", () => {
   it("contains the intervention framing", () => {
     const brief = makeBrief();
     const prompt = buildUserPrompt(brief);
-    expect(prompt).toContain("identify the buyer profile where you actually win");
+    expect(prompt).toContain("Identify the buyer profile where you actually win");
   });
 
   it("contains the CTA", () => {
     const brief = makeBrief();
     const prompt = buildUserPrompt(brief);
-    expect(prompt).toContain("If identifying the buyer profile");
+    expect(prompt).toContain("If the diagnosis is wrong");
   });
 
   it("includes founder name when provided", () => {
@@ -315,29 +317,32 @@ describe("buildUserPrompt", () => {
 // ---------------------------------------------------------------------------
 
 describe("parseResponse", () => {
-  it("parses valid 5-section JSON", () => {
+  it("parses valid 6-section JSON", () => {
     const input = JSON.stringify({
       observation: "Observation text here.",
+      the_pattern: "Pattern text here.",
       what_this_means: "Meaning text here.",
-      why_this_is_happening: "Cause text here.",
-      what_we_would_change: "Change text here.",
-      cta: "Reply to this letter.",
+      why_this_happens: "Cause text here.",
+      what_this_changes: "Change text here.",
+      next_step: "Reply to this letter.",
     });
     const result = parseResponse(input);
     expect(result.observation).toBe("Observation text here.");
+    expect(result.the_pattern).toBe("Pattern text here.");
     expect(result.what_this_means).toBe("Meaning text here.");
-    expect(result.why_this_is_happening).toBe("Cause text here.");
-    expect(result.what_we_would_change).toBe("Change text here.");
-    expect(result.cta).toBe("Reply to this letter.");
+    expect(result.why_this_happens).toBe("Cause text here.");
+    expect(result.what_this_changes).toBe("Change text here.");
+    expect(result.next_step).toBe("Reply to this letter.");
   });
 
   it("strips markdown code fences before parsing", () => {
     const inner = JSON.stringify({
       observation: "Obs.",
+      the_pattern: "Pattern.",
       what_this_means: "Means.",
-      why_this_is_happening: "Cause.",
-      what_we_would_change: "Change.",
-      cta: "Act.",
+      why_this_happens: "Cause.",
+      what_this_changes: "Change.",
+      next_step: "Act.",
     });
     const wrapped = `\`\`\`json\n${inner}\n\`\`\``;
     const result = parseResponse(wrapped);
@@ -347,10 +352,11 @@ describe("parseResponse", () => {
   it("trims whitespace from section values", () => {
     const input = JSON.stringify({
       observation: "  Trimmed.  ",
+      the_pattern: "Pattern.",
       what_this_means: "Meaning.",
-      why_this_is_happening: "Cause.",
-      what_we_would_change: "Change.",
-      cta: "Act.",
+      why_this_happens: "Cause.",
+      what_this_changes: "Change.",
+      next_step: "Act.",
     });
     const result = parseResponse(input);
     expect(result.observation).toBe("Trimmed.");
@@ -363,22 +369,24 @@ describe("parseResponse", () => {
   it("throws ERR_MEMO_MISSING_SECTIONS when a section is absent", () => {
     const input = JSON.stringify({
       observation: "Obs.",
+      the_pattern: "Pattern.",
       what_this_means: "Meaning.",
-      // why_this_is_happening is missing
-      what_we_would_change: "Change.",
-      cta: "Act.",
+      // why_this_happens is missing
+      what_this_changes: "Change.",
+      next_step: "Act.",
     });
     expect(() => parseResponse(input)).toThrow("ERR_MEMO_MISSING_SECTIONS");
-    expect(() => parseResponse(input)).toThrow("why_this_is_happening");
+    expect(() => parseResponse(input)).toThrow("why_this_happens");
   });
 
   it("throws ERR_MEMO_MISSING_SECTIONS when a section is an empty string", () => {
     const input = JSON.stringify({
       observation: "",
+      the_pattern: "Pattern.",
       what_this_means: "Meaning.",
-      why_this_is_happening: "Cause.",
-      what_we_would_change: "Change.",
-      cta: "Act.",
+      why_this_happens: "Cause.",
+      what_this_changes: "Change.",
+      next_step: "Act.",
     });
     expect(() => parseResponse(input)).toThrow("ERR_MEMO_MISSING_SECTIONS");
   });
@@ -434,10 +442,11 @@ describe("writeMemo", () => {
     const names = result.sections.map(s => s.name);
     expect(names).toEqual([
       "observation",
+      "the_pattern",
       "what_this_means",
-      "why_this_is_happening",
-      "what_we_would_change",
-      "cta",
+      "why_this_happens",
+      "what_this_changes",
+      "next_step",
     ]);
   });
 
@@ -450,16 +459,17 @@ describe("writeMemo", () => {
     }
   });
 
-  it("markdown assembles all 5 section headings", async () => {
+  it("markdown assembles all 6 section headings", async () => {
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(validSectionsJson()) };
     const result = await writeMemo(brief, 1, config);
 
     expect(result.markdown).toContain("## Observation");
-    expect(result.markdown).toContain("## What this means");
-    expect(result.markdown).toContain("## Why this is happening");
-    expect(result.markdown).toContain("## What we would change");
-    expect(result.markdown).toContain("## Next step");
+    expect(result.markdown).toContain("## The Pattern");
+    expect(result.markdown).toContain("## What This Means");
+    expect(result.markdown).toContain("## Why This Happens");
+    expect(result.markdown).toContain("## What This Changes");
+    expect(result.markdown).toContain("## Next Step");
   });
 
   it("word_count matches the assembled markdown", async () => {
@@ -479,21 +489,22 @@ describe("writeMemo", () => {
   });
 
   it("throws ERR_MEMO_TOO_SHORT when response word count < 300", async () => {
-    // Each section has 5 words × 5 sections = 25 content words + headings ~19 = ~44 total
+    // Each section has ~3-5 words × 6 sections = ~24 content words + headings ~22 = ~46 total
     const shortJson = JSON.stringify({
       observation: "Short obs text.",
+      the_pattern: "Short pattern text.",
       what_this_means: "Short means text.",
-      why_this_is_happening: "Short cause text.",
-      what_we_would_change: "Short change text.",
-      cta: "Reply now.",
+      why_this_happens: "Short cause text.",
+      what_this_changes: "Short change text.",
+      next_step: "Reply now.",
     });
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(shortJson) };
     await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_MEMO_TOO_SHORT");
   });
 
-  it("throws ERR_MEMO_TOO_LONG when response word count > 850", async () => {
-    // 200 words × 5 sections = 1000 content words + ~19 heading words = 1019 total > 850
+  it("throws ERR_MEMO_TOO_LONG when response word count > 1100", async () => {
+    // 200 words × 6 sections = 1200 content words + ~22 heading words = 1222 total > 1100
     const longJson = validSectionsJson(200);
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(longJson) };
@@ -504,10 +515,11 @@ describe("writeMemo", () => {
     // Include "game-changing" — one of the banned phrases in makeBrief()
     const bannedJson = JSON.stringify({
       observation: words(80) + " This is game-changing technology.",
+      the_pattern: words(80),
       what_this_means: words(80),
-      why_this_is_happening: words(80),
-      what_we_would_change: words(80),
-      cta: "Reply to this letter to explore further.",
+      why_this_happens: words(80),
+      what_this_changes: words(80),
+      next_step: "Reply to this letter to explore further.",
     });
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(bannedJson) };
@@ -530,10 +542,11 @@ describe("writeMemo", () => {
   it("throws ERR_MEMO_MISSING_SECTIONS when LLM omits a section", async () => {
     const incomplete = JSON.stringify({
       observation: words(80),
+      the_pattern: words(80),
       what_this_means: words(80),
-      // why_this_is_happening is missing
-      what_we_would_change: words(80),
-      cta: "Reply to this letter.",
+      // why_this_happens is missing
+      what_this_changes: words(80),
+      next_step: "Reply to this letter.",
     });
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(incomplete) };

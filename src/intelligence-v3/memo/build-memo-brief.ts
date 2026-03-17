@@ -84,6 +84,21 @@ const V3_ADDITIONS = [
   "circle back",
   "reach out",
   "at the end of the day",
+  // Template-bleed prevention (Dean & Wiseman doctrine)
+  "two structural forces",
+  "two forces",
+  "forces collide",
+  "structural forces",
+  "first force",
+  "second force",
+  // Hedging that survives tone constraints
+  "evidence leaves this open",
+  "it is worth noting",
+  "likely creates",
+  "may indicate",
+  // Sales-pitch prevention
+  "we would help you",
+  "we would help",
 ];
 
 /**
@@ -100,36 +115,37 @@ export const BANNED_PHRASES: string[] = Array.from(
 
 export const INTERVENTION_FRAMING: Record<InterventionType, string> = {
   positioning_reset:
-    "Frame as: we would help you clarify what you're actually selling, to whom, and why that earns the deal",
+    "Name the strategic lever: the narrative anchor needs to change. Describe what the evidence shows customers actually respond to vs. what the company currently leads with. Do not prescribe the full repositioning — state that companies resolving this pattern typically change the narrative anchor to lead with the outcome customers already describe.",
   icp_redefinition:
-    "Frame as: we would help you identify the buyer profile where you actually win, and retool outreach around it",
+    "Name the strategic lever: the buyer profile the product actually wins with differs from the stated ICP. Describe the buyer the evidence reveals. Do not prescribe the full GTM retooling — state that the lever is aligning go-to-market to where the product-market signal is strongest.",
   sales_motion_redesign:
-    "Frame as: we would help you design a pipeline where economic buyers move from awareness to decision without the journey stalling at technical evaluation",
+    "Name the strategic lever: the pipeline needs to reach a different stakeholder than the current motion engages. Describe the gap between who adopts and who buys. Do not prescribe the full pipeline redesign — state that the structural response is bridging adoption to the economic buyer.",
   founder_gtm_transition:
-    "Frame as: we would help you build the institutional credibility to close without you in the room",
+    "Name the strategic lever: the growth ceiling is the founder's personal bandwidth. Describe what the evidence shows depends on the founder's presence. Do not prescribe the full transition plan — state that resolving the pattern requires institutional credibility the current motion lacks.",
   distribution_strategy_reset:
-    "Frame as: we would help you find a distribution path that doesn't depend on one channel or relationship",
+    "Name the strategic lever: growth depends on a single channel or relationship. Describe the concentration the evidence shows. Do not prescribe the diversification strategy — state that the fragility has a structural resolution.",
   proof_architecture_design:
-    "Frame as: we would help you build the proof assets that let buyers say yes without needing to talk to you",
+    "Name the strategic lever: buyers stall because the proof assets required to justify purchase do not exist. Describe what's missing. Do not prescribe the full proof architecture — state that the bottleneck has a known resolution pattern.",
 };
 
 // ---------------------------------------------------------------------------
 // CTA by intervention type — non-question, one clear ask
 // ---------------------------------------------------------------------------
 
+/** Universal CTA — same for every memo, per Dean & Wiseman doctrine. */
+export const UNIVERSAL_CTA =
+  "If the diagnosis is wrong, it would be useful to know. " +
+  "If it is right, there is a specific way companies resolve it. " +
+  "Twenty minutes is enough to test which it is.";
+
+/** @deprecated Use UNIVERSAL_CTA. Kept for backward compatibility. */
 export const CTA_BY_INTERVENTION: Record<InterventionType, string> = {
-  positioning_reset:
-    "If the gap between what you are selling and what is buying resonates, reply to this letter — 20 minutes is enough to test whether the framing shift is worth pursuing.",
-  icp_redefinition:
-    "If identifying the buyer profile where you actually win is worth exploring, reply to this letter — 20 minutes to establish whether this is the right lever.",
-  sales_motion_redesign:
-    "If the gap between who is engaged and who can actually sign is what is blocking growth, reply to this letter — 20 minutes to test whether the pipeline motion is the right lever.",
-  founder_gtm_transition:
-    "If building the credibility to close without you in the room is the problem to solve next, reply to this letter — 20 minutes to establish whether we can help.",
-  distribution_strategy_reset:
-    "If finding a distribution path less concentrated in one channel is worth thinking through, reply to this letter — 20 minutes to explore what that path looks like.",
-  proof_architecture_design:
-    "If building proof assets that let buyers say yes is the lever that unlocks your next stage, reply to this letter — 20 minutes to test the hypothesis.",
+  positioning_reset: UNIVERSAL_CTA,
+  icp_redefinition: UNIVERSAL_CTA,
+  sales_motion_redesign: UNIVERSAL_CTA,
+  founder_gtm_transition: UNIVERSAL_CTA,
+  distribution_strategy_reset: UNIVERSAL_CTA,
+  proof_architecture_design: UNIVERSAL_CTA,
 };
 
 // ---------------------------------------------------------------------------
@@ -340,7 +356,7 @@ function selectHook(evidencePack: EvidencePack, founderName?: string): MemoHook 
 
 const TONE_CONSTRAINTS: ToneConstraints = {
   register: "direct",
-  perspective: "commercial_advisor",
+  perspective: "strategic_analyst",
   avoid: [
     "generic_advice",
     "jargon",
@@ -355,9 +371,9 @@ const TONE_CONSTRAINTS: ToneConstraints = {
 // ---------------------------------------------------------------------------
 
 const WORD_BUDGET: WordBudget = {
-  target_min: 500,
-  target_max: 700,
-  hard_max: 850,
+  target_min: 650,
+  target_max: 850,
+  hard_max: 1100,
 };
 
 // ---------------------------------------------------------------------------
@@ -366,10 +382,11 @@ const WORD_BUDGET: WordBudget = {
 
 const REQUIRED_SECTIONS: MemoSectionName[] = [
   "observation",
+  "the_pattern",
   "what_this_means",
-  "why_this_is_happening",
-  "what_we_would_change",
-  "cta",
+  "why_this_happens",
+  "what_this_changes",
+  "next_step",
 ];
 
 // ---------------------------------------------------------------------------
@@ -430,10 +447,8 @@ export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
     INTERVENTION_FRAMING[intervention.type] ??
     `Frame as: we would help address the ${intervention.type} challenge identified in the diagnosis`;
 
-  // CTA — deterministic, non-question single ask derived from intervention type
-  const cta =
-    CTA_BY_INTERVENTION[intervention.type] ??
-    "If this resonates, reply to this letter — 20 minutes to explore whether we can help.";
+  // CTA — universal per Dean & Wiseman doctrine
+  const cta = UNIVERSAL_CTA;
 
   // Company name: use human-readable name if provided, fall back to slug
   const targetCompany = target_company_name ?? companyId;

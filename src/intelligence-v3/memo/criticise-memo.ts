@@ -9,11 +9,13 @@
  * Max tokens: 800
  * Temperature: 0.1
  *
- * Evaluation: 4 scoring dimensions (0–5 each, pass ≥ 3) + 2 named tests
+ * Evaluation: 6 scoring dimensions (0–5 each, pass ≥ 3) + 2 named tests
  *
  * Dimensions:
  *   evidence_grounding    — every factual claim traces to real evidence
  *   commercial_sharpness  — reads like intelligence about a specific company
+ *   pattern_clarity       — narrative gap is explicit and unmistakable
+ *   signal_density        — 3–5 concrete signals with specific fragments
  *   cta_clarity           — exactly one clear, actionable ask
  *   tone_compliance       — no banned phrases, jargon, or feature-selling
  *
@@ -25,7 +27,7 @@
  *   "What would the founder say is wrong here?"
  *   Identifies most vulnerable claim. Does not directly gate; feeds revision instructions.
  *
- * overall_pass = true only if all 4 dimensions ≥ 3 AND genericity_test = "pass"
+ * overall_pass = true only if all 6 dimensions ≥ 3 AND genericity_test = "pass"
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -60,9 +62,9 @@ export interface CriticConfig {
 // ---------------------------------------------------------------------------
 
 export function buildCriticSystemPrompt(): string {
-  return `You are a rigorous commercial writing critic. Your job is to find weaknesses. Default to finding problems. Only pass a dimension if you are confident it meets the standard.
+  return `You are a rigorous critic evaluating a Dean & Wiseman strategic diagnostic. Your job is to find weaknesses. Default to finding problems. Only pass a dimension if you are confident it meets the standard.
 
-You will evaluate a founder-facing strategic memo on 4 scoring dimensions (0–5 each) plus 2 named tests.
+You will evaluate a founder-facing strategic diagnostic on 6 scoring dimensions (0–5 each) plus 2 named tests.
 
 SCORING DIMENSIONS:
 
@@ -75,8 +77,8 @@ SCORING DIMENSIONS:
    0 = evidence is largely invented or conflated with generic patterns
    Pass threshold: ≥ 3
 
-2. commercial_sharpness (0–5): Does this read like intelligence about a specific company?
-   5 = every paragraph contains company-specific observations
+2. commercial_sharpness (0–5): Does this read like intelligence about a specific company, built from 3–5 concrete signals?
+   5 = every paragraph contains company-specific observations; 3+ verbatim signal fragments
    4 = mostly specific with one generic paragraph
    3 = half specific, half generic
    2 = more generic than specific
@@ -84,41 +86,60 @@ SCORING DIMENSIONS:
    0 = fully generic
    Pass threshold: ≥ 3
 
-3. cta_clarity (0–5): Is there exactly one clear ask?
-   5 = one unambiguous ask; reader knows exactly what action to take
-   4 = one ask, slightly vague on the action
-   3 = one ask, weakened by hedging language
-   2 = two asks, or the ask is implicit
-   1 = no clear ask, or memo ends without direction
-   0 = multiple competing asks or no ask
+3. pattern_clarity (0–5): Does "The Pattern" section make the narrative gap explicit and unmistakable?
+   5 = gap is stated in 2-3 clear sentences; reader instantly sees the mismatch between positioning and reality
+   4 = gap is present but slightly vague on one side (the "experienced as" or "positioned as")
+   3 = gap is implied but not explicitly stated as a contrast
+   2 = pattern section exists but describes the situation rather than naming the gap
+   1 = pattern section is generic or could apply to many companies
+   0 = no discernible narrative gap named
    Pass threshold: ≥ 3
 
-4. tone_compliance (0–5): Banned phrases, jargon, feature-selling?
-   5 = no violations; direct, precise, commercial register throughout
-   4 = minor register issue (one slightly corporate phrase)
+4. signal_density (0–5): Does the memo contain 3–5 concrete external signals as specific fragments?
+   5 = 5+ concrete signals with verbatim fragments (review excerpts, developer comments, pricing observations)
+   4 = 3–4 concrete signals with specific fragments
+   3 = 3 signals but references are vague rather than specific
+   2 = 1–2 signals only, or evidence is paraphrased without specificity
+   1 = vague claims with no concrete signals
+   0 = no external signals referenced
+   Pass threshold: ≥ 3
+
+5. cta_clarity (0–5): Does the next step feel like continuing the analysis?
+   5 = one unambiguous diagnostic ask; feels like continuing the analysis, not a meeting request
+   4 = one ask, slightly vague on the action
+   3 = one ask, weakened by hedging or sales language
+   2 = two asks, or the ask feels like a meeting request
+   1 = no clear ask, or memo ends without direction
+   0 = multiple competing asks or blatant sales pitch
+   Pass threshold: ≥ 3
+
+6. tone_compliance (0–5): Does it read like an internal strategy document?
+   5 = restrained, precise, analytical throughout; no hype, flattery, urgency, or marketing language
+   4 = minor register issue (one slightly promotional phrase)
    3 = one non-critical tone violation
-   2 = one banned phrase or one jargon phrase
-   1 = multiple tone violations
-   0 = banned phrase in opening or closing; or memo is clearly a product pitch
+   2 = one banned phrase or one instance of marketing language
+   1 = multiple tone violations or reads like consulting output
+   0 = reads like outreach or a product pitch
    Pass threshold: ≥ 3
 
 NAMED TEST 1 — Genericity Test:
 "Could this memo plausibly be sent to another SaaS company?"
-Remove the company name from every occurrence. Does the memo still make specific, accurate claims about a real business, or does it become generically true of any SaaS company?
-If removing the company name leaves the argument substantially intact, this memo FAILS the genericity test.
-Pass condition: the memo contains ≥ 3 claims that are uniquely specific to this company.
+Remove the company name. Does every sentence still contain company-specific information?
+If removing the company name leaves the argument substantially intact, FAIL.
+Pass condition: ≥ 3 claims that are uniquely specific to this company.
 result: "pass" or "fail"
 
 NAMED TEST 2 — Founder Pushback Test:
 "What would the founder say is wrong here?"
-Imagine you are the CEO of this company. You have just read this memo. What is the single most credible objection you would raise? Where is the memo's argument most vulnerable to being dismissed?
-Identify the claim most likely to cause the founder to stop reading.
+Imagine you are the CEO. What is the single most credible objection? Where is the argument most vulnerable?
 severity: "low" | "medium" | "high"
 
 OUTPUT FORMAT: Return valid JSON only. No markdown code fences. No text outside the JSON.
 {
   "evidence_grounding": { "score": <0-5>, "notes": "<brief explanation>" },
   "commercial_sharpness": { "score": <0-5>, "notes": "<brief explanation>" },
+  "pattern_clarity": { "score": <0-5>, "notes": "<brief explanation>" },
+  "signal_density": { "score": <0-5>, "notes": "<brief explanation>" },
   "cta_clarity": { "score": <0-5>, "notes": "<brief explanation>" },
   "tone_compliance": { "score": <0-5>, "notes": "<brief explanation>" },
   "genericity_test": { "result": "<pass|fail>", "reasoning": "<1-2 sentences>" },
@@ -148,7 +169,7 @@ MEMO TO EVALUATE:
 ${memo.markdown}
 
 ---
-Evaluate on all 4 dimensions and both named tests. Be hostile. Find problems. Return JSON only.`;
+Evaluate on all 6 dimensions and both named tests. Be hostile. Find problems. Return JSON only.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +179,8 @@ Evaluate on all 4 dimensions and both named tests. Be hostile. Find problems. Re
 interface RawCriticResponse {
   evidence_grounding: { score: number; notes: string };
   commercial_sharpness: { score: number; notes: string };
+  pattern_clarity: { score: number; notes: string };
+  signal_density: { score: number; notes: string };
   cta_clarity: { score: number; notes: string };
   tone_compliance: { score: number; notes: string };
   genericity_test: { result: string; reasoning: string };
@@ -198,6 +221,8 @@ export function parseCriticResponse(text: string): RawCriticResponse {
   const requiredDims = [
     "evidence_grounding",
     "commercial_sharpness",
+    "pattern_clarity",
+    "signal_density",
     "cta_clarity",
     "tone_compliance",
   ] as const;
@@ -265,6 +290,14 @@ function buildRevisionInstructions(
   if (!dims.commercial_sharpness.pass) {
     failingDims.push("commercial_sharpness");
     specificIssues.push(`Commercial sharpness (score ${dims.commercial_sharpness.score}/5): ${dims.commercial_sharpness.notes}`);
+  }
+  if (!dims.pattern_clarity.pass) {
+    failingDims.push("pattern_clarity");
+    specificIssues.push(`Pattern clarity (score ${dims.pattern_clarity.score}/5): ${dims.pattern_clarity.notes}`);
+  }
+  if (!dims.signal_density.pass) {
+    failingDims.push("signal_density");
+    specificIssues.push(`Signal density (score ${dims.signal_density.score}/5): ${dims.signal_density.notes}`);
   }
   if (!dims.cta_clarity.pass) {
     failingDims.push("cta_clarity");
@@ -349,6 +382,8 @@ export async function criticiseMemo(
   const dims: MemoCriticResult["dimensions"] = {
     evidence_grounding: toDimensionScore(raw.evidence_grounding),
     commercial_sharpness: toDimensionScore(raw.commercial_sharpness),
+    pattern_clarity: toDimensionScore(raw.pattern_clarity),
+    signal_density: toDimensionScore(raw.signal_density),
     cta_clarity: toDimensionScore(raw.cta_clarity),
     tone_compliance: toDimensionScore(raw.tone_compliance),
   };
@@ -358,6 +393,8 @@ export async function criticiseMemo(
   const overallPass =
     dims.evidence_grounding.pass &&
     dims.commercial_sharpness.pass &&
+    dims.pattern_clarity.pass &&
+    dims.signal_density.pass &&
     dims.cta_clarity.pass &&
     dims.tone_compliance.pass &&
     genericityTest.result === "pass";

@@ -168,6 +168,10 @@ function classifyArchetype(
   if (gtm.buyer_structure.user_buyer_mismatch) {
     scores.developer_adoption_without_buyer_motion += 3
   }
+  // Compound boost: strong PLG signal when both mode and channel agree
+  if (gtm.sales_motion.mode === 'plg' && gtm.distribution_architecture.primary_channel === 'product') {
+    scores.developer_adoption_without_buyer_motion += 2
+  }
   if (gtm.distribution_architecture.fragility_score >= 0.7) {
     scores.distribution_fragility += 2
   }

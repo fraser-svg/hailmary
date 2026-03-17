@@ -618,6 +618,45 @@ function deduplicatePatterns(patterns: Pattern[]): Pattern[] {
   return result;
 }
 
+/**
+ * Fallback: Positioning-evidence gap
+ *
+ * Catch-all pattern when specific patterns don't fire but tensions exist.
+ * Groups all available tensions into a generalized positioning gap pattern.
+ * This ensures the pipeline produces at least 1 pattern for any company
+ * with detected tensions, preventing the "no patterns" pipeline failure.
+ *
+ * Only fires when no other patterns matched.
+ */
+function detectPositioningEvidenceGapPattern(
+  tensions: Tension[],
+  signals: Signal[],
+  companyId: string,
+): Pattern | null {
+  if (tensions.length === 0) return null;
+
+  // Collect all positioning and customer signals for reinforcement
+  const reinforcingSignals = signals.filter(s =>
+    s.kind === 'positioning' || s.kind === 'customer' || s.kind === 'credibility'
+  );
+
+  return makePattern(companyId, {
+    pattern_type: 'gap',
+    title: 'Positioning-evidence gap',
+    summary:
+      'Observable evidence — customer language, pricing structure, acquisition patterns, ' +
+      'and competitive positioning — diverges from the company\'s stated positioning. ' +
+      'This gap is visible across ' + tensions.length + ' tension(s) in the evidence base, ' +
+      'indicating a systematic disconnect between how the company positions itself and ' +
+      'what the evidence supports.',
+    tensions,
+    extraSignals: reinforcingSignals,
+    importance: tensions.length >= 2 ? 'high' : 'medium',
+    confidence: tensions.length >= 2 ? 'medium' : 'low',
+    strategic_weight: 'medium',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
@@ -641,5 +680,13 @@ export function detectPatterns(tensions: Tension[], signals: Signal[]): Pattern[
     detectFounderCentricGrowthPattern(tensions, signals, companyId),
   ].filter((p): p is Pattern => p !== null);
 
-  return deduplicatePatterns(candidates);
+  const deduped = deduplicatePatterns(candidates);
+
+  // Fallback: if no specific patterns matched, use the catch-all
+  if (deduped.length === 0) {
+    const fallback = detectPositioningEvidenceGapPattern(tensions, signals, companyId);
+    if (fallback) deduped.push(fallback);
+  }
+
+  return deduped;
 }
