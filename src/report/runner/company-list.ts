@@ -1,13 +1,6 @@
 /**
- * ICP company list for batch analysis.
- *
- * Target profile:
- *   - UK / UK-adjacent companies
- *   - £500k – £10M ARR
- *   - Seed / Series A / early Series B
- *   - B2B SaaS / devtools / software
- *   - "Messy growth stage": narrative evolving, founder-led sales,
- *     hiring signals, enterprise vs SMB tension, product vs services
+ * Legacy ICP company list. Use /discover-icp-companies skill for
+ * structured discovery with fit scoring.
  */
 
 export interface CompanyEntry {
