@@ -6,8 +6,9 @@
  * and writes structured outputs to reports/{slug}/.
  *
  * Usage:
- *   npx tsx src/report/runner/batch-analyse.ts           # all companies with dossiers
- *   npx tsx src/report/runner/batch-analyse.ts attio      # single company
+ *   npx tsx src/report/runner/batch-analyse.ts                          # all companies from legacy list
+ *   npx tsx src/report/runner/batch-analyse.ts attio                    # single company
+ *   npx tsx src/report/runner/batch-analyse.ts --discovery <file.json>  # from discovery run
  *
  * Feature flags:
  *   USE_INTELLIGENCE_V2=true  — run intelligence-v2 pipeline (diagnosis/mechanisms/intervention)
@@ -18,7 +19,7 @@
  *   Use /build-company-dossier to generate dossiers first.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import type { Dossier } from '../../types/index.js';
@@ -45,8 +46,53 @@ import {
 import { runV2Pipeline } from '../../intelligence-v2/pipeline.js';
 import type { V2PipelineResult } from '../../intelligence-v2/pipeline.js';
 
+import type { DiscoveryRun } from '../../types/icp.js';
 import { companies } from './company-list.js';
 import { slugify, writeJson, writeMarkdown } from './output-manager.js';
+
+// ---------------------------------------------------------------------------
+// Discovery run loader
+// ---------------------------------------------------------------------------
+
+export async function loadDiscoveryRun(
+  filePath: string,
+): Promise<Array<{ name: string; slug: string }>> {
+  const absPath = resolve(process.cwd(), filePath);
+
+  // Check file exists — throw clear error if not
+  await access(absPath).catch(() => {
+    throw new Error(`Discovery file not found: ${absPath}`);
+  });
+
+  const raw = await readFile(absPath, 'utf-8');
+  let run: DiscoveryRun;
+  try {
+    run = JSON.parse(raw) as DiscoveryRun;
+  } catch {
+    throw new Error(`Discovery file is not valid JSON: ${absPath}`);
+  }
+
+  if (!Array.isArray(run.companies)) {
+    throw new Error(`Discovery file missing 'companies' array: ${absPath}`);
+  }
+
+  const qualified = run.companies.filter(c => c.score?.qualified === true);
+
+  if (qualified.length === 0) {
+    console.log(
+      `⚠ No candidates met qualification threshold (${run.qualification_threshold ?? '?'}/12) ` +
+      `in ${filePath}. Consider adjusting criteria or adding investors.`,
+    );
+    return [];
+  }
+
+  console.log(
+    `Discovery: ${qualified.length} qualified of ${run.companies.length} candidates ` +
+    `(threshold: ${run.qualification_threshold ?? '?'}/12)`,
+  );
+
+  return qualified.map(c => ({ name: c.name, slug: slugify(c.name) }));
+}
 
 // ---------------------------------------------------------------------------
 // Feature flag
@@ -290,21 +336,35 @@ async function analyseCompany(
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const filterArg = process.argv[2];
+  const args = process.argv.slice(2);
+  const discoveryIdx = args.indexOf('--discovery');
 
   let targets: Array<{ name: string; slug: string }>;
 
-  if (filterArg) {
-    // Check company list first, then treat as raw slug
-    const match = companies.find(c => slugify(c.name) === filterArg);
-    if (match) {
-      targets = [{ name: match.name, slug: slugify(match.name) }];
-    } else {
-      // Allow arbitrary slug for dossiers not in the ICP list
-      targets = [{ name: filterArg, slug: filterArg }];
+  if (discoveryIdx !== -1) {
+    // --discovery <file.json> mode
+    const discoveryFile = args[discoveryIdx + 1];
+    if (!discoveryFile) {
+      throw new Error('--discovery requires a file path argument');
+    }
+    targets = await loadDiscoveryRun(discoveryFile);
+    if (targets.length === 0) {
+      return; // Warning already logged by loadDiscoveryRun
     }
   } else {
-    targets = companies.map(c => ({ name: c.name, slug: slugify(c.name) }));
+    const filterArg = args[0];
+    if (filterArg) {
+      // Check company list first, then treat as raw slug
+      const match = companies.find(c => slugify(c.name) === filterArg);
+      if (match) {
+        targets = [{ name: match.name, slug: slugify(match.name) }];
+      } else {
+        // Allow arbitrary slug for dossiers not in the ICP list
+        targets = [{ name: filterArg, slug: filterArg }];
+      }
+    } else {
+      targets = companies.map(c => ({ name: c.name, slug: slugify(c.name) }));
+    }
   }
 
   console.log(`Batch analysis: ${targets.length} companies (pipeline: ${USE_V2 ? 'intelligence-v2' : 'legacy'})`);
