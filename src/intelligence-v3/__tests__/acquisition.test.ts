@@ -22,7 +22,8 @@ import { externalResearchAcquisition } from '../acquisition/external-research.js
 import type { ExternalResearchProvider } from '../acquisition/external-research.js';
 import { mergeResearchCorpus } from '../acquisition/merge-corpus.js';
 import { corpusToDossierAdapter, domainToCompanyName } from '../acquisition/corpus-to-dossier.js';
-import type { CorpusPage, ExternalSource } from '../types/research-corpus.js';
+import type { CorpusPage, ExternalSource, CommunityMention } from '../types/research-corpus.js';
+import type { EnrichmentResult } from '../types/enrichment.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -873,4 +874,372 @@ describe('externalResearchAcquisition — provider mode CN budget', () => {
     const parsed = JSON.parse(cnLog!.replace('COUNTER_NARRATIVE_ACQUISITION ', ''));
     expect(parsed.budget_exceeded).toBe(true);
   }, 30_000); // 30s timeout — allows for the one 25s delay + overhead
+});
+
+// ---------------------------------------------------------------------------
+// Community routing (Change 2)
+// ---------------------------------------------------------------------------
+
+describe('mergeResearchCorpus — community routing', () => {
+  const siteCorpus = {
+    domain: 'example.com',
+    fetched_at: new Date().toISOString(),
+    pages: MANDATORY_PAGES,
+    fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+  };
+
+  it('routes reddit_thread to community_mentions[]', () => {
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('reddit_thread', {
+          url: 'https://reddit.com/r/devops/example',
+          excerpt: 'Example is slow and buggy.',
+          source_tier: 3,
+        }),
+        makeExternalSource('review_trustpilot'),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+
+    // reddit_thread should be in community_mentions, not external_sources
+    expect(corpus.community_mentions.length).toBe(1);
+    expect(corpus.community_mentions[0]!.platform).toBe('reddit');
+    expect(corpus.community_mentions[0]!.original_source_type).toBe('reddit_thread');
+    // Trustpilot review should remain in external_sources
+    expect(corpus.external_sources.some(s => s.source_type === 'review_trustpilot')).toBe(true);
+    expect(corpus.external_sources.some(s => s.source_type === 'reddit_thread')).toBe(false);
+  });
+
+  it('routes hackernews_thread to community_mentions[]', () => {
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('hackernews_thread', {
+          url: 'https://news.ycombinator.com/item?id=99999',
+          excerpt: 'HN discussion about Example.',
+          source_tier: 3,
+        }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+
+    expect(corpus.community_mentions.length).toBe(1);
+    expect(corpus.community_mentions[0]!.platform).toBe('hackernews');
+    expect(corpus.external_sources.length).toBe(0);
+  });
+
+  it('preserves provenance fields during routing', () => {
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('reddit_thread', {
+          url: 'https://reddit.com/r/devops/thread',
+          excerpt: 'Reddit content.',
+          token_count: 42,
+          published_at: '2024-06-15T00:00:00Z',
+          acquisition_method: 'perplexity' as const,
+          source_tier: 3,
+        }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const mention = corpus.community_mentions[0]!;
+
+    expect(mention.token_count).toBe(42);
+    expect(mention.published_at).toBe('2024-06-15T00:00:00Z');
+    expect(mention.acquisition_method).toBe('perplexity');
+    expect(mention.original_source_type).toBe('reddit_thread');
+  });
+
+  it('merges with caller-provided community mentions', () => {
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('reddit_thread', { url: 'https://reddit.com/r/devops/thread' }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const callerMention: CommunityMention = {
+      platform: 'discord',
+      gathered_at: new Date().toISOString(),
+      excerpt: 'Discord mention.',
+      source_tier: 4,
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus, {
+      community_mentions: [callerMention],
+    });
+
+    expect(corpus.community_mentions.length).toBe(2);
+    expect(corpus.community_mentions.some(m => m.platform === 'discord')).toBe(true);
+    expect(corpus.community_mentions.some(m => m.platform === 'reddit')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Negative signals (Change 3)
+// ---------------------------------------------------------------------------
+
+describe('corpusToDossierAdapter — negative_signals population', () => {
+  it('populates negative_signals from friction-tagged evidence', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+
+    // Create a review with friction keywords
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('review_trustpilot', {
+          excerpt: 'Product is unreliable and crashes frequently. The support team ignored our requests.',
+        }),
+        makeExternalSource('critical_review', {
+          url: 'https://blog.example.org/review',
+          excerpt: 'Switched away from Example because it was overpriced and confusing to use.',
+        }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const dossier = corpusToDossierAdapter(corpus);
+
+    // Should have negative signals extracted from friction-tagged reviews
+    const ns = dossier.narrative_intelligence.negative_signals;
+    expect(ns.length).toBeGreaterThan(0);
+
+    // Check that categories are inferred correctly
+    const categories = ns.map(s => s.category);
+    // "unreliable" → reliability, "overpriced" → billing, "confusing" → usability, etc.
+    expect(categories.some(c => ['reliability', 'billing', 'usability', 'support', 'migration'].includes(c))).toBe(true);
+
+    // All should have frequency: 'isolated'
+    expect(ns.every(s => s.frequency === 'isolated')).toBe(true);
+
+    // All should have evidence_ids
+    expect(ns.every(s => s.evidence_ids.length > 0)).toBe(true);
+  });
+
+  it('returns empty negative_signals when no friction evidence', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('press_mention', {
+          excerpt: 'Example Co announced a new partnership with BigCorp.',
+        }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const dossier = corpusToDossierAdapter(corpus);
+
+    // Press mentions don't have friction tags → no negative signals
+    expect(dossier.narrative_intelligence.negative_signals.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Community evidence in dossier (Change 2 adapter)
+// ---------------------------------------------------------------------------
+
+describe('corpusToDossierAdapter — community_mentions evidence', () => {
+  it('creates evidence records from community_mentions', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('reddit_thread', {
+          url: 'https://reddit.com/r/devops/example',
+          excerpt: 'Example is slow and hard to set up.',
+          source_tier: 3,
+        }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    // Verify routing happened
+    expect(corpus.community_mentions.length).toBe(1);
+
+    const dossier = corpusToDossierAdapter(corpus);
+
+    // Community mentions should produce evidence records
+    const communityEv = dossier.evidence.filter(e =>
+      e.tags?.includes('community_voice')
+    );
+    expect(communityEv.length).toBeGreaterThan(0);
+
+    // Should have corresponding source records
+    for (const ev of communityEv) {
+      const source = dossier.sources.find(s => s.source_id === ev.source_id);
+      expect(source).toBeDefined();
+    }
+
+    // Community evidence should appear in customer_and_personas.evidence_ids
+    const customerEvIds = dossier.customer_and_personas.evidence_ids;
+    expect(communityEv.some(ev => customerEvIds.includes(ev.evidence_id))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Enrichment adapter integration (Change 6)
+// ---------------------------------------------------------------------------
+
+describe('corpusToDossierAdapter — enrichment merge', () => {
+  function makeEnrichment(overrides?: Partial<EnrichmentResult['fields']>): EnrichmentResult {
+    return {
+      extracted_at: new Date().toISOString(),
+      model: 'claude-haiku-4-5-20251001',
+      latency_ms: 500,
+      fallback: false,
+      fields: {
+        category: 'Developer Tools',
+        company_stage: 'series-a',
+        founded_year: 2020,
+        leadership: [{ name: 'Jane Smith', role: 'CEO' }],
+        competitors: [{ name: 'Competitor Co', domain: 'competitor.com', evidence_id: 'ext_0' }],
+        pricing_signals: ['usage-based pricing'],
+        delivery_model: ['SaaS'],
+        customer_pain_themes: ['deployment speed'],
+        acquisition_channels: ['PLG'],
+        narrative_gaps: null,
+        value_alignment_summary: null,
+        ...overrides,
+      },
+      provenance: {
+        fields_extracted: 9,
+        fields_null: 2,
+        fields_rejected_provenance: 0,
+        rejected_details: [],
+      },
+    };
+  }
+
+  it('merges enriched fields into dossier', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [
+        makeExternalSource('competitor_search_snippet'),
+        makeExternalSource('review_trustpilot', { excerpt: 'Good product but deployment speed needs improvement.' }),
+      ],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const enrichment = makeEnrichment();
+    const dossier = corpusToDossierAdapter(corpus, enrichment);
+
+    expect(dossier.company_profile.category).toBe('Developer Tools');
+    expect(dossier.company_profile.company_stage.value).toBe('series-a');
+    expect(dossier.company_profile.founded_year).toBe(2020);
+    expect(dossier.company_profile.leadership.length).toBe(1);
+    expect(dossier.product_and_offer.pricing_signals).toContain('usage-based pricing');
+    expect(dossier.product_and_offer.delivery_model).toContain('SaaS');
+    expect(dossier.gtm_model.acquisition_channels).toContain('PLG');
+    expect(dossier.customer_and_personas.customer_pain_themes).toContain('deployment speed');
+    // Enriched competitor
+    expect(dossier.competitors.direct_competitors[0]!.name).toBe('Competitor Co');
+  });
+
+  it('produces identical output without enrichment', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const dossier = corpusToDossierAdapter(corpus);
+
+    // Without enrichment, fields should be empty defaults
+    expect(dossier.company_profile.category).toBe('');
+    expect(dossier.company_profile.company_stage.value).toBe('');
+    expect(dossier.company_profile.founded_year).toBeNull();
+    expect(dossier.company_profile.leadership).toEqual([]);
+    expect(dossier.product_and_offer.pricing_signals).toEqual([]);
+    expect(dossier.product_and_offer.delivery_model).toEqual([]);
+    expect(dossier.gtm_model.acquisition_channels).toEqual([]);
+  });
+
+  it('handles fallback enrichment (all null fields)', () => {
+    const siteCorpus = {
+      domain: 'example.com',
+      fetched_at: new Date().toISOString(),
+      pages: MANDATORY_PAGES,
+      fetch_metadata: { attempted_pages: [], failed_pages: [], total_tokens: 100 },
+    };
+    const externalCorpus = {
+      company: 'Example',
+      gathered_at: new Date().toISOString(),
+      sources: [],
+      source_metadata: { source_types_attempted: [], source_types_successful: [], search_queries_used: [] },
+    };
+
+    const corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
+    const fallbackEnrichment = makeEnrichment({
+      category: null,
+      company_stage: null,
+      founded_year: null,
+      leadership: null,
+      competitors: null,
+      pricing_signals: null,
+      delivery_model: null,
+      customer_pain_themes: null,
+      acquisition_channels: null,
+    });
+    fallbackEnrichment.fallback = true;
+
+    const dossier = corpusToDossierAdapter(corpus, fallbackEnrichment);
+
+    // Null enrichment fields → empty defaults
+    expect(dossier.company_profile.category).toBe('');
+    expect(dossier.company_profile.leadership).toEqual([]);
+    expect(dossier.product_and_offer.pricing_signals).toEqual([]);
+  });
 });
