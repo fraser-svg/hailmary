@@ -879,6 +879,184 @@ function extractPlgMotionSignals(dossier: Dossier, companyId: string): Signal[] 
 }
 
 // ---------------------------------------------------------------------------
+// Generalized passes for live acquisition data
+// ---------------------------------------------------------------------------
+// These passes work with the raw data that the corpus-to-dossier adapter
+// produces (company_claimed_value, customer_expressed_value, evidence excerpts)
+// rather than the highly structured fields (narrative_gaps, hiring_signals,
+// customer_language_patterns, normalized_fields) that fixture dossiers have.
+// They bridge the gap so the pipeline works on live-acquired data.
+
+/**
+ * Pass 21: Generalized narrative divergence.
+ * Fires when company_claimed_value AND customer_expressed_value both exist.
+ * Creates a positioning signal indicating potential claim/reality divergence.
+ * This is a loosened version of Pass 1 that doesn't require structured narrative_gaps.
+ */
+function extractGeneralizedPositioningSignals(dossier: Dossier, companyId: string): Signal[] {
+  const ni = dossier.narrative_intelligence;
+  if (ni.company_claimed_value.length === 0) return [];
+
+  const allEvidence = unique(ni.company_claimed_value.flatMap(c => c.evidence_ids));
+  const hasCustomerEvidence = ni.customer_expressed_value.length > 0;
+
+  const tags: string[] = ['positioning', 'company_claim'];
+  if (hasCustomerEvidence) {
+    tags.push('positioning_gap', 'narrative_gap');
+  }
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'positioning',
+    title: 'Company positioning claims identified',
+    statement: `Company makes ${ni.company_claimed_value.length} positioning claims across its web presence.${hasCustomerEvidence ? ' Customer evidence exists that may diverge from these claims.' : ''}`,
+    evidence_ids: allEvidence,
+    inference_label: 'direct',
+    confidence: 'medium',
+    relevance: 'high',
+    novelty: 'low',
+    polarity: hasCustomerEvidence ? 'mixed' : 'neutral',
+    tags,
+  })];
+}
+
+/**
+ * Pass 22: Generalized customer evidence.
+ * Fires when review_record evidence exists.
+ * Creates a customer signal with buyer_language + segment_perception tags.
+ */
+function extractGeneralizedCustomerEvidenceSignals(dossier: Dossier, companyId: string): Signal[] {
+  const reviewEvidence = dossier.evidence.filter(e =>
+    e.evidence_type === 'review_record'
+  );
+  if (reviewEvidence.length === 0) return [];
+
+  const evidenceIds = reviewEvidence.map(e => e.evidence_id);
+  const allText = reviewEvidence.map(e => e.excerpt).join(' ');
+
+  const tags: string[] = ['customer_voice', 'buyer_language'];
+
+  if (/small.team|startup|indie|solo|individual|freelanc/i.test(allText)) {
+    tags.push('segment_perception', 'segment_evidence', 'smb_signal');
+  }
+  if (/developer|engineer|dev.team|backend|frontend|devops/i.test(allText)) {
+    tags.push('segment_perception');
+  }
+
+  const ni = dossier.narrative_intelligence;
+  if (ni.company_claimed_value.length > 0) {
+    tags.push('positioning_gap');
+  }
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'customer',
+    title: 'Customer perception from reviews',
+    statement: `${reviewEvidence.length} customer review(s) provide buyer perspective. Customer language may differ from company positioning.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: reviewEvidence.length >= 2 ? 'medium' : 'low',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'mixed',
+    tags,
+  })];
+}
+
+/**
+ * Pass 23: PLG / developer tools detection from evidence text.
+ * Scans all evidence excerpts for developer-oriented keywords.
+ */
+function extractDeveloperToolSignals(dossier: Dossier, companyId: string): Signal[] {
+  const plgKeywords = /free.tier|free.forever|self.serv|open.source|github|npm|pip.install|API.first|developer.first|developers?.blog|SDK|CLI.tool|product.led|PLG|no.sales|download.free/i;
+
+  // Only scan company-controlled evidence (site pages) — not reviews or press
+  const companyEvidenceTypes = new Set([
+    'company_description_record', 'pricing_record', 'product_record',
+    'content_record', 'channel_record',
+  ]);
+  const matching = dossier.evidence.filter(e =>
+    companyEvidenceTypes.has(e.evidence_type) && plgKeywords.test(e.excerpt)
+  );
+  if (matching.length === 0) return [];
+
+  const evidenceIds = matching.map(e => e.evidence_id);
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'gtm',
+    title: 'Developer-oriented product with self-serve distribution',
+    statement: `Evidence indicates a developer-focused product with self-serve or PLG distribution model. ${matching.length} evidence record(s) reference developer tools, open source, or self-serve patterns.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'light_inference',
+    confidence: matching.length >= 2 ? 'high' : 'medium',
+    relevance: 'high',
+    novelty: 'medium',
+    polarity: 'positive',
+    tags: ['self_serve', 'plg', 'product_led', 'open_source'],
+  })];
+}
+
+/**
+ * Pass 24: Funding growth signal from evidence.
+ */
+function extractGeneralizedFundingSignals(dossier: Dossier, companyId: string): Signal[] {
+  const fundingEvidence = dossier.evidence.filter(e =>
+    e.evidence_type === 'funding_record'
+  );
+  if (fundingEvidence.length === 0) return [];
+
+  const evidenceIds = fundingEvidence.map(e => e.evidence_id);
+  const allText = fundingEvidence.map(e => e.excerpt).join(' ');
+
+  const amountMatch = allText.match(/\$(\d+(?:\.\d+)?)\s*([MB])/i);
+  const amountStr = amountMatch ? `$${amountMatch[1]}${amountMatch[2].toUpperCase()}` : '';
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'operations',
+    title: `Funding activity${amountStr ? ` (${amountStr})` : ''}`,
+    statement: `Company has ${fundingEvidence.length} funding signal(s).${amountStr ? ` Most recent funding: ${amountStr}.` : ''} Growth ambition is observable.`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: 'medium',
+    relevance: 'medium',
+    novelty: 'low',
+    polarity: 'positive',
+    tags: ['funding', 'growth_signal'],
+  })];
+}
+
+/**
+ * Pass 25: Pricing page transparency signal.
+ * Detects free/starter tiers that indicate SMB/self-serve entry.
+ */
+function extractPricingPageSignals(dossier: Dossier, companyId: string): Signal[] {
+  const po = dossier.product_and_offer;
+  if (!po.pricing_model.is_public) return [];
+
+  const text = po.pricing_model.details ?? '';
+  if (!text) return [];
+
+  const tags: string[] = ['pricing'];
+  const evidenceIds = po.pricing_model.evidence_ids ?? [];
+
+  const hasFreeEntry = /free|starter|hobby|trial|\$0/i.test(text);
+  if (hasFreeEntry) {
+    tags.push('segment_alignment', 'smb_signal', 'self_serve', 'plg');
+  }
+
+  return [makeSignal(companyId, dossier, {
+    kind: 'pricing',
+    title: 'Public pricing indicates market segment targeting',
+    statement: `Company publishes pricing publicly.${hasFreeEntry ? ' Free/starter tier indicates self-serve PLG entry.' : ''}`,
+    evidence_ids: evidenceIds,
+    inference_label: 'direct',
+    confidence: 'high',
+    relevance: 'medium',
+    novelty: 'low',
+    polarity: 'neutral',
+    tags,
+  })];
+}
+
+// ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
 
@@ -923,6 +1101,12 @@ export function extractSignals(dossier: Dossier): Signal[] {
     ...extractPressFounderFramingSignals(dossier, companyId),
     ...extractOpenSourceAdoptionSignals(dossier, companyId),
     ...extractPlgMotionSignals(dossier, companyId),
+    // Generalized passes for live acquisition data
+    ...extractGeneralizedPositioningSignals(dossier, companyId),
+    ...extractGeneralizedCustomerEvidenceSignals(dossier, companyId),
+    ...extractDeveloperToolSignals(dossier, companyId),
+    ...extractGeneralizedFundingSignals(dossier, companyId),
+    ...extractPricingPageSignals(dossier, companyId),
   ];
 
   return deduplicateSignals(raw);

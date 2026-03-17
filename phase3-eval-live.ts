@@ -13,7 +13,6 @@
  * - Synthesis (V4 only): Sonnet 4.6 per synthesise-argument DEFAULT_MODEL
  */
 
-import { execFileSync } from "node:child_process";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,50 +26,7 @@ import {
   type RunComparison,
 } from "./src/report/evals/compare-v3-v4.js";
 import type { Dossier } from "./src/types/dossier.js";
-
-// ---------------------------------------------------------------------------
-// claude -p LLM client (MAX subscription auth via installed claude CLI)
-// ---------------------------------------------------------------------------
-
-/**
- * Duck-typed Anthropic client that calls `claude -p` as a subprocess.
- * Handles very long system/user prompts safely via execFileSync arg array.
- */
-function makeClaudeCliClient(): object {
-  return {
-    messages: {
-      create: async (params: {
-        model?: string;
-        system?: string;
-        messages: Array<{ role: string; content: string }>;
-        max_tokens?: number;
-        temperature?: number;
-      }) => {
-        const model = params.model ?? "claude-haiku-4-5-20251001";
-        const userMsg =
-          params.messages.findLast?.((m: { role: string }) => m.role === "user")?.content ??
-          params.messages[params.messages.length - 1]?.content ??
-          "";
-        const system = params.system ?? "";
-
-        const args = ["-p", userMsg, "--model", model];
-        if (system) {
-          args.push("--system-prompt", system);
-        }
-
-        const raw = execFileSync("claude", args, {
-          maxBuffer: 8 * 1024 * 1024, // 8 MB
-          timeout: 180_000, // 3 min per call
-          encoding: "utf-8",
-        });
-
-        return {
-          content: [{ type: "text" as const, text: raw.trim() }],
-        };
-      },
-    },
-  };
-}
+import { makeClaudeCliClient } from "./src/utils/claude-cli-client.js";
 
 // ---------------------------------------------------------------------------
 // founder_stop_power rubric (spec §7)

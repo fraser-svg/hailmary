@@ -324,8 +324,26 @@ export async function runV3Pipeline(
   let firstCriticResult: MemoCriticResult | undefined;
 
   if (memoBrief) {
+    // Helper: attempt writeMemo with one retry on recoverable LLM errors
+    // (banned phrases, parse failures, etc. — the LLM is non-deterministic)
+    const attemptWrite = async (
+      brief: MemoBrief,
+      attemptNumber: 1 | 2,
+    ): Promise<MarkdownMemo> => {
+      try {
+        return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/ERR_BANNED_PHRASE|ERR_MEMO_PARSE|ERR_MEMO_TOO_SHORT|ERR_MEMO_TOO_LONG/.test(msg)) {
+          console.warn(`[V3 pipeline] Recoverable memo error: ${msg} — retrying`);
+          return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
+        }
+        throw err;
+      }
+    };
+
     // Attempt 1: write + critic
-    memo = await writeMemo(memoBrief, 1, input.writerConfig ?? {});
+    memo = await attemptWrite(memoBrief, 1);
     criticResult = await criticiseMemo(memo, memoBrief, 1, input.criticConfig ?? {});
 
     // Revision: if critic fails, attempt once more with revision instructions appended
@@ -341,7 +359,7 @@ export async function runV3Pipeline(
       };
 
       // Attempt 2 (final — no further loops)
-      memo = await writeMemo(revisedBrief, 2, input.writerConfig ?? {});
+      memo = await attemptWrite(revisedBrief, 2);
       criticResult = await criticiseMemo(memo, revisedBrief, 2, input.criticConfig ?? {});
     }
   }
