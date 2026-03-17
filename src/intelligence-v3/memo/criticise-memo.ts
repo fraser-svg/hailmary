@@ -15,7 +15,7 @@
  *   evidence_grounding    — every factual claim traces to real evidence
  *   commercial_sharpness  — reads like intelligence about a specific company
  *   pattern_clarity       — narrative gap is explicit and unmistakable
- *   signal_density        — 3–5 concrete signals with specific fragments
+ *   signal_density        — 5–7 concrete signals with specific fragments
  *   cta_clarity           — exactly one clear, actionable ask
  *   tone_compliance       — no banned phrases, jargon, or feature-selling
  *
@@ -77,11 +77,11 @@ SCORING DIMENSIONS:
    0 = evidence is largely invented or conflated with generic patterns
    Pass threshold: ≥ 3
 
-2. commercial_sharpness (0–5): Does this read like intelligence about a specific company, built from 3–5 concrete signals?
-   5 = every paragraph contains company-specific observations; 3+ verbatim signal fragments
-   4 = mostly specific with one generic paragraph
-   3 = half specific, half generic
-   2 = more generic than specific
+2. commercial_sharpness (0–5): Does this read like intelligence about a specific company, built from 5–7 concrete signals? Every paragraph must contain company-specific texture.
+   5 = every paragraph contains company-specific observations; 5+ verbatim signal fragments woven into analytical narrative
+   4 = mostly specific with one generic paragraph; 4 signal fragments
+   3 = half specific, half generic; or signal fragments present but not woven into analysis
+   2 = more generic than specific; signals listed but not analysed
    1 = could be sent to any SaaS company with minor edits
    0 = fully generic
    Pass threshold: ≥ 3
@@ -95,10 +95,10 @@ SCORING DIMENSIONS:
    0 = no discernible narrative gap named
    Pass threshold: ≥ 3
 
-4. signal_density (0–5): Does the memo contain 3–5 concrete external signals as specific fragments?
-   5 = 5+ concrete signals with verbatim fragments (review excerpts, developer comments, pricing observations)
-   4 = 3–4 concrete signals with specific fragments
-   3 = 3 signals but references are vague rather than specific
+4. signal_density (0–5): Does the memo contain 5–7 concrete external signals as specific fragments woven into the narrative?
+   5 = 7+ concrete signals with verbatim fragments (review excerpts, developer comments, pricing observations) woven as texture
+   4 = 5–6 concrete signals with specific fragments
+   3 = 3–4 signals with specific fragments, or 5+ signals that are vague
    2 = 1–2 signals only, or evidence is paraphrased without specificity
    1 = vague claims with no concrete signals
    0 = no external signals referenced
