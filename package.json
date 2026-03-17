@@ -1,6 +1,6 @@
 {
   "name": "company-intelligence-engine",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Company Intelligence Engine — structured dossier generation for downstream AI",
   "type": "module",
   "scripts": {

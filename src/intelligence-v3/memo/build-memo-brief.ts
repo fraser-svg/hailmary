@@ -9,11 +9,12 @@
  *   - hook: highest-scoring hook_candidate from EvidencePack
  *     (prefers founder_statement hook if founderContext.name provided + score ≥ 6)
  *   - thesis: single sentence derived from diagnosis.statement
- *   - evidence_spine: 3–5 EvidencePack records (≥1 diagnosis_support,
+ *   - evidence_spine: 5–8 EvidencePack records (≥1 diagnosis_support,
  *     ≥1 counter_narrative if available, ≥1 specificity_anchor, all score ≥ 5)
+ *     Warns+flags if only 3-4 qualifying records available.
  *   - intervention_framing: determined by InterventionType (see spec 005 table)
  *   - cta: deterministic single ask — non-question, one action
- *   - word_budget: { target_min: 500, target_max: 700, hard_max: 850 }
+ *   - word_budget: { target_min: 900, target_max: 1100, hard_max: 1400 }
  *
  * Errors:
  *   ERR_ADJUDICATION_ABORT — called when adjudication_mode = "abort"
@@ -203,17 +204,17 @@ function roleToUsageInstruction(role: MemoRole, isInferred: boolean): string {
   const caveat = isInferred ? " — note: inferred, hedge appropriately" : "";
   switch (role) {
     case "hook_anchor":
-      return `Use in 'observation' section as the opening hook${caveat}`;
+      return `Use in 'executive_thesis' section as the opening tension${caveat}`;
     case "diagnosis_support":
-      return `Use in 'what_this_means' section to ground the diagnosis claim in specific evidence${caveat}`;
+      return `Use in 'what_we_observed' section to ground the thesis in specific evidence${caveat}`;
     case "mechanism_illustration":
-      return `Use in 'why_this_is_happening' section to illustrate a specific causal force${caveat}`;
+      return `Use in 'the_pattern' section to illustrate a specific causal force in the underlying system${caveat}`;
     case "counter_narrative":
-      return `Use in 'observation' or 'what_this_means' to contrast stated position with real-world signal — this is the tension that makes the memo credible${caveat}`;
+      return `Use in 'what_we_observed' or 'what_this_means' to contrast stated position with real-world signal — this is the tension that makes the memo credible${caveat}`;
     case "specificity_anchor":
       return `Use in any section at risk of sounding generic — this record makes the claim company-specific${caveat}`;
     case "intervention_evidence":
-      return `Use in 'what_we_would_change' to ground the intervention in observed commercial reality${caveat}`;
+      return `Use in 'what_this_changes' to ground the intervention in observed commercial reality${caveat}`;
   }
 }
 
@@ -231,19 +232,31 @@ function buildSpineRecord(record: EvidencePackRecord, role: MemoRole): EvidenceS
 }
 
 /**
- * Select 3–5 evidence spine records from the pack.
+ * Select 5–8 evidence spine records from the pack.
+ *
+ * Spine selection: qualifying records (total_score >= 5)
+ *   ≥5 available → select 5-8 (normal path)
+ *   3-4 available → select all + set thin_spine flag + log warning
+ *   <3 available  → select all (existing behavior, no change)
  *
  * Priority order:
  *   1. ≥1 diagnosis_support record (required)
  *   2. ≥1 counter_narrative record (if available)
  *   3. ≥1 specificity_anchor record
- *   4. Fill remaining slots (up to 5) with highest-scoring remaining records
+ *   4. Fill remaining slots (up to 8) with highest-scoring remaining records
  *
  * All selected records must have total_score ≥ 5.
  */
 function selectEvidenceSpine(evidencePack: EvidencePack): EvidenceSpineRecord[] {
   // Only records with total_score >= 5 are eligible
   const qualifying = evidencePack.records.filter(r => r.total_score >= 5);
+
+  // Warn when evidence density is thin (3-4 qualifying records)
+  if (qualifying.length >= 3 && qualifying.length < 5) {
+    console.warn(
+      `[thin_spine] Only ${qualifying.length} qualifying spine records (target: 5-8) for company ${evidencePack.company_id}`
+    );
+  }
 
   const result: EvidenceSpineRecord[] = [];
   const selected = new Set<string>();
@@ -271,13 +284,13 @@ function selectEvidenceSpine(evidencePack: EvidencePack): EvidenceSpineRecord[] 
   );
   if (specificityAnchor) addToSpine(specificityAnchor, "specificity_anchor");
 
-  // Fill remaining slots up to 5 with highest-scoring unselected qualifying records
+  // Fill remaining slots up to 8 with highest-scoring unselected qualifying records
   const remaining = qualifying
     .filter(r => !selected.has(r.evidence_id))
     .sort((a, b) => b.total_score - a.total_score);
 
   for (const r of remaining) {
-    if (result.length >= 5) break;
+    if (result.length >= 8) break;
     const primaryRole = (r.memo_roles[0] as MemoRole | undefined) ?? "diagnosis_support";
     addToSpine(r, primaryRole);
   }
@@ -371,22 +384,23 @@ const TONE_CONSTRAINTS: ToneConstraints = {
 // ---------------------------------------------------------------------------
 
 const WORD_BUDGET: WordBudget = {
-  target_min: 650,
-  target_max: 850,
-  hard_max: 1100,
+  target_min: 900,
+  target_max: 1100,
+  hard_max: 1400,
 };
 
 // ---------------------------------------------------------------------------
-// Required sections — always all 5
+// Required sections — always all 7 (Dean & Wiseman execution spec)
 // ---------------------------------------------------------------------------
 
 const REQUIRED_SECTIONS: MemoSectionName[] = [
-  "observation",
+  "title_block",
+  "executive_thesis",
+  "what_we_observed",
   "the_pattern",
   "what_this_means",
-  "why_this_happens",
   "what_this_changes",
-  "next_step",
+  "cta",
 ];
 
 // ---------------------------------------------------------------------------
@@ -439,7 +453,7 @@ export function buildMemoBrief(input: BuildMemoBriefInput): MemoBrief {
   // Derive thesis — single sentence from diagnosis.statement, framing-adjusted
   const thesis = buildThesis(diagnosis, adjudication.recommended_memo_framing);
 
-  // Select evidence spine (3–5 records with role coverage requirements)
+  // Select evidence spine (5–8 records with role coverage requirements)
   const evidenceSpine = selectEvidenceSpine(evidencePack);
 
   // Intervention framing — from spec 005 table

@@ -781,7 +781,7 @@ describe("buildMemoBrief — evidence spine", () => {
       evidencePack: buildStrongPack(),
     });
     expect(brief.evidence_spine.length).toBeGreaterThanOrEqual(3);
-    expect(brief.evidence_spine.length).toBeLessThanOrEqual(5);
+    expect(brief.evidence_spine.length).toBeLessThanOrEqual(8);
   });
 
   it("each spine record has a non-empty usage_instruction", () => {
@@ -809,9 +809,9 @@ describe("buildMemoBrief — word budget", () => {
       intervention: makeIntervention(),
       evidencePack: buildStrongPack(),
     });
-    expect(brief.word_budget.target_min).toBe(650);
-    expect(brief.word_budget.target_max).toBe(850);
-    expect(brief.word_budget.hard_max).toBe(1100);
+    expect(brief.word_budget.target_min).toBe(900);
+    expect(brief.word_budget.target_max).toBe(1100);
+    expect(brief.word_budget.hard_max).toBe(1400);
   });
 });
 
@@ -930,13 +930,14 @@ describe("buildMemoBrief — intervention framing and CTA", () => {
       intervention: makeIntervention(),
       evidencePack: buildStrongPack(),
     });
-    expect(brief.required_sections).toContain("observation");
+    expect(brief.required_sections).toContain("title_block");
+    expect(brief.required_sections).toContain("executive_thesis");
+    expect(brief.required_sections).toContain("what_we_observed");
     expect(brief.required_sections).toContain("the_pattern");
     expect(brief.required_sections).toContain("what_this_means");
-    expect(brief.required_sections).toContain("why_this_happens");
     expect(brief.required_sections).toContain("what_this_changes");
-    expect(brief.required_sections).toContain("next_step");
-    expect(brief.required_sections.length).toBe(6);
+    expect(brief.required_sections).toContain("cta");
+    expect(brief.required_sections.length).toBe(7);
   });
 });
 

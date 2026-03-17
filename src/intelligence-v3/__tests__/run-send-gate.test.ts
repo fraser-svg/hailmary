@@ -78,13 +78,15 @@ function makeMemo(overrides: Partial<MarkdownMemo> = {}): MarkdownMemo {
     word_count: 550,
     attempt_number: 1,
     sections: [
-      { name: "observation", markdown: "Acme procurement saves 40%.", word_count: 5 },
+      { name: "title_block", markdown: "Acme\nStrategic Diagnostic\nMarch 2026 | Confidential", word_count: 6 },
+      { name: "executive_thesis", markdown: "Acme procurement saves 40%.", word_count: 5 },
+      { name: "what_we_observed", markdown: "Buyer mismatch creates ceiling.", word_count: 5 },
+      { name: "the_pattern", markdown: "Pricing diverges from reality.", word_count: 5 },
       { name: "what_this_means", markdown: "Buyer mismatch creates ceiling.", word_count: 5 },
-      { name: "why_this_is_happening", markdown: "Pricing diverges from reality.", word_count: 5 },
-      { name: "what_we_would_change", markdown: "Reframe the ICP entirely.", word_count: 5 },
+      { name: "what_this_changes", markdown: "Reframe the ICP entirely.", word_count: 5 },
       ctaSection,
     ],
-    markdown: "## Observation\n\nAcme procurement saves 40%.\n\n## What this means\n\nBuyer mismatch creates ceiling.",
+    markdown: "Acme\nStrategic Diagnostic\nMarch 2026 | Confidential\n\n## Executive Thesis\n\nAcme procurement saves 40%.\n\n## What We Observed\n\nBuyer mismatch creates ceiling.",
     generated_at: new Date().toISOString(),
     ...overrides,
   };
@@ -269,19 +271,19 @@ describe("runSendGate — hard fail cases", () => {
     expect(noBanned?.failure_type).toBe("hard");
   });
 
-  it("word_count > 1100 → hard failure on word_count_in_range", () => {
-    const longMemo = makeMemo({ word_count: 1200 });
+  it("word_count > 1400 → hard failure on word_count_in_range", () => {
+    const longMemo = makeMemo({ word_count: 1500 });
     const input = makeInput({ memo: longMemo });
     const result = runSendGate(input);
     expect(result.result).toBe("fail");
     expect(result.has_hard_failures).toBe(true);
     const wc = result.criteria_results.find(c => c.criterion_id === "word_count_in_range");
     expect(wc?.failure_type).toBe("hard");
-    expect(wc?.observed_value).toBe(1200);
+    expect(wc?.observed_value).toBe(1500);
   });
 
-  it("word_count < 200 → hard failure", () => {
-    const shortMemo = makeMemo({ word_count: 150 });
+  it("word_count < 300 → hard failure", () => {
+    const shortMemo = makeMemo({ word_count: 250 });
     const input = makeInput({ memo: shortMemo });
     const result = runSendGate(input);
     expect(result.has_hard_failures).toBe(true);
@@ -351,10 +353,12 @@ describe("runSendGate — conditional fail cases", () => {
     const longCta = Array(15).fill("Reply to this letter for more information on our services.").join(" ");
     const longCtaMemo = makeMemo({
       sections: [
-        { name: "observation", markdown: "Acme.", word_count: 1 },
+        { name: "title_block", markdown: "Acme\nStrategic Diagnostic", word_count: 3 },
+        { name: "executive_thesis", markdown: "Acme.", word_count: 1 },
+        { name: "what_we_observed", markdown: "Obs.", word_count: 1 },
+        { name: "the_pattern", markdown: "Pattern.", word_count: 1 },
         { name: "what_this_means", markdown: "Means.", word_count: 1 },
-        { name: "why_this_is_happening", markdown: "Because.", word_count: 1 },
-        { name: "what_we_would_change", markdown: "Change.", word_count: 1 },
+        { name: "what_this_changes", markdown: "Change.", word_count: 1 },
         { name: "cta", markdown: longCta, word_count: 100 },
       ],
     });
@@ -366,8 +370,8 @@ describe("runSendGate — conditional fail cases", () => {
     expect(result.has_hard_failures).toBe(false);
   });
 
-  it("word_count 200–299 → conditional failure", () => {
-    const shortMemo = makeMemo({ word_count: 250 });
+  it("word_count 300–399 → conditional failure", () => {
+    const shortMemo = makeMemo({ word_count: 350 });
     const input = makeInput({ memo: shortMemo });
     const result = runSendGate(input);
     expect(result.result).toBe("fail");
@@ -379,10 +383,12 @@ describe("runSendGate — conditional fail cases", () => {
   it("missing CTA section → conditional failure on cta_present_singular", () => {
     const noCtaMemo = makeMemo({
       sections: [
-        { name: "observation", markdown: "Obs.", word_count: 1 },
+        { name: "title_block", markdown: "Acme\nStrategic Diagnostic", word_count: 3 },
+        { name: "executive_thesis", markdown: "Obs.", word_count: 1 },
+        { name: "what_we_observed", markdown: "Obs.", word_count: 1 },
+        { name: "the_pattern", markdown: "Pattern.", word_count: 1 },
         { name: "what_this_means", markdown: "Means.", word_count: 1 },
-        { name: "why_this_is_happening", markdown: "Cause.", word_count: 1 },
-        { name: "what_we_would_change", markdown: "Change.", word_count: 1 },
+        { name: "what_this_changes", markdown: "Change.", word_count: 1 },
         // no cta section
       ],
     });
@@ -409,7 +415,7 @@ describe("runSendGate — score computation", () => {
     expect(fail.memo_quality_score).toBeLessThanOrEqual(100);
   });
 
-  it("all dims 5 + 5 evidence + 700 words + gen pass + low severity → max score", () => {
+  it("all dims 5 + 5 evidence + 1000 words + gen pass + low severity → max score", () => {
     const allFiveCritic = makePassCriticResult({
       dimensions: {
         evidence_grounding: { score: 5, pass: true, notes: "" },
@@ -420,14 +426,14 @@ describe("runSendGate — score computation", () => {
         tone_compliance: { score: 5, pass: true, notes: "" },
       },
     });
-    const fiveEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003", "ev_004", "ev_005"], word_count: 700 });
+    const fiveEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003", "ev_004", "ev_005"], word_count: 1000 });
     const input = makeInput({ criticResult: allFiveCritic, memo: fiveEvMemo });
     const result = runSendGate(input);
     // 6×5/30×40=40 + 20 + 15 + 15 + 10 = 100
     expect(result.memo_quality_score).toBe(100);
   });
 
-  it("dims all 3 + 3 evidence + 700 words + gen pass + low severity → moderate score", () => {
+  it("dims all 3 + 3 evidence + 1000 words + gen pass + low severity → moderate score", () => {
     const allThreeCritic = makePassCriticResult({
       dimensions: {
         evidence_grounding: { score: 3, pass: true, notes: "" },
@@ -438,7 +444,7 @@ describe("runSendGate — score computation", () => {
         tone_compliance: { score: 3, pass: true, notes: "" },
       },
     });
-    const threeEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003"], word_count: 700 });
+    const threeEvMemo = makeMemo({ evidence_ids: ["ev_001", "ev_002", "ev_003"], word_count: 1000 });
     const input = makeInput({ criticResult: allThreeCritic, memo: threeEvMemo });
     const result = runSendGate(input);
     // 6×3/30×40=24 + 10 + 15 + 15 + 10 = 74

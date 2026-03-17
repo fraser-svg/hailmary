@@ -172,8 +172,8 @@ function makeBrief(overrides: Partial<MemoBrief> = {}): MemoBrief {
     banned_phrases: ["game-changing", "thought leader", "world-class"],
     confidence_caveats: [],
     cta: "If the diagnosis is wrong, it would be useful to know. If it is right, there is a specific way companies resolve it. Twenty minutes is enough to test which it is.",
-    word_budget: { target_min: 650, target_max: 850, hard_max: 1100 },
-    required_sections: ["observation", "the_pattern", "what_this_means", "why_this_happens", "what_this_changes", "next_step"],
+    word_budget: { target_min: 900, target_max: 1100, hard_max: 1400 },
+    required_sections: ["title_block", "executive_thesis", "what_we_observed", "the_pattern", "what_this_means", "what_this_changes", "cta"],
     ...overrides,
   };
 }
@@ -190,13 +190,15 @@ function makeMemo(overrides: Partial<MarkdownMemo> = {}): MarkdownMemo {
     word_count: 550,
     attempt_number: 1,
     sections: [
-      { name: "observation", markdown: "Acme's procurement platform saw 40% cost savings.", word_count: 8 },
+      { name: "title_block", markdown: "Acme\nStrategic Diagnostic\nMarch 2026 | Confidential", word_count: 6 },
+      { name: "executive_thesis", markdown: "Acme's procurement platform saw 40% cost savings.", word_count: 8 },
+      { name: "what_we_observed", markdown: "The deal size creates a buyer mismatch.", word_count: 7 },
+      { name: "the_pattern", markdown: "Enterprise pricing and mid-market reality diverge.", word_count: 7 },
       { name: "what_this_means", markdown: "The deal size creates a buyer mismatch.", word_count: 7 },
-      { name: "why_this_is_happening", markdown: "Enterprise pricing and mid-market reality diverge.", word_count: 7 },
-      { name: "what_we_would_change", markdown: "We would reframe the ICP.", word_count: 6 },
+      { name: "what_this_changes", markdown: "We would reframe the ICP.", word_count: 6 },
       { name: "cta", markdown: "Reply to this letter to explore further.", word_count: 7 },
     ],
-    markdown: "## Observation\n\nAcme's procurement platform saw 40% cost savings.\n\n## What this means\n\nThe deal size creates a buyer mismatch.\n\n## Why this is happening\n\nEnterprise pricing and mid-market reality diverge.\n\n## What we would change\n\nWe would reframe the ICP.\n\n## Next step\n\nReply to this letter to explore further.",
+    markdown: "Acme\nStrategic Diagnostic\nMarch 2026 | Confidential\n\n## Executive Thesis\n\nAcme's procurement platform saw 40% cost savings.\n\n## What We Observed\n\nThe deal size creates a buyer mismatch.\n\n## The Pattern\n\nEnterprise pricing and mid-market reality diverge.\n\n## What This Means\n\nThe deal size creates a buyer mismatch.\n\n## What This Changes\n\nWe would reframe the ICP.\n\n## Next Step\n\nReply to this letter to explore further.",
     generated_at: new Date().toISOString(),
     ...overrides,
   };
@@ -265,7 +267,7 @@ describe("buildCriticUserPrompt", () => {
     const memo = makeMemo();
     const brief = makeBrief();
     const prompt = buildCriticUserPrompt(memo, brief);
-    expect(prompt).toContain("## Observation");
+    expect(prompt).toContain("## Executive Thesis");
     expect(prompt).toContain("40% cost savings");
   });
 

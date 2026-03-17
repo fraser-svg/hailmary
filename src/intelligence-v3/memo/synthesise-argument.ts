@@ -27,6 +27,7 @@ import type {
 } from "../types/argument-synthesis.js";
 import { slugify } from "../../utils/ids.js";
 import { now } from "../../utils/timestamps.js";
+import { countWords } from "./utils.js";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -55,14 +56,6 @@ export interface SynthesiseArgumentInput {
   /** First 2 mechanisms used; extra entries are ignored */
   mechanisms: Mechanism[];
   evidencePack: EvidencePack;
-}
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
 }
 
 /** Select best hook from pack — same logic as buildMemoBrief */

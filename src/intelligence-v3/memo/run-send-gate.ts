@@ -11,14 +11,14 @@
  *   3. adjudication_not_aborted — adjudication.adjudication_mode !== "abort"
  *   4. no_banned_phrases      — independent banned phrase scan on memo.markdown
  *   5. cta_present_singular   — cta section present, ≤50 words
- *   6. word_count_in_range    — 300 ≤ word_count ≤ 1100
+ *   6. word_count_in_range    — 400 ≤ word_count ≤ 1400
  *
  * Hard failures (never overridable):
  *   - Genericity test failed
  *   - evidence_ids.length < 2
  *   - adjudication mode = abort
  *   - Banned phrase detected
- *   - word_count > 1100 or < 200
+ *   - word_count > 1400 or < 300
  *
  * Quality score derivation (0–100):
  *   critic_dimensions        40 pts (6 dims scaled: sum/30 × 40)
@@ -40,20 +40,13 @@ import type {
   GateSummary,
 } from "../types/send-gate.js";
 import { BANNED_PHRASES } from "./build-memo-brief.js";
+import { countWords } from "./utils.js";
 
 export interface RunSendGateInput {
   memo: MarkdownMemo;
   criticResult: MemoCriticResult;
   adjudication: AdjudicationResult;
   evidencePack: EvidencePack;
-}
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
 }
 
 function detectBannedPhrase(markdown: string): string | null {
@@ -176,7 +169,7 @@ function evalNoBannedPhrases(memo: MarkdownMemo): GateCriteriaResult {
 }
 
 function evalCtaPresentSingular(memo: MarkdownMemo): GateCriteriaResult {
-  const ctaSection = memo.sections.find(s => s.name === "next_step" || s.name === "cta");
+  const ctaSection = memo.sections.find(s => s.name === "cta");
   if (!ctaSection) {
     return {
       criterion_id: "cta_present_singular",
@@ -210,33 +203,33 @@ function evalCtaPresentSingular(memo: MarkdownMemo): GateCriteriaResult {
 
 function evalWordCountInRange(memo: MarkdownMemo): GateCriteriaResult {
   const wc = memo.word_count;
-  const pass = wc >= 300 && wc <= 1100;
+  const pass = wc >= 400 && wc <= 1400;
 
   if (pass) {
     return {
       criterion_id: "word_count_in_range",
       pass: true,
       observed_value: wc,
-      threshold: "300 ≤ word_count ≤ 1100",
+      threshold: "400 ≤ word_count ≤ 1400",
     };
   }
 
-  // Hard: < 200 or > 1100
-  // Conditional: 200–299
+  // Hard: < 300 or > 1400
+  // Conditional: 300–399
   const failure_type: "hard" | "conditional" =
-    wc > 1100 || wc < 200 ? "hard" : "conditional";
+    wc > 1400 || wc < 300 ? "hard" : "conditional";
   return {
     criterion_id: "word_count_in_range",
     pass: false,
     failure_type,
     observed_value: wc,
-    threshold: "300 ≤ word_count ≤ 1100",
+    threshold: "400 ≤ word_count ≤ 1400",
     notes:
-      wc > 1100
-        ? `Word count ${wc} exceeds hard max (1100)`
-        : wc < 200
-        ? `Word count ${wc} is below minimum (200 — not a memo)`
-        : `Word count ${wc} is in conditional range (200–299)`,
+      wc > 1400
+        ? `Word count ${wc} exceeds hard max (1400)`
+        : wc < 300
+        ? `Word count ${wc} is below minimum (300 — not a memo)`
+        : `Word count ${wc} is in conditional range (300–399)`,
   };
 }
 
@@ -267,9 +260,9 @@ function computeQualityScore(
   // word_count_target_range: 0–15
   const wc = memo.word_count;
   let wcScore: number;
-  if (wc >= 650 && wc <= 850) wcScore = 15;
-  else if ((wc >= 550 && wc < 650) || (wc > 850 && wc <= 950)) wcScore = 10;
-  else if ((wc >= 400 && wc < 550) || (wc > 950 && wc <= 1100)) wcScore = 5;
+  if (wc >= 900 && wc <= 1100) wcScore = 15;
+  else if ((wc >= 750 && wc < 900) || (wc > 1100 && wc <= 1200)) wcScore = 10;
+  else if ((wc >= 500 && wc < 750) || (wc > 1200 && wc <= 1400)) wcScore = 5;
   else wcScore = 0;
 
   // genericity_test: 0 or 15

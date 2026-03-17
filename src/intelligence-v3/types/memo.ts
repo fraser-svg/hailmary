@@ -20,13 +20,14 @@ export interface MemoSection {
  * MarkdownMemo — the generated founder-facing strategic memo.
  * Produced by writeMemo(). Evaluated by criticiseMemo().
  *
- * Sections must appear in order (Dean & Wiseman doctrine):
- * 1. observation
- * 2. the_pattern
- * 3. what_this_means
- * 4. why_this_happens
- * 5. what_this_changes
- * 6. next_step
+ * Sections must appear in order (Dean & Wiseman execution spec):
+ * 1. title_block        — code-generated (company name, date, confidential)
+ * 2. executive_thesis    — the core contradiction + commercial implication
+ * 3. what_we_observed    — 5-7 concrete evidence signals
+ * 4. the_pattern         — the underlying system connecting the signals
+ * 5. what_this_means     — business impact (trust, conversion, revenue)
+ * 6. what_this_changes   — strategic shift (direction, not tactics)
+ * 7. cta                 — conditional framing, low-friction next step
  */
 export interface MarkdownMemo {
   memo_id: string;                  // "memo_<company_id>_<timestamp>"
