@@ -18,16 +18,18 @@
  *   ERR_DOSSIER_INVALID — assembled dossier fails source/evidence link validation
  */
 
-import type { Dossier } from '../../types/dossier.js';
+import type { Dossier, NegativeSignal } from '../../types/dossier.js';
 import type { EvidenceRecord, EvidenceType, Confidence } from '../../types/evidence.js';
 import type { SourceRecord } from '../../types/source.js';
 import type {
   ResearchCorpus,
   CorpusPage,
   ExternalSource,
+  CommunityMention,
   SitePageType,
   ExternalSourceType,
 } from '../types/research-corpus.js';
+import type { EnrichmentResult } from '../types/enrichment.js';
 import { createEmptyDossier } from '../../utils/empty-dossier.js';
 import { makeSourceId, makeEvidenceId, makeRunId } from '../../utils/ids.js';
 import { now } from '../../utils/timestamps.js';
@@ -162,6 +164,22 @@ function externalSourceRecord(source: ExternalSource, idx: number): SourceRecord
   };
 }
 
+function communityMentionSourceRecord(mention: CommunityMention, idx: number): SourceRecord {
+  const platformLabel = mention.platform === 'reddit' ? 'Reddit Thread' : 'Hacker News Thread';
+  return {
+    source_id: makeSourceId(idx),
+    url: mention.url ?? '',
+    source_type: mention.original_source_type ?? (mention.platform === 'reddit' ? 'reddit_thread' : 'hackernews_thread'),
+    title: platformLabel,
+    publisher_or_owner: mention.platform,
+    captured_at: mention.gathered_at,
+    ...(mention.published_at ? { published_at: mention.published_at } : {}),
+    ...(mention.acquisition_method ? { acquisition_method: mention.acquisition_method } : {}),
+    relevance_notes: [`${mention.platform} community mention routed from external acquisition`],
+    source_tier: mention.source_tier,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Evidence record builders
 // ---------------------------------------------------------------------------
@@ -226,6 +244,42 @@ const CONTRADICTION_KEYWORDS = [
   "supposed to", "advertised as", "promised", "reality is", "truth is",
   "misleading", "overstated", "doesn't actually", "in theory", "on paper",
 ];
+
+// ---------------------------------------------------------------------------
+// Negative signal category inference (for NegativeSignal.category enum)
+// ---------------------------------------------------------------------------
+
+const SIGNAL_CATEGORY_MAP: Record<string, NegativeSignal['category']> = {
+  // reliability
+  'slow': 'reliability', 'broken': 'reliability', "doesn't work": 'reliability',
+  'crashes': 'reliability', 'unstable': 'reliability', 'unreliable': 'reliability',
+  'bug': 'reliability', 'error': 'reliability', 'fails': 'reliability',
+  'janky': 'reliability',
+  // usability
+  'hard to': 'usability', 'difficult': 'usability', 'confusing': 'usability',
+  'clunky': 'usability', 'cumbersome': 'usability', 'steep learning curve': 'usability',
+  'hard to set up': 'usability', 'complex to': 'usability', 'poor documentation': 'usability',
+  'frustrating to use': 'usability',
+  // support
+  'poor support': 'support', 'no support': 'support', 'ignored our': 'support',
+  // billing
+  'overpriced': 'billing', 'not worth': 'billing', 'waste': 'billing',
+  // migration
+  'switched away': 'migration', 'cancelled': 'migration', 'churned': 'migration',
+  'left for': 'migration', 'moved to': 'migration', 'went back to': 'migration',
+  // trust
+  'misleading': 'trust', 'promised': 'trust', 'marketed as': 'trust',
+  'vs reality': 'trust', 'overstated': 'trust',
+};
+
+/** Infer NegativeSignal.category from an evidence excerpt using keyword matching. */
+function inferSignalCategory(excerpt: string): NegativeSignal['category'] {
+  const lower = excerpt.toLowerCase();
+  for (const [keyword, category] of Object.entries(SIGNAL_CATEGORY_MAP)) {
+    if (lower.includes(keyword)) return category;
+  }
+  return 'other';
+}
 
 /**
  * Tag an evidence excerpt with friction/complaint/contradiction signals.
@@ -320,6 +374,45 @@ function externalSourceEvidenceRecord(
     confidence: tierToQuality(source.source_tier),
     is_inferred: false,
     supports_claims: [`${source.source_type}_content`],
+    tags,
+  };
+}
+
+function communityMentionEvidenceRecord(
+  mention: CommunityMention,
+  sourceId: string,
+  idx: number,
+): EvidenceRecord {
+  const excerpt = truncate(mention.excerpt, EXCERPT_MAX_CHARS);
+  // Reddit → pain_point_record, HN → customer_language_record
+  const evidenceType: EvidenceType = mention.platform === 'reddit'
+    ? 'pain_point_record'
+    : 'customer_language_record';
+
+  const sourceType = mention.original_source_type
+    ?? (mention.platform === 'reddit' ? 'reddit_thread' : 'hackernews_thread') as ExternalSourceType;
+
+  const tags: string[] = [sourceType];
+  tags.push('community_voice');
+  if (mention.platform === 'reddit') tags.push('buyer_language');
+  if (mention.platform === 'hackernews') tags.push('developer_voice');
+  if (mention.is_stale) tags.push('stale');
+  if (mention.acquisition_method === 'perplexity') tags.push('acquisition_perplexity');
+  // Friction/complaint tagging
+  tags.push(...tagFrictionSignals(mention.excerpt, sourceType));
+
+  return {
+    evidence_id: makeEvidenceId(idx),
+    source_id: sourceId,
+    evidence_type: evidenceType,
+    captured_at: mention.gathered_at,
+    excerpt,
+    summary: `${mention.platform} community mention`,
+    normalized_fields: {},
+    source_quality: tierToQuality(mention.source_tier),
+    confidence: tierToQuality(mention.source_tier),
+    is_inferred: false,
+    supports_claims: [`${sourceType}_content`],
     tags,
   };
 }
@@ -481,9 +574,11 @@ function computeEvidenceSummary(
   }
 
   const inferred = evidence.filter(e => e.is_inferred).length;
-  const reviewCount = evidence.filter(
-    e => e.evidence_type === 'review_record' || e.evidence_type === 'testimonial_record',
-  ).length;
+  const CUSTOMER_VOICE_TYPES = new Set([
+    'review_record', 'testimonial_record', 'pain_point_record',
+    'customer_language_record', 'comparison_record',
+  ]);
+  const reviewCount = evidence.filter(e => CUSTOMER_VOICE_TYPES.has(e.evidence_type)).length;
 
   return {
     total_sources: sources.length,
@@ -502,7 +597,10 @@ function computeEvidenceSummary(
 // Main entry
 // ---------------------------------------------------------------------------
 
-export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
+export function corpusToDossierAdapter(
+  corpus: ResearchCorpus,
+  enrichment?: EnrichmentResult,
+): Dossier {
   const companyName = domainToCompanyName(corpus.domain);
   const domain = corpus.domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
@@ -520,10 +618,15 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
     srcCounter++;
     sources.push(externalSourceRecord(source, srcCounter));
   }
+  for (const mention of corpus.community_mentions) {
+    srcCounter++;
+    sources.push(communityMentionSourceRecord(mention, srcCounter));
+  }
 
   // --- 2. Build evidence records ---
   let evCounter = 0;
   const allEvidence: EvidenceRecord[] = [];
+  const communityEvidenceMap = new Map<string, EvidenceRecord>(); // key → evidence
 
   for (let i = 0; i < corpus.site_pages.length; i++) {
     const page = corpus.site_pages[i];
@@ -543,6 +646,34 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
     allEvidence.push(ev);
     const key = source.url ?? source.excerpt.slice(0, 64);
     sourceEvidenceMap.set(key, ev);
+  }
+
+  const communityOffset = externalOffset + corpus.external_sources.length;
+  for (let i = 0; i < corpus.community_mentions.length; i++) {
+    const mention = corpus.community_mentions[i];
+    const sourceId = sources[communityOffset + i]!.source_id;
+    evCounter++;
+    const ev = communityMentionEvidenceRecord(mention, sourceId, evCounter);
+    allEvidence.push(ev);
+    const key = mention.url ?? mention.excerpt.slice(0, 64);
+    communityEvidenceMap.set(key, ev);
+  }
+
+  // --- 2b. Build enrichment-ID → ev_XXX map for remapping LLM-generated evidence_ids ---
+  // Enrichment uses internal IDs (site_0, ext_0, comm_0) that don't match dossier ev_XXX IDs.
+  // This map translates them so evidence links in enriched fields are valid.
+  const enrichmentIdMap = new Map<string, string>();
+  for (let i = 0; i < corpus.site_pages.length; i++) {
+    const ev = allEvidence[i];
+    if (ev) enrichmentIdMap.set(`site_${i}`, ev.evidence_id);
+  }
+  for (let i = 0; i < corpus.external_sources.length; i++) {
+    const ev = allEvidence[externalOffset + i];
+    if (ev) enrichmentIdMap.set(`ext_${i}`, ev.evidence_id);
+  }
+  for (let i = 0; i < corpus.community_mentions.length; i++) {
+    const ev = allEvidence[communityOffset + i];
+    if (ev) enrichmentIdMap.set(`comm_${i}`, ev.evidence_id);
   }
 
   // --- 3. Build evidence index for section population ---
@@ -584,13 +715,21 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
     const homeText = homepageEvidence[0]?.excerpt ?? '';
     dossier.company_profile = {
       plain_language_description: truncate(homeText, 250) || '',
-      category: '',   // TODO: extract category via NLP / keyword matching
+      category: enrichment?.fields.category ?? '',
       subcategories: [],
-      founded_year: null, // TODO: extract year from about page
-      company_stage: { value: '', is_inferred: true, confidence: 'low' },
-      headquarters: '',   // TODO: extract from about page or footer
+      founded_year: enrichment?.fields.founded_year ?? null,
+      company_stage: {
+        value: enrichment?.fields.company_stage ?? '',
+        is_inferred: true,
+        confidence: enrichment?.fields.company_stage ? 'medium' : 'low',
+      },
+      headquarters: '',
       geographic_presence: [],
-      leadership: [],     // TODO: extract leadership names from about page
+      leadership: (enrichment?.fields.leadership ?? []).map(l => ({
+        name: l.name,
+        title: l.role,
+        evidence_ids: profileEvidence.map(e => e.evidence_id),
+      })),
       ownership_or_structure_notes: [],
       evidence_ids: profileEvidence.map(e => e.evidence_id),
       confidence: sectionConfidence(profileEvidence.length),
@@ -614,8 +753,8 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
         is_inferred: pricingEvidence.length === 0,
         evidence_ids: pricingEvidence.map(e => e.evidence_id),
       },
-      pricing_signals: [],      // TODO: extract pricing keywords
-      delivery_model: [],       // TODO: extract delivery model from pricing/docs
+      pricing_signals: enrichment?.fields.pricing_signals ?? [],
+      delivery_model: enrichment?.fields.delivery_model ?? [],
       implementation_complexity: { value: '', is_inferred: true, confidence: 'low' },
       evidence_ids: productEvidence.map(e => e.evidence_id),
       confidence: sectionConfidence(productEvidence.length),
@@ -630,7 +769,7 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
   if (gtmEvidence.length > 0) {
     dossier.gtm_model = {
       sales_motion: { value: '', is_inferred: true, confidence: 'low' },
-      acquisition_channels: [], // TODO: extract channel keywords
+      acquisition_channels: enrichment?.fields.acquisition_channels ?? [],
       buyer_journey_notes: [],
       distribution_model: [],
       territory_or_market_focus: [],
@@ -648,7 +787,8 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
     ...(idx.byPageType.get('customers') ?? []),
     ...(idx.byPageType.get('case-studies') ?? []),
   ];
-  const customerEvidence = [...caseStudyEvidence, ...idx.reviewEvidence];
+  const communityEvidence = [...communityEvidenceMap.values()];
+  const customerEvidence = [...caseStudyEvidence, ...idx.reviewEvidence, ...communityEvidence];
 
   if (customerEvidence.length > 0) {
     dossier.customer_and_personas = {
@@ -662,7 +802,7 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
       },
       buyer_personas: [],
       end_user_personas: [],
-      customer_pain_themes: [], // TODO: extract pain keywords from reviews
+      customer_pain_themes: enrichment?.fields.customer_pain_themes ?? [],
       customer_outcome_themes: [],
       case_study_signals: caseStudyEvidence.map(e => truncate(e.excerpt, 100)),
       evidence_ids: customerEvidence.map(e => e.evidence_id),
@@ -671,19 +811,32 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
   }
 
   // --- 11. Populate competitors ---
-  if (idx.competitorEvidence.length > 0) {
+  const enrichedCompetitors = enrichment?.fields.competitors ?? [];
+  if (idx.competitorEvidence.length > 0 || enrichedCompetitors.length > 0) {
+    // Prefer enriched competitors (have names/domains); fall back to evidence-based entries
+    const directCompetitors = enrichedCompetitors.length > 0
+      ? enrichedCompetitors.map(c => ({
+          name: c.name,
+          domain: c.domain,
+          why_included: 'extracted by enrichment (LLM)',
+          positioning_summary: '',
+          comparison_notes: [],
+          evidence_ids: idx.competitorEvidence.map(e => e.evidence_id),
+        }))
+      : idx.competitorEvidence.map(ev => ({
+          name: '',
+          domain: '',
+          why_included: 'found in competitor search results',
+          positioning_summary: truncate(ev.excerpt, 150),
+          comparison_notes: [],
+          evidence_ids: [ev.evidence_id],
+        }));
+
     dossier.competitors = {
-      direct_competitors: idx.competitorEvidence.map(ev => ({
-        name: '',       // TODO: extract competitor name from excerpt
-        domain: '',     // TODO: extract competitor domain from source URL
-        why_included: 'found in competitor search results',
-        positioning_summary: truncate(ev.excerpt, 150),
-        comparison_notes: [],
-        evidence_ids: [ev.evidence_id],
-      })),
+      direct_competitors: directCompetitors,
       adjacent_competitors: [],
       substitutes: [],
-      claimed_differentiators: [], // TODO: extract from homepage
+      claimed_differentiators: [],
       positioning_overlaps: [],
       competitive_gaps: [],
       competitive_observations: [],
@@ -745,16 +898,34 @@ export function corpusToDossierAdapter(corpus: ResearchCorpus): Dossier {
     evidence_ids: [ev.evidence_id],
   }));
 
-  const narrativeEvidence = [...idx.siteEvidence, ...idx.reviewEvidence];
+  const narrativeEvidence = [...idx.siteEvidence, ...idx.reviewEvidence, ...communityEvidence];
 
   if (narrativeEvidence.length > 0) {
     dossier.narrative_intelligence = {
       company_claimed_value: companyClaims,
       customer_expressed_value: customerExpressed,
       customer_language_patterns: [],  // TODO: NLP extraction
-      narrative_gaps: [],              // TODO: gap detection from claim/customer divergence
-      negative_signals: [],            // TODO: extract negative signals from reviews
-      value_alignment_summary: [],     // TODO: cross-reference company vs customer themes
+      narrative_gaps: (enrichment?.fields.narrative_gaps ?? []).map(gap => ({
+        ...gap,
+        evidence_ids: gap.evidence_ids
+          .map(id => enrichmentIdMap.get(id))
+          .filter((id): id is string => id !== undefined),
+      })),
+      negative_signals: allEvidence
+        .filter(ev => (ev.tags ?? []).some(t => t === 'friction' || t === 'complaint'))
+        .map(ev => ({
+          signal: truncate(ev.excerpt, 150),
+          category: inferSignalCategory(ev.excerpt),
+          severity: ((ev.tags ?? []).includes('buyer_disappointment') ? 'high' : 'medium') as Confidence,
+          frequency: 'isolated' as const,
+          evidence_ids: [ev.evidence_id],
+        })),
+      value_alignment_summary: (enrichment?.fields.value_alignment_summary ?? []).map(entry => ({
+        ...entry,
+        evidence_ids: entry.evidence_ids
+          .map(id => enrichmentIdMap.get(id))
+          .filter((id): id is string => id !== undefined),
+      })),
       hidden_differentiators: [],
       messaging_opportunities: [],
       narrative_summary: '',           // TODO: synthesise from claims vs customer evidence
