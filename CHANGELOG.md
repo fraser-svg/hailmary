@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-03-17
+
+### Changed
+- ICP discovery: geography scoring tightened to UK-only (UK=2, everything else=0)
+- ICP discovery: default investor list replaced with 5 UK seed-stage VCs (Seedcamp, Notion Capital, LocalGlobe, Frontline Ventures, Stride.VC)
+- ICP discovery: evidence_depth dimension redefined for seed-stage signals (blog/content, customer logos, press/funding) instead of Trustpilot/G2
+
 ## [0.1.4] - 2026-03-17
 
 ### Changed
