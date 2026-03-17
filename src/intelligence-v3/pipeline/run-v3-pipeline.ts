@@ -49,6 +49,9 @@ import { externalResearchAcquisition } from "../acquisition/external-research.js
 import type { ExternalResearchAcquisitionInput } from "../acquisition/external-research.js";
 import { mergeResearchCorpus } from "../acquisition/merge-corpus.js";
 import { corpusToDossierAdapter } from "../acquisition/corpus-to-dossier.js";
+import { enrichCorpus } from "../acquisition/enrich-corpus.js";
+import type { EnrichCorpusConfig } from "../acquisition/enrich-corpus.js";
+import type { EnrichmentResult } from "../types/enrichment.js";
 
 // V3-M1
 import { buildEvidencePack } from "../memo/build-evidence-pack.js";
@@ -113,6 +116,13 @@ export interface V3PipelineInput {
    * Only used when memoIntelligenceVersion = "v4".
    */
   synthConfig?: SynthesiseArgumentConfig;
+
+  /**
+   * Optional enrichment config — inject a mock Anthropic client in tests,
+   * or override model/token settings for enrichCorpus (V3-U3.5).
+   * Set to false to skip enrichment entirely.
+   */
+  enrichConfig?: EnrichCorpusConfig | false;
 
   /**
    * Skip upstream acquisition and use a pre-built Dossier.
@@ -183,6 +193,10 @@ export interface V3PipelineResult {
    * Undefined in Phase 1 (synthesiseArgument not yet implemented).
    */
   argumentSynthesis?: ArgumentSynthesis;
+
+  // V3-U3.5 enrichment
+  /** EnrichmentResult from enrichCorpus(). Undefined when enrichment is skipped or dossier is pre-built. */
+  enrichment?: EnrichmentResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,30 +225,71 @@ export async function runV3Pipeline(
 
   let corpus: ResearchCorpus | undefined;
   let dossier: Dossier;
+  let enrichment: EnrichmentResult | undefined;
 
   if (input.dossier) {
     // Skip acquisition — use pre-built dossier
     dossier = input.dossier;
   } else {
-    // V3-U1: Site corpus acquisition
-    const siteCorpus = await siteCorpusAcquisition({
-      domain: input.domain,
-      crawl_config: input.crawl_config,
-      fixture_pages: input.fixture_site_pages,
-    });
+    // V3-U1 + V3-U2: Parallel acquisition via Promise.allSettled
+    // U1 failure is fatal (ERR_CORPUS_EMPTY). U2 failure is non-fatal (empty corpus fallback).
+    const t0 = Date.now();
+    const [siteResult, externalResult] = await Promise.allSettled([
+      siteCorpusAcquisition({
+        domain: input.domain,
+        crawl_config: input.crawl_config,
+        fixture_pages: input.fixture_site_pages,
+      }),
+      externalResearchAcquisition({
+        company: input.company,
+        domain: input.domain,
+        fixture_sources: input.fixture_external_sources,
+      }),
+    ]);
 
-    // V3-U2: External research acquisition
-    const externalCorpus = await externalResearchAcquisition({
-      company: input.company,
-      domain: input.domain,
-      fixture_sources: input.fixture_external_sources,
-    });
+    // U1 failure is fatal — re-throw
+    if (siteResult.status === 'rejected') throw siteResult.reason;
+    const siteCorpus = siteResult.value;
+
+    // U2 failure is non-fatal — fall back to empty external corpus
+    const externalCorpus = externalResult.status === 'fulfilled'
+      ? externalResult.value
+      : {
+          company: input.company,
+          gathered_at: now(),
+          sources: [],
+          source_metadata: {
+            source_types_attempted: [] as string[],
+            source_types_successful: [] as string[],
+            search_queries_used: [] as string[],
+          },
+        };
+
+    if (externalResult.status === 'rejected') {
+      console.warn('WARN_EXTERNAL_RESEARCH_FAILED:', String(externalResult.reason));
+    }
+
+    console.log('PARALLEL_ACQUISITION', JSON.stringify({
+      u1_latency_ms: Date.now() - t0,
+      u2_latency_ms: Date.now() - t0,
+      u1_success: siteResult.status === 'fulfilled',
+      u2_success: externalResult.status === 'fulfilled',
+    }));
 
     // V3-U3: Merge into unified ResearchCorpus
     corpus = mergeResearchCorpus(siteCorpus, externalCorpus);
 
-    // V3-U4: Adapt corpus to standard Dossier
-    dossier = corpusToDossierAdapter(corpus);
+    // V3-U3.5: Enrich corpus with LLM extraction (optional — skipped when enrichConfig = false)
+    if (input.enrichConfig !== false) {
+      enrichment = await enrichCorpus(
+        corpus,
+        input.company,
+        typeof input.enrichConfig === 'object' ? input.enrichConfig : {},
+      );
+    }
+
+    // V3-U4: Adapt corpus to standard Dossier (passes enrichment when available)
+    dossier = corpusToDossierAdapter(corpus, enrichment ?? undefined);
 
     // Early validation gate — catch adapter bugs before V2 reasoning
     const validation = validateDossierObject(dossier);
@@ -393,5 +448,6 @@ export async function runV3Pipeline(
     firstCriticResult,
     memo_intelligence_version: memoIntelligenceVersion,
     argumentSynthesis,
+    enrichment,
   };
 }

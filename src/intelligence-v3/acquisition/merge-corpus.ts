@@ -23,6 +23,7 @@ import type {
   CommunityMention,
   FounderStatement,
   SourceTier,
+  ExternalSourceType,
 } from '../types/research-corpus.js';
 import { classifySourceTier } from '../providers/tier-classifier.js';
 import { now } from '../../utils/timestamps.js';
@@ -231,21 +232,53 @@ export function mergeResearchCorpus(
   // Step 4: Assign canonical source tiers via tier-classifier
   const tieredExternalSources = assignCanonicalTiers(dedupedExternalSources, targetDomain);
 
+  // Step 4.5: Route community source types (reddit_thread, hackernews_thread) to community_mentions[]
+  const COMMUNITY_SOURCE_TYPES = new Set<ExternalSourceType>([
+    'reddit_thread', 'hackernews_thread',
+  ]);
+
+  const routedCommunity: CommunityMention[] = [];
+  const remainingExternal: ExternalSource[] = [];
+
+  for (const source of tieredExternalSources) {
+    if (COMMUNITY_SOURCE_TYPES.has(source.source_type)) {
+      routedCommunity.push({
+        url: source.url,
+        platform: source.source_type === 'reddit_thread' ? 'reddit' : 'hackernews',
+        gathered_at: source.gathered_at,
+        excerpt: source.excerpt,
+        author_type: 'unknown',
+        source_tier: source.source_tier as 3 | 4,
+        // Preserve provenance from ExternalSource
+        token_count: source.token_count,
+        published_at: source.published_at,
+        acquisition_method: source.acquisition_method,
+        is_stale: source.is_stale,
+        original_source_type: source.source_type,
+      });
+    } else {
+      remainingExternal.push(source);
+    }
+  }
+
+  // Merge routed community mentions with any caller-provided ones
+  const allCommunity = [...communityMentions, ...routedCommunity];
+
   const totalAfterDedup =
     dedupedSitePages.length +
-    tieredExternalSources.length +
-    communityMentions.length +
+    remainingExternal.length +
+    allCommunity.length +
     founderStatements.length;
 
   // Step 5: Mark stale items and count them
   const stalenessCutoff = getStalenessCutoff();
   const { marked: markedExternalSources, count: staleItemCount } =
-    markAndCountStaleItems(tieredExternalSources, stalenessCutoff);
+    markAndCountStaleItems(remainingExternal, stalenessCutoff);
 
   const tierDistribution = computeTierDistribution(
     dedupedSitePages,
     markedExternalSources,
-    communityMentions,
+    allCommunity,
     founderStatements,
   );
 
@@ -260,7 +293,7 @@ export function mergeResearchCorpus(
 
     site_pages: dedupedSitePages,
     external_sources: markedExternalSources,
-    community_mentions: communityMentions,
+    community_mentions: allCommunity,
     founder_statements: founderStatements,
 
     merge_metadata: {
