@@ -77,6 +77,12 @@ export interface CommunityMention {
   excerpt: string;
   author_type?: string;        // e.g. "customer", "developer", "unknown"
   source_tier: 3 | 4;         // Community is Tier 3; unattributed is Tier 4
+  // Provenance fields — preserved from ExternalSource during routing
+  token_count?: number;
+  published_at?: string;
+  acquisition_method?: 'perplexity' | 'websearch' | 'webfetch' | 'fixture';
+  is_stale?: boolean;
+  original_source_type?: ExternalSourceType;
 }
 
 /** A founder's own public statement — optional bucket */
