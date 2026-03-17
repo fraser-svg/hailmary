@@ -1,5 +1,24 @@
 # TODOS
 
+## P1 — Re-run eval harness after D&W memo restructure
+
+**What:** Run the compare-v3-v4 eval harness (mock + live modes) against Trigger.dev,
+Omnea, and Gendo after the D&W memo restructure ships. Compare memo quality scores,
+word counts, and section density against pre-restructure baselines.
+
+**Why:** The D&W restructure changes every parameter surface: word budget (900-1100),
+evidence spine density (5-8), section structure (7 sections), prompt (full rewrite),
+temperature (0.5), and critic rubric. Without a fresh eval run, we have no data on
+whether these changes actually produce better memos or regressed quality.
+
+**Where:** `src/intelligence-v3/eval/compare-v3-v4.ts` — run in mock mode first, then
+live mode with real LLM calls. Compare against the pre-restructure baselines captured
+in the Phase 3 eval run (V3 quality avg: 69, V4 quality avg: 53).
+
+**Effort:** M | **Depends on:** D&W memo restructure PR merged
+
+---
+
 ## P2 — ICP fit validation in pipeline
 
 **What:** Log ICP fit score at pipeline start (observability, not a gate).
