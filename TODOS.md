@@ -1,5 +1,34 @@
 # TODOS
 
+## P2 — ICP fit validation in pipeline
+
+**What:** Log ICP fit score at pipeline start (observability, not a gate).
+
+**Why:** Correlating fit scores with send-gate outcomes enables a future feedback loop
+that refines ICP criteria based on which companies produce sendable memos.
+
+**Where:** `src/intelligence-v3/pipeline/run-v3-pipeline.ts` — at entry, look up the
+company in the most recent `discovery/*/scored-companies.json` and log its `ICPScore`.
+
+**Effort:** S | **Depends on:** ICP schema (`src/types/icp.ts`) + at least one scored
+discovery run
+
+---
+
+## P3 — Discovery run diffing
+
+**What:** Diff `scored-companies.json` across runs to surface new and dropped companies.
+
+**Why:** Without diffing, you can't tell what changed between discovery runs — which
+companies are new, which fell off, and whether scores shifted.
+
+**Where:** New CLI script or skill that reads two `discovery/*/scored-companies.json`
+files and outputs a structured diff (added, removed, score changes).
+
+**Effort:** S | **Depends on:** 2+ discovery runs completed
+
+---
+
 ## P2 — Structured log on send gate genericity failure
 
 **What:** When `runSendGate` fails with `genericity` reason, emit a structured log
