@@ -36,14 +36,15 @@ vi.mock("../memo/write-memo.js", () => ({
     word_count: 520,
     attempt_number: 1,
     sections: [
-      { name: "observation", markdown: "TestCo observation.", word_count: 2 },
+      { name: "title_block", markdown: "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential", word_count: 6 },
+      { name: "executive_thesis", markdown: "TestCo observation.", word_count: 2 },
+      { name: "what_we_observed", markdown: "TestCo signals.", word_count: 2 },
       { name: "the_pattern", markdown: "TestCo pattern.", word_count: 2 },
       { name: "what_this_means", markdown: "TestCo meaning.", word_count: 2 },
-      { name: "why_this_happens", markdown: "TestCo cause.", word_count: 2 },
       { name: "what_this_changes", markdown: "TestCo change.", word_count: 2 },
-      { name: "next_step", markdown: "Reply to this letter.", word_count: 4 },
+      { name: "cta", markdown: "Reply to this letter.", word_count: 4 },
     ],
-    markdown: "## Observation\n\nTestCo observation.\n\n## The Pattern\n\nTestCo pattern.",
+    markdown: "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential\n\n## Executive Thesis\n\nTestCo observation.\n\n## What We Observed\n\nTestCo signals.\n\n## The Pattern\n\nTestCo pattern.",
     generated_at: new Date().toISOString(),
   }),
 }));
@@ -946,15 +947,16 @@ function makeAttempt2Memo(): MarkdownMemo {
     word_count: 540,
     attempt_number: 2,
     sections: [
-      { name: "observation", markdown: "TestCo revised observation.", word_count: 3 },
+      { name: "title_block", markdown: "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential", word_count: 6 },
+      { name: "executive_thesis", markdown: "TestCo revised observation.", word_count: 3 },
+      { name: "what_we_observed", markdown: "TestCo revised signals.", word_count: 3 },
       { name: "the_pattern", markdown: "TestCo revised pattern.", word_count: 3 },
       { name: "what_this_means", markdown: "TestCo revised meaning.", word_count: 3 },
-      { name: "why_this_happens", markdown: "TestCo revised cause.", word_count: 3 },
       { name: "what_this_changes", markdown: "TestCo revised change.", word_count: 3 },
-      { name: "next_step", markdown: "Reply to confirm a 20-minute call.", word_count: 6 },
+      { name: "cta", markdown: "Reply to confirm a 20-minute call.", word_count: 6 },
     ],
     markdown:
-      "## Observation\n\nTestCo revised observation.\n\n## The Pattern\n\nTestCo revised pattern.",
+      "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential\n\n## Executive Thesis\n\nTestCo revised observation.\n\n## What We Observed\n\nTestCo revised signals.\n\n## The Pattern\n\nTestCo revised pattern.",
     generated_at: new Date().toISOString(),
   };
 }
@@ -1001,14 +1003,15 @@ describe("runV3Pipeline — revision loop", () => {
       word_count: 490,
       attempt_number: 1,
       sections: [
-        { name: "observation", markdown: "Generic observation.", word_count: 2 },
+        { name: "title_block", markdown: "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential", word_count: 6 },
+        { name: "executive_thesis", markdown: "Generic observation.", word_count: 2 },
+        { name: "what_we_observed", markdown: "Generic signals.", word_count: 2 },
         { name: "the_pattern", markdown: "Generic pattern.", word_count: 2 },
         { name: "what_this_means", markdown: "Generic meaning.", word_count: 2 },
-        { name: "why_this_happens", markdown: "Generic cause.", word_count: 2 },
         { name: "what_this_changes", markdown: "Generic change.", word_count: 2 },
-        { name: "next_step", markdown: "Reply to this letter.", word_count: 4 },
+        { name: "cta", markdown: "Reply to this letter.", word_count: 4 },
       ],
-      markdown: "## Observation\n\nGeneric observation.",
+      markdown: "TestCo\nStrategic Diagnostic\nMarch 2026 | Confidential\n\n## Executive Thesis\n\nGeneric observation.\n\n## What We Observed\n\nGeneric signals.",
       generated_at: new Date().toISOString(),
     });
     mockCritic.mockResolvedValueOnce(failingCritic);
