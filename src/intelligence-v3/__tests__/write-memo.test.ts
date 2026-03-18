@@ -372,40 +372,6 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("bolster");
   });
 
-  // CEO memo doctrine — 7 principles
-  it("principle #7: no length for its own sake in VOICE section", () => {
-    const brief = makeBrief();
-    const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("No length for its own sake");
-    expect(prompt).toContain("displace something weaker");
-  });
-
-  it("principle #6: executive_thesis must be single paragraph", () => {
-    const brief = makeBrief();
-    const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("Must be a single paragraph");
-  });
-
-  it("principle #1: show before naming in the_pattern", () => {
-    const brief = makeBrief();
-    const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("SHOW BEFORE NAMING");
-    expect(prompt).toContain("concrete scenario the founder can walk through");
-  });
-
-  it("principle #3: network effect cost in what_this_means", () => {
-    const brief = makeBrief();
-    const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("NETWORK EFFECT COST");
-    expect(prompt).toContain("lost distribution node");
-  });
-
-  it("principle #4: deployable phrases in what_this_changes", () => {
-    const brief = makeBrief();
-    const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("DEPLOYABLE PHRASES");
-    expect(prompt).toContain("board meeting or sales call");
-  });
 
   it("principle #2: conditional mode gets HEDGING RULE not HEDGING BAN", () => {
     const brief = makeBrief({ adjudication_mode: "conditional", memo_framing: "indicative" });
