@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2026-03-18
+
+### Changed
+- Pipeline resilience: site corpus acquisition failures (homepage fetch, Playwright errors) now degrade gracefully instead of crashing the pipeline
+- Writer prompt: 7 CEO memo doctrine principles added — scenario-before-naming, hedging split (diagnosis vs implication), network effect costs, deployable phrases, CTA variation, thesis compression, no-bloat rule
+- Hedging mode split: `full_confidence` keeps full HEDGING BAN, `conditional` gets nuanced HEDGING RULE (hedge diagnosis, assert implication)
+- CTA instruction changed from "use verbatim or paraphrase" to company-specific variation guidance
+- Critic rubric updated: pattern_clarity now evaluates scenario demonstration, commercial_sharpness checks network effect costs, cta_clarity checks deployable phrases
+- Genericity revision feedback strengthened with actionable rewrite instructions
+- Banned phrase retry: pipeline injects targeted reinforcement into confidence_caveats on ERR_BANNED_PHRASE
+- JSON parse fallback: writer response parser now extracts JSON from LLM preamble text
+
+### Fixed
+- Banned phrase truncation: removed `.slice(0, 25)` cap that silently dropped banned phrases beyond index 25
+- Revision prompt: added "Output JSON only" instruction to prevent LLM preamble on retry attempts
+
+### Removed
+- `CTA_BY_INTERVENTION` deprecated map and its 3 regression tests (dead code — all 6 entries pointed to UNIVERSAL_CTA)
+
 ## [0.1.5] - 2026-03-17
 
 ### Changed
