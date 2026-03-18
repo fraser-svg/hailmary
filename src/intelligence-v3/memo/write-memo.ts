@@ -318,6 +318,12 @@ Write the 6 sections. Return JSON only.`;
     prompt += `\n\nREVISION REQUIRED — Attempt ${rev.attempt_number + 1}. Your previous memo failed quality review. Fix these specific issues:\n${issues}\n\nFounder pushback to address: ${rev.founder_pushback_context}`;
   }
 
+  if (brief.rory_revision_notes) {
+    const rory = brief.rory_revision_notes;
+    const suggestions = rory.specific_suggestions.map(s => `- ${s}`).join("\n");
+    prompt += `\n\nRORY SUTHERLAND REVISION NOTES — Your previous memo was not strategically interesting enough. Rory's feedback:\n\nWhat is boring: ${rory.what_is_boring}\nWhat would be interesting: ${rory.what_would_be_interesting}\nMissing behavioural layer: ${rory.missing_behavioural_layer}\n\nSpecific suggestions:\n${suggestions}`;
+  }
+
   return prompt;
 }
 
@@ -465,7 +471,7 @@ function validateMemo(
  */
 export async function writeMemo(
   brief: MemoBrief,
-  attemptNumber: 1 | 2 = 1,
+  attemptNumber: 1 | 2 | 3 = 1,
   config: WriteMemoConfig = {}
 ): Promise<MarkdownMemo> {
   if (brief.adjudication_mode === "abort") {

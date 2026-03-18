@@ -11,6 +11,7 @@
 import type { AdjudicationMode, MemoFraming } from "./adjudication";
 import type { EvidencePackRecord, MemoRole } from "./evidence-pack";
 import type { MechanismNarrative, ArgumentStep, HookStrategy } from "./argument-synthesis";
+import type { RoryRevisionNotes } from "./rory-review.js";
 
 /**
  * Names of the 7 memo sections (Dean & Wiseman execution spec).
@@ -126,6 +127,9 @@ export interface MemoBrief {
 
   // Populated on revision loop only
   revision_instructions?: RevisionInstructions;
+
+  // Populated on Rory revision only (V3-M5b)
+  rory_revision_notes?: RoryRevisionNotes;
 
   // V4 additions — all optional; absent in v3 mode or when synthesis falls back to template
   /**
