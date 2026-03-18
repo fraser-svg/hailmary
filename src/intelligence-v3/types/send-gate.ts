@@ -10,14 +10,15 @@
  * - memo_quality_score: 0–100 (computed even on fail, for diagnostics)
  */
 
-/** The 6 gate criteria identifiers */
+/** The 7 gate criteria identifiers */
 export type GateCriterion =
   | "critic_overall_pass"
   | "evidence_ref_count"
   | "adjudication_not_aborted"
   | "no_banned_phrases"
   | "cta_present_singular"
-  | "word_count_in_range";
+  | "word_count_in_range"
+  | "rory_approval";
 
 /** Result of a single gate criterion evaluation */
 export interface GateCriteriaResult {
@@ -38,7 +39,7 @@ export interface BlockingReason {
 
 /** Human-readable summary of the gate outcome */
 export interface GateSummary {
-  total_criteria: 6;
+  total_criteria: 6 | 7;
   criteria_passed: number;
   criteria_failed: number;
   hard_failures: number;

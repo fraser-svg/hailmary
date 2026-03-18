@@ -38,7 +38,7 @@ export interface MarkdownMemo {
   intervention_id: string;
   evidence_ids: string[];           // All evidence records referenced by the brief's evidence_spine
   word_count: number;
-  attempt_number: 1 | 2;           // Which revision attempt produced this memo
+  attempt_number: 1 | 2 | 3;       // 1-2 = structural attempts, 3 = Rory revision
   sections: MemoSection[];
   markdown: string;                 // Full assembled memo as a markdown string
   generated_at: string;
