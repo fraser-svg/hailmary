@@ -219,6 +219,9 @@ export interface V3PipelineResult {
   // V3-U3.5 enrichment
   /** EnrichmentResult from enrichCorpus(). Undefined when enrichment is skipped or dossier is pre-built. */
   enrichment?: EnrichmentResult;
+
+  /** True when site corpus acquisition failed and pipeline proceeded with external sources only. */
+  site_corpus_degraded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,13 +251,14 @@ export async function runV3Pipeline(
   let corpus: ResearchCorpus | undefined;
   let dossier: Dossier;
   let enrichment: EnrichmentResult | undefined;
+  let siteCorpusDegraded = false;
 
   if (input.dossier) {
     // Skip acquisition — use pre-built dossier
     dossier = input.dossier;
   } else {
     // V3-U1 + V3-U2: Parallel acquisition via Promise.allSettled
-    // U1 failure is fatal (ERR_CORPUS_EMPTY). U2 failure is non-fatal (empty corpus fallback).
+    // Both failures are non-fatal — fall back to empty corpus and proceed with available sources.
     const t0 = Date.now();
     const [siteResult, externalResult] = await Promise.allSettled([
       siteCorpusAcquisition({
@@ -269,9 +273,27 @@ export async function runV3Pipeline(
       }),
     ]);
 
-    // U1 failure is fatal — re-throw
-    if (siteResult.status === 'rejected') throw siteResult.reason;
-    const siteCorpus = siteResult.value;
+    // U1 failure is non-fatal — fall back to empty site corpus (pipeline proceeds with external sources only)
+    const siteCorpus: import("../types/research-corpus.js").SiteCorpus = siteResult.status === 'fulfilled'
+      ? siteResult.value
+      : {
+          domain: input.domain,
+          fetched_at: now(),
+          pages: [],
+          fetch_metadata: {
+            attempted_pages: [],
+            failed_pages: [],
+            total_tokens: 0,
+          },
+        };
+
+    if (siteResult.status === 'rejected') {
+      console.warn('WARN_SITE_CORPUS_FAILED:', String(siteResult.reason));
+      siteCorpusDegraded = true;
+    } else if (!siteCorpus.pages.some(p => p.page_type === 'homepage')) {
+      // Corpus returned but homepage was missing (fixture or provider degradation)
+      siteCorpusDegraded = true;
+    }
 
     // U2 failure is non-fatal — fall back to empty external corpus
     const externalCorpus = externalResult.status === 'fulfilled'
@@ -404,7 +426,18 @@ export async function runV3Pipeline(
       const msg = err instanceof Error ? err.message : String(err);
       if (/ERR_BANNED_PHRASE|ERR_MEMO_PARSE|ERR_MEMO_TOO_SHORT|ERR_MEMO_TOO_LONG/.test(msg)) {
         console.warn(`[V3 pipeline] Recoverable memo error: ${msg} — retrying`);
-        return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
+        // On banned phrase error, inject targeted reinforcement so retry has new signal
+        const bannedMatch = msg.match(/banned phrase detected in memo: "([^"]+)"/);
+        const retryBrief = bannedMatch
+          ? {
+              ...brief,
+              confidence_caveats: [
+                ...brief.confidence_caveats,
+                `CRITICAL: Do not use the word "${bannedMatch[1]}" in any form`,
+              ],
+            }
+          : brief;
+        return await writeMemo(retryBrief, attemptNumber, input.writerConfig ?? {});
       }
       throw err;
     }
@@ -524,5 +557,6 @@ export async function runV3Pipeline(
     memo_intelligence_version: memoIntelligenceVersion,
     argumentSynthesis,
     enrichment,
+    ...(siteCorpusDegraded ? { site_corpus_degraded: true } : {}),
   };
 }
