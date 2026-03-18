@@ -109,7 +109,7 @@ function framingInstruction(mode: string): string {
 // ---------------------------------------------------------------------------
 
 export function buildSystemPrompt(brief: MemoBrief): string {
-  const bannedSample = brief.banned_phrases.slice(0, 25).join(", ");
+  const bannedSample = brief.banned_phrases.join(", ");
   const caveats =
     brief.confidence_caveats.length > 0
       ? `\nDo not assert the following as established fact: ${brief.confidence_caveats.join("; ")}.`
