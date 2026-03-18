@@ -113,13 +113,26 @@ SCORING DIMENSIONS:
    0 = multiple competing asks or blatant sales pitch
    Pass threshold: ≥ 3
 
-6. tone_compliance (0–5): Does it read like an internal strategy document?
-   5 = restrained, precise, analytical throughout; no hype, flattery, urgency, or marketing language
-   4 = minor register issue (one slightly promotional phrase)
-   3 = one non-critical tone violation
-   2 = one banned phrase or one instance of marketing language
-   1 = multiple tone violations or reads like consulting output
-   0 = reads like outreach or a product pitch
+6. tone_compliance (0–5): Does it read like a letter written by a specific person with a view? Apply the 20 Golden Rules test.
+
+   VOICE/CONVICTION: States interpretation directly; hedges data not conclusions. Writes to one specific reader; no industry-context setup. Structure is invisible; no generic template feel.
+
+   RHYTHM: Sentence length varies naturally; no two consecutive sentences the same length. No tricolon triplets ("X, Y, and Z" three-part rhythmic structures). No topic-sentence + three-supporting-points paragraph structure.
+
+   VOICE AUTHENTICITY: British English throughout. Uses contractions naturally; formal avoidance ("it is", "do not" in place of "it's", "don't") is an AI tell. No em dashes.
+
+   HONESTY: Acknowledges what is working before diagnosing what is not. Moments of honesty make the diagnosis land harder, not softer.
+
+   ANTI-PATTERNS to flag: em dashes, tricolon patterns, "Furthermore"/"Moreover"/"Additionally" openers, "This represents"/"This demonstrates"/"This underscores", dead words (delve, synergy, leverage, robust, nuanced, comprehensive, holistic, myriad, plethora, bolster, garner), performative "that said"/"on the other hand", metronomic sentence rhythm, formal avoidance of contractions, generic headers identical across memos, topic-sentence paragraphs.
+
+   Swap test: remove the company name. If any paragraph remains substantially intact, score ≤ 2.
+
+   5 = passes all sub-criteria; reads like a specific human analyst wrote this only
+   4 = fails 1 sub-criterion (minor: e.g. one formal contraction or one generic phrase)
+   3 = fails 2 sub-criteria (e.g. metronomic rhythm + one hedged interpretation)
+   2 = fails 3+ sub-criteria, or contains banned phrase / em dash
+   1 = reads like consulting output; detectable template; formal throughout
+   0 = reads like outreach, a product pitch, or unmistakably AI-generated
    Pass threshold: ≥ 3
 
 NAMED TEST 1 — Genericity Test:

@@ -43,6 +43,62 @@ describe('SKILL.md command validation', () => {
     const result = validateSkill(qaSkill);
     expect(result.snapshotFlagErrors).toHaveLength(0);
   });
+
+  test('all $B commands in qa-only/SKILL.md are valid browse commands', () => {
+    const qaOnlySkill = path.join(ROOT, 'qa-only', 'SKILL.md');
+    if (!fs.existsSync(qaOnlySkill)) return;
+    const result = validateSkill(qaOnlySkill);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  test('all snapshot flags in qa-only/SKILL.md are valid', () => {
+    const qaOnlySkill = path.join(ROOT, 'qa-only', 'SKILL.md');
+    if (!fs.existsSync(qaOnlySkill)) return;
+    const result = validateSkill(qaOnlySkill);
+    expect(result.snapshotFlagErrors).toHaveLength(0);
+  });
+
+  test('all $B commands in plan-design-review/SKILL.md are valid browse commands', () => {
+    const skill = path.join(ROOT, 'plan-design-review', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  test('all snapshot flags in plan-design-review/SKILL.md are valid', () => {
+    const skill = path.join(ROOT, 'plan-design-review', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.snapshotFlagErrors).toHaveLength(0);
+  });
+
+  test('all $B commands in design-review/SKILL.md are valid browse commands', () => {
+    const skill = path.join(ROOT, 'design-review', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  test('all snapshot flags in design-review/SKILL.md are valid', () => {
+    const skill = path.join(ROOT, 'design-review', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.snapshotFlagErrors).toHaveLength(0);
+  });
+
+  test('all $B commands in design-consultation/SKILL.md are valid browse commands', () => {
+    const skill = path.join(ROOT, 'design-consultation', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.invalid).toHaveLength(0);
+  });
+
+  test('all snapshot flags in design-consultation/SKILL.md are valid', () => {
+    const skill = path.join(ROOT, 'design-consultation', 'SKILL.md');
+    if (!fs.existsSync(skill)) return;
+    const result = validateSkill(skill);
+    expect(result.snapshotFlagErrors).toHaveLength(0);
+  });
 });
 
 describe('Command registry consistency', () => {
@@ -157,10 +213,15 @@ describe('Generated SKILL.md freshness', () => {
 describe('Update check preamble', () => {
   const skillsWithUpdateCheck = [
     'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
+    'qa-only/SKILL.md',
     'setup-browser-cookies/SKILL.md',
     'ship/SKILL.md', 'review/SKILL.md',
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
+    'plan-design-review/SKILL.md',
+    'design-review/SKILL.md',
+    'design-consultation/SKILL.md',
+    'document-release/SKILL.md',
   ];
 
   for (const skill of skillsWithUpdateCheck) {
@@ -261,7 +322,7 @@ describe('Cross-skill path consistency', () => {
 describe('QA skill structure validation', () => {
   const qaContent = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
 
-  test('qa/SKILL.md has all 6 phases', () => {
+  test('qa/SKILL.md has all 11 phases', () => {
     const phases = [
       'Phase 1', 'Initialize',
       'Phase 2', 'Authenticate',
@@ -269,6 +330,11 @@ describe('QA skill structure validation', () => {
       'Phase 4', 'Explore',
       'Phase 5', 'Document',
       'Phase 6', 'Wrap Up',
+      'Phase 7', 'Triage',
+      'Phase 8', 'Fix Loop',
+      'Phase 9', 'Final QA',
+      'Phase 10', 'Report',
+      'Phase 11', 'TODOS',
     ];
     for (const phase of phases) {
       expect(qaContent).toContain(phase);
@@ -289,6 +355,13 @@ describe('QA skill structure validation', () => {
     // Mode triggers/flags
     expect(qaContent).toContain('--quick');
     expect(qaContent).toContain('--regression');
+  });
+
+  test('has all three tiers defined', () => {
+    const tiers = ['Quick', 'Standard', 'Exhaustive'];
+    for (const tier of tiers) {
+      expect(qaContent).toContain(tier);
+    }
   });
 
   test('health score weights sum to 100%', () => {
@@ -361,6 +434,67 @@ describe('Greptile history format consistency', () => {
   });
 });
 
+// --- Hardcoded branch name detection in templates ---
+
+describe('No hardcoded branch names in SKILL templates', () => {
+  const tmplFiles = [
+    'ship/SKILL.md.tmpl',
+    'review/SKILL.md.tmpl',
+    'qa/SKILL.md.tmpl',
+    'plan-ceo-review/SKILL.md.tmpl',
+    'retro/SKILL.md.tmpl',
+    'document-release/SKILL.md.tmpl',
+    'plan-eng-review/SKILL.md.tmpl',
+    'plan-design-review/SKILL.md.tmpl',
+  ];
+
+  // Patterns that indicate hardcoded 'main' in git commands
+  const gitMainPatterns = [
+    /\bgit\s+diff\s+(?:origin\/)?main\b/,
+    /\bgit\s+log\s+(?:origin\/)?main\b/,
+    /\bgit\s+fetch\s+origin\s+main\b/,
+    /\bgit\s+merge\s+origin\/main\b/,
+    /\borigin\/main\b/,
+  ];
+
+  // Lines that are allowed to mention 'main' (fallback logic, prose)
+  const allowlist = [
+    /fall\s*back\s+to\s+`main`/i,
+    /fall\s*back\s+to\s+`?main`?/i,
+    /typically\s+`?main`?/i,
+    /If\s+on\s+`main`/i,  // old pattern — should not exist
+  ];
+
+  for (const tmplFile of tmplFiles) {
+    test(`${tmplFile} has no hardcoded 'main' in git commands`, () => {
+      const filePath = path.join(ROOT, tmplFile);
+      if (!fs.existsSync(filePath)) return;
+      const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+      const violations: string[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const isAllowlisted = allowlist.some(p => p.test(line));
+        if (isAllowlisted) continue;
+
+        for (const pattern of gitMainPatterns) {
+          if (pattern.test(line)) {
+            violations.push(`Line ${i + 1}: ${line.trim()}`);
+            break;
+          }
+        }
+      }
+
+      if (violations.length > 0) {
+        throw new Error(
+          `${tmplFile} has hardcoded 'main' in git commands:\n` +
+          violations.map(v => `  ${v}`).join('\n')
+        );
+      }
+    });
+  }
+});
+
 // --- Part 7b: TODOS-format.md reference consistency ---
 
 describe('TODOS-format.md reference consistency', () => {
@@ -381,6 +515,162 @@ describe('TODOS-format.md reference consistency', () => {
     expect(shipContent).toContain('TODOS-format.md');
     expect(ceoPlanContent).toContain('TODOS-format.md');
     expect(engPlanContent).toContain('TODOS-format.md');
+  });
+});
+
+// --- v0.4.1 feature coverage: RECOMMENDATION format, session awareness, enum completeness ---
+
+describe('v0.4.1 preamble features', () => {
+  const skillsWithPreamble = [
+    'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
+    'qa-only/SKILL.md',
+    'setup-browser-cookies/SKILL.md',
+    'ship/SKILL.md', 'review/SKILL.md',
+    'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
+    'retro/SKILL.md',
+    'plan-design-review/SKILL.md',
+    'design-review/SKILL.md',
+    'design-consultation/SKILL.md',
+    'document-release/SKILL.md',
+  ];
+
+  for (const skill of skillsWithPreamble) {
+    test(`${skill} contains RECOMMENDATION format`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('RECOMMENDATION: Choose');
+      expect(content).toContain('AskUserQuestion');
+    });
+
+    test(`${skill} contains session awareness`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('_SESSIONS');
+      expect(content).toContain('RECOMMENDATION');
+    });
+  }
+});
+
+// --- Contributor mode preamble structure validation ---
+
+describe('Contributor mode preamble structure', () => {
+  const skillsWithPreamble = [
+    'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
+    'qa-only/SKILL.md',
+    'setup-browser-cookies/SKILL.md',
+    'ship/SKILL.md', 'review/SKILL.md',
+    'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
+    'retro/SKILL.md',
+    'plan-design-review/SKILL.md',
+    'design-review/SKILL.md',
+    'design-consultation/SKILL.md',
+    'document-release/SKILL.md',
+  ];
+
+  for (const skill of skillsWithPreamble) {
+    test(`${skill} has 0-10 rating in contributor mode`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('0 to 10');
+      expect(content).toContain('My rating');
+    });
+
+    test(`${skill} has calibration example`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('Calibration');
+      expect(content).toContain('the bar');
+    });
+
+    test(`${skill} has "what would make this a 10" field`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('What would make this a 10');
+    });
+
+    test(`${skill} uses periodic reflection (not per-command)`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('workflow step');
+      expect(content).not.toContain('After you use gstack-provided CLIs');
+    });
+  }
+});
+
+describe('Enum & Value Completeness in review checklist', () => {
+  const checklist = fs.readFileSync(path.join(ROOT, 'review', 'checklist.md'), 'utf-8');
+
+  test('checklist has Enum & Value Completeness section', () => {
+    expect(checklist).toContain('Enum & Value Completeness');
+  });
+
+  test('Enum & Value Completeness is classified as CRITICAL', () => {
+    // It should appear under Pass 1 — CRITICAL, not Pass 2
+    const pass1Start = checklist.indexOf('### Pass 1');
+    const pass2Start = checklist.indexOf('### Pass 2');
+    const enumStart = checklist.indexOf('Enum & Value Completeness');
+    expect(enumStart).toBeGreaterThan(pass1Start);
+    expect(enumStart).toBeLessThan(pass2Start);
+  });
+
+  test('Enum & Value Completeness mentions tracing through consumers', () => {
+    expect(checklist).toContain('Trace it through every consumer');
+    expect(checklist).toContain('case');
+    expect(checklist).toContain('allowlist');
+  });
+
+  test('Enum & Value Completeness is in the severity classification as CRITICAL', () => {
+    const gateSection = checklist.slice(checklist.indexOf('## Severity Classification'));
+    // The ASCII art has CRITICAL on the left and INFORMATIONAL on the right
+    // Enum & Value Completeness should appear on a line with the CRITICAL tree (├─ or └─)
+    const enumLine = gateSection.split('\n').find(l => l.includes('Enum & Value Completeness'));
+    expect(enumLine).toBeDefined();
+    // It's on the left (CRITICAL) side — starts with ├─ or └─
+    expect(enumLine!.trimStart().startsWith('├─') || enumLine!.trimStart().startsWith('└─')).toBe(true);
+  });
+
+  test('Fix-First Heuristic exists in checklist and is referenced by review + ship', () => {
+    expect(checklist).toContain('## Fix-First Heuristic');
+    expect(checklist).toContain('AUTO-FIX');
+    expect(checklist).toContain('ASK');
+
+    const reviewSkill = fs.readFileSync(path.join(ROOT, 'review/SKILL.md'), 'utf-8');
+    const shipSkill = fs.readFileSync(path.join(ROOT, 'ship/SKILL.md'), 'utf-8');
+    expect(reviewSkill).toContain('AUTO-FIX');
+    expect(reviewSkill).toContain('[AUTO-FIXED]');
+    expect(shipSkill).toContain('AUTO-FIX');
+    expect(shipSkill).toContain('[AUTO-FIXED]');
+  });
+});
+
+// --- Completeness Principle spot-check ---
+
+describe('Completeness Principle in generated SKILL.md files', () => {
+  const skillsWithPreamble = [
+    'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
+    'qa-only/SKILL.md',
+    'setup-browser-cookies/SKILL.md',
+    'ship/SKILL.md', 'review/SKILL.md',
+    'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
+    'retro/SKILL.md',
+    'plan-design-review/SKILL.md',
+    'design-review/SKILL.md',
+    'design-consultation/SKILL.md',
+    'document-release/SKILL.md',
+  ];
+
+  for (const skill of skillsWithPreamble) {
+    test(`${skill} contains Completeness Principle section`, () => {
+      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
+      expect(content).toContain('Completeness Principle');
+      expect(content).toContain('Boil the Lake');
+    });
+  }
+
+  test('Completeness Principle includes compression table', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+    expect(content).toContain('CC+gstack');
+    expect(content).toContain('Compression');
+  });
+
+  test('Completeness Principle includes anti-patterns', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+    expect(content).toContain('BAD:');
+    expect(content).toContain('Anti-patterns');
   });
 });
 
@@ -430,5 +720,299 @@ describe('Planted-bug fixture validation', () => {
     const content = fs.readFileSync(path.join(ROOT, 'test', 'fixtures', 'review-eval-vuln.rb'), 'utf-8');
     expect(content).toContain('params[:id]');
     expect(content).toContain('update_column');
+  });
+});
+
+// --- CEO review mode validation ---
+
+describe('CEO review mode validation', () => {
+  const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+
+  test('has all four CEO review modes defined', () => {
+    const modes = ['SCOPE EXPANSION', 'SELECTIVE EXPANSION', 'HOLD SCOPE', 'SCOPE REDUCTION'];
+    for (const mode of modes) {
+      expect(content).toContain(mode);
+    }
+  });
+
+  test('has CEO plan persistence step', () => {
+    expect(content).toContain('ceo-plans');
+    expect(content).toContain('status: ACTIVE');
+  });
+
+  test('has docs/designs promotion section', () => {
+    expect(content).toContain('docs/designs');
+    expect(content).toContain('PROMOTED');
+  });
+
+  test('mode quick reference has four columns', () => {
+    expect(content).toContain('EXPANSION');
+    expect(content).toContain('SELECTIVE');
+    expect(content).toContain('HOLD SCOPE');
+    expect(content).toContain('REDUCTION');
+  });
+});
+
+// --- gstack-slug helper ---
+
+describe('gstack-slug', () => {
+  const SLUG_BIN = path.join(ROOT, 'bin', 'gstack-slug');
+
+  test('binary exists and is executable', () => {
+    expect(fs.existsSync(SLUG_BIN)).toBe(true);
+    const stat = fs.statSync(SLUG_BIN);
+    expect(stat.mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test('outputs SLUG and BRANCH lines in a git repo', () => {
+    const result = Bun.spawnSync([SLUG_BIN], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
+    expect(result.exitCode).toBe(0);
+    const output = result.stdout.toString();
+    expect(output).toContain('SLUG=');
+    expect(output).toContain('BRANCH=');
+  });
+
+  test('SLUG does not contain forward slashes', () => {
+    const result = Bun.spawnSync([SLUG_BIN], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
+    const slug = result.stdout.toString().match(/SLUG=(.*)/)?.[1] ?? '';
+    expect(slug).not.toContain('/');
+    expect(slug.length).toBeGreaterThan(0);
+  });
+
+  test('BRANCH does not contain forward slashes', () => {
+    const result = Bun.spawnSync([SLUG_BIN], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
+    const branch = result.stdout.toString().match(/BRANCH=(.*)/)?.[1] ?? '';
+    expect(branch).not.toContain('/');
+    expect(branch.length).toBeGreaterThan(0);
+  });
+
+  test('output is eval-compatible (KEY=VALUE format)', () => {
+    const result = Bun.spawnSync([SLUG_BIN], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
+    const lines = result.stdout.toString().trim().split('\n');
+    expect(lines.length).toBe(2);
+    expect(lines[0]).toMatch(/^SLUG=.+/);
+    expect(lines[1]).toMatch(/^BRANCH=.+/);
+  });
+});
+
+// --- Test Bootstrap validation ---
+
+describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
+  test('TEST_BOOTSTRAP resolver produces valid content', () => {
+    const qaContent = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(qaContent).toContain('Test Framework Bootstrap');
+    expect(qaContent).toContain('RUNTIME:ruby');
+    expect(qaContent).toContain('RUNTIME:node');
+    expect(qaContent).toContain('RUNTIME:python');
+    expect(qaContent).toContain('no-test-bootstrap');
+    expect(qaContent).toContain('BOOTSTRAP_DECLINED');
+  });
+
+  test('TEST_BOOTSTRAP appears in qa/SKILL.md', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Test Framework Bootstrap');
+    expect(content).toContain('TESTING.md');
+    expect(content).toContain('CLAUDE.md');
+  });
+
+  test('TEST_BOOTSTRAP appears in ship/SKILL.md', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Test Framework Bootstrap');
+    expect(content).toContain('Step 2.5');
+  });
+
+  test('TEST_BOOTSTRAP appears in design-review/SKILL.md', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Test Framework Bootstrap');
+  });
+
+  test('TEST_BOOTSTRAP does NOT appear in qa-only/SKILL.md', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
+    expect(content).not.toContain('Test Framework Bootstrap');
+    // But should have the recommendation note
+    expect(content).toContain('No test framework detected');
+    expect(content).toContain('Run `/qa` to bootstrap');
+  });
+
+  test('bootstrap includes framework knowledge table', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('vitest');
+    expect(content).toContain('minitest');
+    expect(content).toContain('pytest');
+    expect(content).toContain('cargo test');
+    expect(content).toContain('phpunit');
+    expect(content).toContain('ExUnit');
+  });
+
+  test('bootstrap includes CI/CD pipeline generation', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('.github/workflows/test.yml');
+    expect(content).toContain('GitHub Actions');
+  });
+
+  test('bootstrap includes first real tests step', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('First real tests');
+    expect(content).toContain('git log --since=30.days');
+    expect(content).toContain('Prioritize by risk');
+  });
+
+  test('bootstrap includes vibe coding philosophy', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('vibe coding');
+    expect(content).toContain('100% test coverage');
+  });
+
+  test('WebSearch is in allowed-tools for qa, ship, design-review', () => {
+    const qa = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    const ship = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    const qaDesign = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
+    expect(qa).toContain('WebSearch');
+    expect(ship).toContain('WebSearch');
+    expect(qaDesign).toContain('WebSearch');
+  });
+});
+
+// --- Phase 8e.5 regression test validation ---
+
+describe('Phase 8e.5 regression test generation', () => {
+  test('qa/SKILL.md contains Phase 8e.5', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('8e.5. Regression Test');
+    expect(content).toContain('test(qa): regression test');
+    expect(content).toContain('WTF-likelihood exclusion');
+  });
+
+  test('qa/SKILL.md Rule 13 is amended for regression tests', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Only modify tests when generating regression tests in Phase 8e.5');
+    expect(content).not.toContain('Never modify tests or CI configuration');
+  });
+
+  test('design-review has CSS-aware Phase 8e.5 variant', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('8e.5. Regression Test (design-review variant)');
+    expect(content).toContain('CSS-only');
+    expect(content).toContain('test(design): regression test');
+  });
+
+  test('regression test includes full attribution comment format', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('// Regression: ISSUE-NNN');
+    expect(content).toContain('// Found by /qa on');
+    expect(content).toContain('// Report: .gstack/qa-reports/');
+  });
+
+  test('regression test uses auto-incrementing names', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('auto-incrementing');
+    expect(content).toContain('max number + 1');
+  });
+});
+
+// --- Step 3.4 coverage audit validation ---
+
+describe('Step 3.4 test coverage audit', () => {
+  test('ship/SKILL.md contains Step 3.4', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Step 3.4: Test Coverage Audit');
+    expect(content).toContain('CODE PATH COVERAGE');
+  });
+
+  test('Step 3.4 includes quality scoring rubric', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('★★★');
+    expect(content).toContain('★★');
+    expect(content).toContain('edge cases AND error paths');
+    expect(content).toContain('happy path only');
+  });
+
+  test('Step 3.4 includes before/after test count', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Count test files before');
+    expect(content).toContain('Count test files after');
+  });
+
+  test('ship PR body includes Test Coverage section', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('## Test Coverage');
+  });
+
+  test('ship rules include test generation rule', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Step 3.4 generates coverage tests');
+    expect(content).toContain('Never commit failing tests');
+  });
+
+  test('Step 3.4 includes vibe coding philosophy', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('vibe coding becomes yolo coding');
+  });
+
+  test('Step 3.4 traces actual codepaths, not just syntax', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Trace every codepath');
+    expect(content).toContain('Trace data flow');
+    expect(content).toContain('Diagram the execution');
+  });
+
+  test('Step 3.4 maps user flows and interaction edge cases', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Map user flows');
+    expect(content).toContain('Interaction edge cases');
+    expect(content).toContain('Double-click');
+    expect(content).toContain('Navigate away');
+    expect(content).toContain('Error states the user can see');
+    expect(content).toContain('Empty/zero/boundary states');
+  });
+
+  test('Step 3.4 diagram includes USER FLOW COVERAGE section', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('USER FLOW COVERAGE');
+    expect(content).toContain('Code paths:');
+    expect(content).toContain('User flows:');
+  });
+});
+
+// --- Retro test health validation ---
+
+describe('Retro test health tracking', () => {
+  test('retro/SKILL.md has test health data gathering commands', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('# 10. Test file count');
+    expect(content).toContain('# 11. Regression test commits');
+    expect(content).toContain('# 12. Test files changed');
+  });
+
+  test('retro/SKILL.md has Test Health metrics row', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Test Health');
+    expect(content).toContain('regression tests');
+  });
+
+  test('retro/SKILL.md has Test Health narrative section', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('### Test Health');
+    expect(content).toContain('Total test files');
+    expect(content).toContain('vibe coding safe');
+  });
+
+  test('retro JSON schema includes test_health field', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('test_health');
+    expect(content).toContain('total_test_files');
+    expect(content).toContain('regression_test_commits');
+  });
+});
+
+// --- QA report template regression tests section ---
+
+describe('QA report template', () => {
+  test('qa-report-template.md has Regression Tests section', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'templates', 'qa-report-template.md'), 'utf-8');
+    expect(content).toContain('## Regression Tests');
+    expect(content).toContain('committed / deferred / skipped');
+    expect(content).toContain('### Deferred Tests');
+    expect(content).toContain('**Precondition:**');
   });
 });

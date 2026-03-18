@@ -51,6 +51,7 @@ import {
 } from "../memo/write-memo.js";
 import type { WriteMemoConfig } from "../memo/write-memo.js";
 import type { MemoBrief, EvidenceSpineRecord } from "../types/memo-brief.js";
+import { buildCriticSystemPrompt } from "../memo/criticise-memo.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -91,6 +92,25 @@ function validSectionsJson(wordsPerSection = 80): string {
     the_pattern: body,
     what_this_means: body,
     what_this_changes: body,
+    cta: body,
+  });
+}
+
+/** Build a JSON string with 6-section content AND company-specific _header fields. */
+function validSectionsJsonWithHeaders(wordsPerSection = 80): string {
+  const body = words(wordsPerSection);
+  return JSON.stringify({
+    executive_thesis_header: "Where Acme's customers land versus where Acme's pricing points",
+    executive_thesis: body,
+    what_we_observed_header: "Five signals from Acme's public record",
+    what_we_observed: body,
+    the_pattern_header: "The gap that compounds",
+    the_pattern: body,
+    what_this_means_header: "What this costs in real terms",
+    what_this_means: body,
+    what_this_changes_header: "The structural move",
+    what_this_changes: body,
+    cta_header: "", // empty string → sanitized to undefined → no ## line
     cta: body,
   });
 }
@@ -224,21 +244,29 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("Do not assert the following as established fact");
   });
 
-  it("requires exactly 6 JSON keys in output format", () => {
+  it("requires 12 JSON keys in output format (6 content + 6 header)", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
+    // Content keys
     expect(prompt).toContain('"executive_thesis"');
     expect(prompt).toContain('"what_we_observed"');
     expect(prompt).toContain('"the_pattern"');
     expect(prompt).toContain('"what_this_means"');
     expect(prompt).toContain('"what_this_changes"');
     expect(prompt).toContain('"cta"');
+    // Header keys
+    expect(prompt).toContain('"executive_thesis_header"');
+    expect(prompt).toContain('"what_we_observed_header"');
+    expect(prompt).toContain('"the_pattern_header"');
+    expect(prompt).toContain('"what_this_means_header"');
+    expect(prompt).toContain('"what_this_changes_header"');
+    expect(prompt).toContain('"cta_header"');
   });
 
-  it("instructs: 2 causal mechanisms woven into narrative in the_pattern", () => {
+  it("instructs: show mechanism before naming it in the_pattern", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("2 causal mechanisms");
+    expect(prompt).toContain("Show the mechanism before naming it");
   });
 
   it("instructs: every section must contain company-specific facts", () => {
@@ -258,11 +286,10 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("cta (40-70w)");
   });
 
-  it("contains analytical depth instruction", () => {
+  it("contains the 20 Laws heading", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("ANALYTICAL DEPTH");
-    expect(prompt).toContain("one level deeper than the obvious");
+    expect(prompt).toContain("THE LAWS:");
   });
 
   it("contains evidence texture instruction", () => {
@@ -272,47 +299,79 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Weave specific language from evidence");
   });
 
-  it("contains readability rhythm instruction", () => {
+  it("contains sentence length variance instruction (Law 15)", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("READABILITY RHYTHM");
-    expect(prompt).toContain("plain-language anchors");
+    expect(prompt).toContain("consecutive sentences");
+    expect(prompt).toContain("three words");
   });
 
-  // CEO memo doctrine — 7 principles
-  it("principle #7: no length for its own sake in VOICE section", () => {
+  // ── New tests for 20 Golden Rules implementation ──────────────────────────
+
+  it("Law 1: contains first sentence earns the second instruction", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("No length for its own sake");
-    expect(prompt).toContain("displace something weaker");
+    expect(prompt).toContain("FIRST SENTENCE EARNS THE SECOND");
   });
 
-  it("principle #6: executive_thesis must be single paragraph", () => {
+  it("Law 12/13: contains em dash ban", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("Must be a single paragraph");
+    expect(prompt).toContain("No em dashes");
+    expect(prompt).toContain("em dash");
   });
 
-  it("principle #1: show before naming in the_pattern", () => {
+  it("Law 13: contains contractions instruction", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("SHOW BEFORE NAMING");
-    expect(prompt).toContain("concrete scenario the founder can walk through");
+    expect(prompt).toContain("contractions");
+    expect(prompt).toContain("It's");
+    expect(prompt).toContain("Don't");
   });
 
-  it("principle #3: network effect cost in what_this_means", () => {
+  it("Law 14: contains slippery slide / curiosity seeds guidance", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("NETWORK EFFECT COST");
-    expect(prompt).toContain("lost distribution node");
+    expect(prompt.toLowerCase()).toContain("curiosity");
+    expect(prompt.toLowerCase()).toContain("slippery slide");
   });
 
-  it("principle #4: deployable phrases in what_this_changes", () => {
+  it("Law 17: contains honesty as persuasion instruction", () => {
     const brief = makeBrief();
     const prompt = buildSystemPrompt(brief);
-    expect(prompt).toContain("DEPLOYABLE PHRASES");
-    expect(prompt).toContain("board meeting or sales call");
+    expect(prompt).toContain("HONESTY AS PERSUASION");
+    expect(prompt).toContain("working well");
   });
+
+  it("Law 18: contains tricolon ban", () => {
+    const brief = makeBrief();
+    const prompt = buildSystemPrompt(brief);
+    expect(prompt.toLowerCase()).toContain("tricolon");
+    expect(prompt).toContain("three-part rhythm");
+  });
+
+  it("Law 20: contains physical object rule", () => {
+    const brief = makeBrief();
+    const prompt = buildSystemPrompt(brief);
+    expect(prompt).toContain("PHYSICAL OBJECT");
+    expect(prompt.toLowerCase()).toContain("printed");
+  });
+
+  it("system prompt itself contains no em dashes", () => {
+    const brief = makeBrief();
+    const prompt = buildSystemPrompt(brief);
+    expect(prompt).not.toContain("\u2014");
+  });
+
+  it("WRITING ANTI-PATTERNS section lists dead vocabulary words", () => {
+    const brief = makeBrief();
+    const prompt = buildSystemPrompt(brief);
+    expect(prompt).toContain("WRITING ANTI-PATTERNS");
+    expect(prompt).toContain("delve");
+    expect(prompt).toContain("synergy");
+    expect(prompt).toContain("bolster");
+  });
+
 
   it("principle #2: conditional mode gets HEDGING RULE not HEDGING BAN", () => {
     const brief = makeBrief({ adjudication_mode: "conditional", memo_framing: "indicative" });
@@ -514,6 +573,87 @@ describe("parseResponse", () => {
   it("throws ERR_MEMO_PARSE when response is not an object", () => {
     expect(() => parseResponse('"just a string"')).toThrow("ERR_MEMO_PARSE");
   });
+
+  // ── _header extraction and sanitization ───────────────────────────────────
+
+  it("extracts _header fields when present", () => {
+    const input = JSON.stringify({
+      executive_thesis_header: "Where Acme wins versus where it prices",
+      executive_thesis: "Thesis text.",
+      what_we_observed_header: "Five signals",
+      what_we_observed: "Obs.",
+      the_pattern_header: "The gap",
+      the_pattern: "Pattern.",
+      what_this_means_header: "Cost in real terms",
+      what_this_means: "Means.",
+      what_this_changes_header: "The structural move",
+      what_this_changes: "Change.",
+      cta_header: "Next step",
+      cta: "Act.",
+    });
+    const result = parseResponse(input);
+    expect(result.executive_thesis_header).toBe("Where Acme wins versus where it prices");
+    expect(result.what_we_observed_header).toBe("Five signals");
+    expect(result.cta_header).toBe("Next step");
+  });
+
+  it("returns undefined for _header when absent from JSON", () => {
+    const input = JSON.stringify({
+      executive_thesis: "Thesis.",
+      what_we_observed: "Obs.",
+      the_pattern: "Pattern.",
+      what_this_means: "Means.",
+      what_this_changes: "Change.",
+      cta: "Act.",
+    });
+    const result = parseResponse(input);
+    expect(result.executive_thesis_header).toBeUndefined();
+    expect(result.cta_header).toBeUndefined();
+  });
+
+  it("sanitizes empty string _header to undefined", () => {
+    const input = JSON.stringify({
+      executive_thesis_header: "",
+      executive_thesis: "Thesis.",
+      what_we_observed_header: "   ",
+      what_we_observed: "Obs.",
+      the_pattern: "Pattern.",
+      what_this_means: "Means.",
+      what_this_changes: "Change.",
+      cta: "Act.",
+    });
+    const result = parseResponse(input);
+    expect(result.executive_thesis_header).toBeUndefined();
+    expect(result.what_we_observed_header).toBeUndefined();
+  });
+
+  it("strips leading ## from _header value", () => {
+    const input = JSON.stringify({
+      executive_thesis_header: "## Where Acme's story breaks down",
+      executive_thesis: "Thesis.",
+      what_we_observed: "Obs.",
+      the_pattern: "Pattern.",
+      what_this_means: "Means.",
+      what_this_changes: "Change.",
+      cta: "Act.",
+    });
+    const result = parseResponse(input);
+    expect(result.executive_thesis_header).toBe("Where Acme's story breaks down");
+  });
+
+  it("replaces newlines in _header with spaces", () => {
+    const input = JSON.stringify({
+      executive_thesis_header: "Header\nWith newline",
+      executive_thesis: "Thesis.",
+      what_we_observed: "Obs.",
+      the_pattern: "Pattern.",
+      what_this_means: "Means.",
+      what_this_changes: "Change.",
+      cta: "Act.",
+    });
+    const result = parseResponse(input);
+    expect(result.executive_thesis_header).toBe("Header With newline");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -592,7 +732,7 @@ describe("writeMemo", () => {
     }
   });
 
-  it("markdown assembles all section headings (title_block has no heading)", async () => {
+  it("markdown omits ## lines when LLM returns no _header fields", async () => {
     const brief = makeBrief();
     const config: WriteMemoConfig = { client: makeMockClient(validSectionsJson()) };
     const result = await writeMemo(brief, 1, config);
@@ -600,13 +740,24 @@ describe("writeMemo", () => {
     // title_block appears as raw text (no ## heading)
     expect(result.markdown).toContain("TestCo");
     expect(result.markdown).toContain("Strategic Diagnostic");
-    // LLM sections have ## headings
-    expect(result.markdown).toContain("## Executive Thesis");
-    expect(result.markdown).toContain("## What We Observed");
-    expect(result.markdown).toContain("## The Pattern");
-    expect(result.markdown).toContain("## What This Means");
-    expect(result.markdown).toContain("## What This Changes");
-    expect(result.markdown).toContain("## Next Step");
+    // No generic fixed headers — dynamic headers only
+    expect(result.markdown).not.toContain("## Executive Thesis");
+    expect(result.markdown).not.toContain("## What We Observed");
+    expect(result.markdown).not.toContain("## The Pattern");
+  });
+
+  it("markdown uses company-specific ## headers when LLM returns _header fields", async () => {
+    const brief = makeBrief();
+    const config: WriteMemoConfig = { client: makeMockClient(validSectionsJsonWithHeaders()) };
+    const result = await writeMemo(brief, 1, config);
+
+    // Custom headers appear as ## lines
+    expect(result.markdown).toContain("## Where Acme's customers land versus where Acme's pricing points");
+    expect(result.markdown).toContain("## Five signals from Acme's public record");
+    expect(result.markdown).toContain("## The gap that compounds");
+    // cta_header was empty string → sanitized to undefined → no ## line for cta
+    const ctaSection = result.sections.find(s => s.name === "cta");
+    expect(ctaSection?.header).toBeUndefined();
   });
 
   it("word_count matches the assembled markdown", async () => {
@@ -701,6 +852,97 @@ describe("writeMemo", () => {
     }
   });
 
+  // ── New banned phrase tests (20 Golden Rules vocabulary) ─────────────────
+
+  it("throws ERR_BANNED_PHRASE for em dash in output", async () => {
+    const emDashJson = JSON.stringify({
+      executive_thesis: words(80) + " The founder\u2014an engineer by training\u2014faces a structural problem.",
+      what_we_observed: words(80),
+      the_pattern: words(80),
+      what_this_means: words(80),
+      what_this_changes: words(80),
+      cta: "Reply to this letter.",
+    });
+    const brief = makeBrief({ banned_phrases: ["\u2014"] });
+    const config: WriteMemoConfig = { client: makeMockClient(emDashJson) };
+    await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_BANNED_PHRASE");
+  });
+
+  it("throws ERR_BANNED_PHRASE for 'bolster' in output", async () => {
+    const bolsterJson = JSON.stringify({
+      executive_thesis: words(80) + " This will bolster their market position.",
+      what_we_observed: words(80),
+      the_pattern: words(80),
+      what_this_means: words(80),
+      what_this_changes: words(80),
+      cta: "Reply to this letter.",
+    });
+    const brief = makeBrief({ banned_phrases: ["bolster"] });
+    const config: WriteMemoConfig = { client: makeMockClient(bolsterJson) };
+    await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_BANNED_PHRASE");
+  });
+
+  it("throws ERR_BANNED_PHRASE for 'in conclusion' in output", async () => {
+    const conclusionJson = JSON.stringify({
+      executive_thesis: words(80),
+      what_we_observed: words(80),
+      the_pattern: words(80),
+      what_this_means: words(80),
+      what_this_changes: words(80),
+      cta: words(80) + " In conclusion, book a call with us.",
+    });
+    const brief = makeBrief({ banned_phrases: ["in conclusion"] });
+    const config: WriteMemoConfig = { client: makeMockClient(conclusionJson) };
+    await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_BANNED_PHRASE");
+  });
+
+  it("throws ERR_BANNED_PHRASE for 'moving forward' in output", async () => {
+    const movingForwardJson = JSON.stringify({
+      executive_thesis: words(80),
+      what_we_observed: words(80),
+      the_pattern: words(80),
+      what_this_means: words(80),
+      what_this_changes: words(80) + " Moving forward, the team should reposition.",
+      cta: "Reply to this letter.",
+    });
+    const brief = makeBrief({ banned_phrases: ["moving forward"] });
+    const config: WriteMemoConfig = { client: makeMockClient(movingForwardJson) };
+    await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_BANNED_PHRASE");
+  });
+
+  it("emits banned_phrase_hit structured log on ERR_BANNED_PHRASE", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const bannedJson = JSON.stringify({
+        executive_thesis: words(80) + " This is game-changing technology.",
+        what_we_observed: words(80),
+        the_pattern: words(80),
+        what_this_means: words(80),
+        what_this_changes: words(80),
+        cta: "Reply to this letter.",
+      });
+      const brief = makeBrief();
+      const config: WriteMemoConfig = { client: makeMockClient(bannedJson) };
+      await expect(writeMemo(brief, 1, config)).rejects.toThrow("ERR_BANNED_PHRASE");
+
+      const hitLog = logSpy.mock.calls.find(call => {
+        try {
+          const parsed = JSON.parse(call[0] as string);
+          return parsed.event === "banned_phrase_rejected";
+        } catch {
+          return false;
+        }
+      });
+      expect(hitLog).toBeDefined();
+      const logData = JSON.parse(hitLog![0] as string);
+      expect(logData.company_id).toBe("test-co");
+      expect(logData.attempt_number).toBe(1);
+      expect(logData.error).toContain("ERR_BANNED_PHRASE");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it("emits structured log line after generation", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
@@ -726,5 +968,35 @@ describe("writeMemo", () => {
     } finally {
       logSpy.mockRestore();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildCriticSystemPrompt (tone_compliance rubric — 20 Golden Rules)
+// ---------------------------------------------------------------------------
+
+describe("buildCriticSystemPrompt", () => {
+  it("tone_compliance rubric mentions tricolon detection", () => {
+    const prompt = buildCriticSystemPrompt();
+    expect(prompt).toContain("tricolon");
+  });
+
+  it("tone_compliance rubric mentions sentence length variance", () => {
+    const prompt = buildCriticSystemPrompt();
+    expect(prompt.toLowerCase()).toContain("sentence");
+    expect(prompt.toLowerCase()).toContain("length");
+    expect(prompt.toLowerCase()).toContain("consecutive");
+  });
+
+  it("tone_compliance rubric mentions contractions as AI tell", () => {
+    const prompt = buildCriticSystemPrompt();
+    expect(prompt).toContain("contractions");
+    expect(prompt.toLowerCase()).toContain("ai tell");
+  });
+
+  it("tone_compliance rubric mentions honesty and acknowledgment", () => {
+    const prompt = buildCriticSystemPrompt();
+    expect(prompt).toContain("HONESTY");
+    expect(prompt.toLowerCase()).toContain("working");
   });
 });
