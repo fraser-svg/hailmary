@@ -15,8 +15,14 @@
  *   restores state. Falls back to clean slate on any failure.
  */
 
-import { chromium, type Browser, type BrowserContext, type Page, type Locator } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator } from 'playwright';
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
+
+export interface RefEntry {
+  locator: Locator;
+  role: string;
+  name: string;
+}
 
 export class BrowserManager {
   private browser: Browser | null = null;
@@ -31,7 +37,7 @@ export class BrowserManager {
   public serverPort: number = 0;
 
   // ─── Ref Map (snapshot → @e1, @e2, @c1, @c2, ...) ────────
-  private refMap: Map<string, Locator> = new Map();
+  private refMap: Map<string, RefEntry> = new Map();
 
   // ─── Snapshot Diffing ─────────────────────────────────────
   // NOT cleared on navigation — it's a text baseline for diffing
@@ -51,7 +57,7 @@ export class BrowserManager {
       process.exit(1);
     });
 
-    const contextOptions: any = {
+    const contextOptions: BrowserContextOptions = {
       viewport: { width: 1280, height: 720 },
     };
     if (this.customUserAgent) {
@@ -169,7 +175,7 @@ export class BrowserManager {
   }
 
   // ─── Ref Map ──────────────────────────────────────────────
-  setRefMap(refs: Map<string, Locator>) {
+  setRefMap(refs: Map<string, RefEntry>) {
     this.refMap = refs;
   }
 
@@ -181,18 +187,34 @@ export class BrowserManager {
    * Resolve a selector that may be a @ref (e.g., "@e3", "@c1") or a CSS selector.
    * Returns { locator } for refs or { selector } for CSS selectors.
    */
-  resolveRef(selector: string): { locator: Locator } | { selector: string } {
+  async resolveRef(selector: string): Promise<{ locator: Locator } | { selector: string }> {
     if (selector.startsWith('@e') || selector.startsWith('@c')) {
       const ref = selector.slice(1); // "e3" or "c1"
-      const locator = this.refMap.get(ref);
-      if (!locator) {
+      const entry = this.refMap.get(ref);
+      if (!entry) {
         throw new Error(
-          `Ref ${selector} not found. Page may have changed — run 'snapshot' to get fresh refs.`
+          `Ref ${selector} not found. Run 'snapshot' to get fresh refs.`
         );
       }
-      return { locator };
+      const count = await entry.locator.count();
+      if (count === 0) {
+        throw new Error(
+          `Ref ${selector} (${entry.role} "${entry.name}") is stale — element no longer exists. ` +
+          `Run 'snapshot' for fresh refs.`
+        );
+      }
+      return { locator: entry.locator };
     }
     return { selector };
+  }
+
+  /** Get the ARIA role for a ref selector, or null for CSS selectors / unknown refs. */
+  getRefRole(selector: string): string | null {
+    if (selector.startsWith('@e') || selector.startsWith('@c')) {
+      const entry = this.refMap.get(selector.slice(1));
+      return entry?.role ?? null;
+    }
+    return null;
   }
 
   getRefCount(): number {
@@ -260,7 +282,7 @@ export class BrowserManager {
     try {
       // 1. Save state from current context
       const savedCookies = await this.context.cookies();
-      const savedPages: Array<{ url: string; isActive: boolean; storage: any }> = [];
+      const savedPages: Array<{ url: string; isActive: boolean; storage: { localStorage: Record<string, string>; sessionStorage: Record<string, string> } | null }> = [];
 
       for (const [id, page] of this.pages) {
         const url = page.url();
@@ -286,7 +308,7 @@ export class BrowserManager {
       await this.context.close().catch(() => {});
 
       // 3. Create new context with updated settings
-      const contextOptions: any = {
+      const contextOptions: BrowserContextOptions = {
         viewport: { width: 1280, height: 720 },
       };
       if (this.customUserAgent) {
@@ -318,15 +340,15 @@ export class BrowserManager {
         // 6. Restore storage
         if (saved.storage) {
           try {
-            await page.evaluate((s: any) => {
+            await page.evaluate((s: { localStorage: Record<string, string>; sessionStorage: Record<string, string> }) => {
               if (s.localStorage) {
                 for (const [k, v] of Object.entries(s.localStorage)) {
-                  localStorage.setItem(k, v as string);
+                  localStorage.setItem(k, v);
                 }
               }
               if (s.sessionStorage) {
                 for (const [k, v] of Object.entries(s.sessionStorage)) {
-                  sessionStorage.setItem(k, v as string);
+                  sessionStorage.setItem(k, v);
                 }
               }
             }, saved.storage);
@@ -347,13 +369,13 @@ export class BrowserManager {
       this.clearRefs();
 
       return null; // success
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Fallback: create a clean context + blank tab
       try {
         this.pages.clear();
         if (this.context) await this.context.close().catch(() => {});
 
-        const contextOptions: any = {
+        const contextOptions: BrowserContextOptions = {
           viewport: { width: 1280, height: 720 },
         };
         if (this.customUserAgent) {
@@ -365,7 +387,7 @@ export class BrowserManager {
       } catch {
         // If even the fallback fails, we're in trouble — but browser is still alive
       }
-      return `Context recreation failed: ${err.message}. Browser reset to blank tab.`;
+      return `Context recreation failed: ${err instanceof Error ? err.message : String(err)}. Browser reset to blank tab.`;
     }
   }
 
