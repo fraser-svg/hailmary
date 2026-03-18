@@ -406,6 +406,30 @@ describe("buildUserPrompt", () => {
     expect(prompt).not.toContain("use verbatim or paraphrase");
     expect(prompt).toContain("Base mechanism:");
   });
+
+  it("appends RORY SUTHERLAND REVISION NOTES block when rory_revision_notes present", () => {
+    const brief = makeBrief({
+      rory_revision_notes: {
+        what_is_boring: "It restates what the founder already knows.",
+        what_would_be_interesting: "Name the cognitive bias driving buyer behaviour.",
+        missing_behavioural_layer: "No anchoring mechanism identified.",
+        specific_suggestions: ["Reframe around sunk cost fallacy", "Add buyer psychology angle"],
+      },
+    });
+    const prompt = buildUserPrompt(brief);
+    expect(prompt).toContain("RORY SUTHERLAND REVISION NOTES");
+    expect(prompt).toContain("It restates what the founder already knows.");
+    expect(prompt).toContain("Name the cognitive bias driving buyer behaviour.");
+    expect(prompt).toContain("No anchoring mechanism identified.");
+    expect(prompt).toContain("Reframe around sunk cost fallacy");
+    expect(prompt).toContain("Add buyer psychology angle");
+  });
+
+  it("does not contain RORY SUTHERLAND REVISION NOTES when rory_revision_notes is undefined", () => {
+    const brief = makeBrief(); // no rory_revision_notes
+    const prompt = buildUserPrompt(brief);
+    expect(prompt).not.toContain("RORY SUTHERLAND REVISION NOTES");
+  });
 });
 
 // ---------------------------------------------------------------------------

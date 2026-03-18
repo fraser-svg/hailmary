@@ -492,17 +492,17 @@ describe("runSendGate — score computation", () => {
 // ---------------------------------------------------------------------------
 
 describe("runSendGate — gate summary", () => {
-  it("total_criteria is always 6", () => {
+  it("total_criteria is always 7", () => {
     const result = runSendGate(makeInput());
-    expect(result.gate_summary.total_criteria).toBe(6);
+    expect(result.gate_summary.total_criteria).toBe(7);
   });
 
-  it("criteria_passed + criteria_failed = 6", () => {
+  it("criteria_passed + criteria_failed = 7", () => {
     const pass = runSendGate(makeInput());
-    expect(pass.gate_summary.criteria_passed + pass.gate_summary.criteria_failed).toBe(6);
+    expect(pass.gate_summary.criteria_passed + pass.gate_summary.criteria_failed).toBe(7);
 
     const fail = runSendGate(makeInput({ criticResult: makeFailCriticResult() }));
-    expect(fail.gate_summary.criteria_passed + fail.gate_summary.criteria_failed).toBe(6);
+    expect(fail.gate_summary.criteria_passed + fail.gate_summary.criteria_failed).toBe(7);
   });
 
   it("recommendation is non-empty string on pass", () => {
@@ -517,16 +517,16 @@ describe("runSendGate — gate summary", () => {
     expect(result.gate_summary.recommendation.length).toBeGreaterThan(5);
   });
 
-  it("criteria_results has exactly 6 entries", () => {
+  it("criteria_results has exactly 7 entries", () => {
     const result = runSendGate(makeInput());
-    expect(result.criteria_results.length).toBe(6);
+    expect(result.criteria_results.length).toBe(7);
   });
 
   it("each criterion_id is unique in criteria_results", () => {
     const result = runSendGate(makeInput());
     const ids = result.criteria_results.map(c => c.criterion_id);
     const unique = new Set(ids);
-    expect(unique.size).toBe(6);
+    expect(unique.size).toBe(7);
   });
 });
 
@@ -563,5 +563,142 @@ describe("runSendGate — evidence ref count handling", () => {
     const ev = result.criteria_results.find(c => c.criterion_id === "evidence_ref_count");
     expect(ev?.pass).toBe(false);
     expect(ev?.failure_type).toBe("hard");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rory approval criterion (V3-M5b)
+// ---------------------------------------------------------------------------
+
+import type { RoryReviewResult } from "../types/rory-review.js";
+
+function makeApproveRoryResult(): RoryReviewResult {
+  return {
+    review_id: "rory_acme_123456",
+    company_id: "acme",
+    memo_id: "memo_acme_123456",
+    reviewed_at: new Date().toISOString(),
+    attempt_number: 1,
+    dimensions: {
+      reframe_quality: { score: 4, pass: true, notes: "Genuine reframe." },
+      behavioural_insight: { score: 4, pass: true, notes: "Names anchoring." },
+      asymmetric_opportunity: { score: 3, pass: true, notes: "Real lever." },
+      memorability: { score: 4, pass: true, notes: "Quotable." },
+    },
+    pub_test: { result: "pass", reasoning: "Would discuss at the pub." },
+    verdict: "approve",
+  };
+}
+
+function makeReviseRoryResult(): RoryReviewResult {
+  return {
+    review_id: "rory_acme_654321",
+    company_id: "acme",
+    memo_id: "memo_acme_123456",
+    reviewed_at: new Date().toISOString(),
+    attempt_number: 2,
+    dimensions: {
+      reframe_quality: { score: 2, pass: false, notes: "Restatement, not reframe." },
+      behavioural_insight: { score: 1, pass: false, notes: "No behavioural layer." },
+      asymmetric_opportunity: { score: 3, pass: true, notes: "Lever is real." },
+      memorability: { score: 2, pass: false, notes: "Forgettable." },
+    },
+    pub_test: { result: "fail", reasoning: "Would not mention at the pub." },
+    verdict: "revise",
+    revision_notes: {
+      what_is_boring: "It restates what the founder already knows.",
+      what_would_be_interesting: "Name the cognitive bias driving buyer behaviour.",
+      missing_behavioural_layer: "No anchoring or loss aversion mechanism identified.",
+      specific_suggestions: ["Reframe around sunk cost fallacy", "Add buyer psychology angle"],
+    },
+  };
+}
+
+describe("runSendGate — rory_approval criterion", () => {
+  it("rory_approval passes when roryResult is undefined (backward compat)", () => {
+    const input = makeInput(); // no roryResult
+    const result = runSendGate(input);
+    const rory = result.criteria_results.find(c => c.criterion_id === "rory_approval");
+    expect(rory?.pass).toBe(true);
+    expect(rory?.observed_value).toBe("not_evaluated");
+  });
+
+  it("rory_approval passes when verdict is 'approve'", () => {
+    const input = makeInput({ roryResult: makeApproveRoryResult() });
+    const result = runSendGate(input);
+    const rory = result.criteria_results.find(c => c.criterion_id === "rory_approval");
+    expect(rory?.pass).toBe(true);
+    expect(rory?.observed_value).toBe("approve");
+  });
+
+  it("rory_approval is hard failure when verdict is 'revise'", () => {
+    const input = makeInput({ roryResult: makeReviseRoryResult() });
+    const result = runSendGate(input);
+    const rory = result.criteria_results.find(c => c.criterion_id === "rory_approval");
+    expect(rory?.pass).toBe(false);
+    expect(rory?.failure_type).toBe("hard");
+    expect(result.has_hard_failures).toBe(true);
+    expect(result.result).toBe("fail");
+  });
+
+  it("gate still passes when roryResult approves and all other criteria pass", () => {
+    const input = makeInput({ roryResult: makeApproveRoryResult() });
+    const result = runSendGate(input);
+    expect(result.result).toBe("pass");
+    expect(result.ready_to_send).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Quality score with Rory bonus
+// ---------------------------------------------------------------------------
+
+describe("runSendGate — Rory quality score bonus", () => {
+  it("quality score is unchanged when roryResult is undefined", () => {
+    const withoutRory = runSendGate(makeInput());
+    const withRoryUndefined = runSendGate(makeInput({ roryResult: undefined }));
+    expect(withoutRory.memo_quality_score).toBe(withRoryUndefined.memo_quality_score);
+  });
+
+  it("quality score increases when roryResult is present with high dim scores", () => {
+    const withoutRory = runSendGate(makeInput()).memo_quality_score;
+    const withRory = runSendGate(makeInput({ roryResult: makeApproveRoryResult() })).memo_quality_score;
+    expect(withRory).toBeGreaterThan(withoutRory);
+  });
+
+  it("Rory bonus is additive: sum of 4 dims / 20 * 10, rounded", () => {
+    const rory = makeApproveRoryResult();
+    // dims: 4+4+3+4 = 15 → 15/20*10 = 7.5 → rounds to 8
+    const withoutRory = runSendGate(makeInput()).memo_quality_score;
+    const withRory = runSendGate(makeInput({ roryResult: rory })).memo_quality_score;
+    expect(withRory - withoutRory).toBe(8);
+  });
+
+  it("quality score is capped at 100 even with Rory bonus", () => {
+    // Max out everything to push score above 100
+    const allFiveCritic = makePassCriticResult({
+      dimensions: {
+        evidence_grounding: { score: 5, pass: true, notes: "" },
+        commercial_sharpness: { score: 5, pass: true, notes: "" },
+        pattern_clarity: { score: 5, pass: true, notes: "" },
+        signal_density: { score: 5, pass: true, notes: "" },
+        cta_clarity: { score: 5, pass: true, notes: "" },
+        tone_compliance: { score: 5, pass: true, notes: "" },
+      },
+    });
+    const maxMemo = makeMemo({
+      evidence_ids: ["a", "b", "c", "d", "e"],
+      word_count: 1000,
+    });
+    const maxRory = makeApproveRoryResult();
+    // Base score = 100, Rory bonus = 8 → should cap at 100
+    const result = runSendGate({
+      memo: maxMemo,
+      criticResult: allFiveCritic,
+      adjudication: makeAdjudication(),
+      evidencePack: makeEvidencePack(),
+      roryResult: maxRory,
+    });
+    expect(result.memo_quality_score).toBe(100);
   });
 });

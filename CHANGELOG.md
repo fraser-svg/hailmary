@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.6] - 2026-03-18
 
+### Added
+- Rory Sutherland review stage (V3-M5b): LLM evaluation of memo strategic interestingness using Opus 4.6
+- 4 scoring dimensions: reframe_quality, behavioural_insight, asymmetric_opportunity, memorability (0-5 each, pass >= 3)
+- Pub Test: binary pass/fail — "Would Rory bring this up at the pub?"
+- Rory revision loop: if verdict is "revise", injects rewrite notes and produces one more write attempt
+- 7th send gate criterion: rory_approval (hard fail when Rory rejects after revision)
+- Additive quality score bonus: 0-10 pts from Rory's 4 dimensions, capped at 100
+- `roryReviewEnabled` flag on V3PipelineInput (default true, set false to skip)
+- 44 new tests across rory-review, send-gate, pipeline, and write-memo
+
 ### Changed
 - Pipeline resilience: site corpus acquisition failures (homepage fetch, Playwright errors) now degrade gracefully instead of crashing the pipeline
 - Writer prompt: 7 CEO memo doctrine principles added — scenario-before-naming, hedging split (diagnosis vs implication), network effect costs, deployable phrases, CTA variation, thesis compression, no-bloat rule
@@ -13,6 +23,11 @@ All notable changes to this project will be documented in this file.
 - Genericity revision feedback strengthened with actionable rewrite instructions
 - Banned phrase retry: pipeline injects targeted reinforcement into confidence_caveats on ERR_BANNED_PHRASE
 - JSON parse fallback: writer response parser now extracts JSON from LLM preamble text
+- `MarkdownMemo.attempt_number` widened from `1 | 2` to `1 | 2 | 3` (attempt 3 = Rory revision)
+- `GateCriterion` union type expanded with `"rory_approval"`
+- `GateSummary.total_criteria` changed from `6` to `6 | 7`
+- `attemptWrite` helper hoisted above structural loop for reuse by Rory revision loop
+- Pipeline structured logging uses JSON format for Rory review events
 
 ### Fixed
 - Banned phrase truncation: removed `.slice(0, 25)` cap that silently dropped banned phrases beyond index 25
