@@ -12,6 +12,8 @@ import type { MemoSectionName } from "./memo-brief";
 /** A single section of the memo */
 export interface MemoSection {
   name: MemoSectionName;
+  /** LLM-generated company-specific header. Absent = no ## line in assembled markdown. */
+  header?: string;
   markdown: string;
   word_count: number;
 }

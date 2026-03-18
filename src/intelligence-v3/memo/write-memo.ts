@@ -73,16 +73,6 @@ const SECTION_ORDER: MemoSectionName[] = [
   ...LLM_SECTION_ORDER,
 ];
 
-const SECTION_HEADINGS: Record<MemoSectionName, string> = {
-  title_block: "",  // title_block has no heading — it IS the heading
-  executive_thesis: "## Executive Thesis",
-  what_we_observed: "## What We Observed",
-  the_pattern: "## The Pattern",
-  what_this_means: "## What This Means",
-  what_this_changes: "## What This Changes",
-  cta: "## Next Step",
-};
-
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -140,68 +130,107 @@ export function buildSystemPrompt(brief: MemoBrief): string {
       ? `\nHEDGING BAN: Do not use "likely", "may indicate", "could be", "might", "it is possible", "the evidence leaves this open". State findings with the confidence the evidence warrants.`
       : "";
 
-  return `You are writing a Dean & Wiseman strategic diagnostic — a short document that reads like an internal strategy memo that somehow landed on a company founder's desk.
+  return `You are writing a Dean & Wiseman strategic diagnostic. A letter to a specific person who did not ask for it, who is busy, who has seen a hundred pitches this month, and who will give you four sentences to prove you are worth the next four. It will be printed and mailed as a physical object. Every word must earn its place on paper.
 
-THE THREE EFFECTS — every memo must produce all three:
+THE THREE EFFECTS: every memo must produce all three:
 1. RECOGNITION: "That's uncomfortably accurate"
 2. SURPRISE: "I hadn't seen it like that"
-3. CURIOSITY: "There's a clear way forward — I want to hear it"
+3. CURIOSITY: "There's a clear way forward. I want to hear it."
 
-VOICE:
-- Internal strategy document tone. Calm. Precise. Observational. Controlled.
-- No hype, no flattery, no urgency, no marketing language.
-- No first person ("we", "our", "us") anywhere except the final CTA section.
-- Every sentence must contain company-specific information.
-- Sentence style: short to medium, high clarity, no padding.
+THE LAWS:
+
+LAW 1 -- THE FIRST SENTENCE EARNS THE SECOND.
+Open with a customer's own words about the company, or a specific verifiable fact about their business, or a claim that contradicts their assumptions. Do not open with the company's own positioning, industry context, or anything the reader already knows. Do not introduce yourself. Do not compliment them.
+
+LAW 2 -- BE SPECIFIC OR BE QUIET.
+Every claim must pass the swap test: remove the company name. If the sentence could describe any other company, it is too abstract. Replace every abstraction with a person in a room making a decision. Not "mid-market operations leaders evaluating tools in a 2-4 week cycle" -- instead: "A head of support at a 200-person SaaS company can trial the product on a Monday and show her CEO the resolution data by Friday."
+
+LAW 3 -- RHYTHM IS MEANING.
+Read every paragraph aloud. If every sentence takes the same number of breaths, rewrite. Follow a long, careful sentence with a short, blunt one. Let some paragraphs be a single sentence. No two consecutive sentences should be within three words of each other in length. Banned: three or more consecutive sentences of similar length or similar syntactic structure.
+
+LAW 4 -- HAVE A VIEW. RISK BEING WRONG.
+Hedge the data, not the interpretation. "We don't have your conversion numbers" is honest. "The evidence suggests a potential misalignment" is evasive. If the evidence points one direction, say so. Delete every qualifier. Read what remains. If it's defensible with the evidence you have, use it.
+
+LAW 5 -- ONE UNCOMFORTABLE SENTENCE.
+Every memo must contain one sentence that names a cost the company cannot see from inside. Specific enough that the reader's first reaction is discomfort and their second is "they're right." This is the sentence that earns the meeting.
+
+LAW 6 -- NEVER PERFORM BALANCE YOU DON'T BELIEVE.
+If the evidence points one direction, don't write "that said" or "on the other hand." One honest "we don't know" is worth more than ten artificial counterpoints. Banned: "That said." "On the other hand." "It could also be the case that."
+
+LAW 7 -- WRITE TO THE ONE READER.
+You're not introducing a problem. You're naming something the founder already feels. Never explain what the company does. Never provide industry context they already have. Start inside their experience. The first time the reader feels educated rather than understood, they stop reading.
+
+LAW 8 -- THE STRUCTURE MUST BE INVISIBLE.
+Do not use generic headers. If you use headers, make them specific to this company and this argument. "What [Company]'s customers say versus what [Company]'s marketing says" has content. "What We Observed" has only structure. Better still: let the argument flow as continuous prose.
+
+LAW 9 -- SHOW THE MECHANISM, THEN NAME IT.
+Before naming any strategic concept, construct a scenario the reader can feel. Two prospect paths. A buyer's internal conversation. Let the scenario carry the persuasive weight, then name the mechanism in plain language a founder could use in their next meeting.
+
+LAW 10 -- EVERY MEMO MUST FEEL HANDMADE.
+No two memos may share identical section headers, closing language, or transitional phrases. Every memo must contain at least one observation, one turn of phrase, one structural choice that could not appear in any other memo.
+
+LAW 11 -- RESPECT THE READER'S TIME.
+Every sentence must advance the argument or be cut. No restating. No summarising what you've already said. No transitional sentences that exist only to connect paragraphs. Delete any sentence you suspect is padding.
+
+LAW 12 -- BRITISH ENGLISH. NO EM DASHES.
+British English in all cases. Colour, not color. Recognise, not recognize. No em dashes under any circumstances. Use full stops, commas, colons, semicolons, or restructure the sentence. Never use a semicolon more than once per section.
+
+LAW 13 -- USE CONTRACTIONS.
+Use contractions naturally. "It's" not "It is." "Don't" not "Do not." "We're" not "We are." Formal avoidance of contractions is an AI tell. Real strategic writing at a senior level uses contractions.
+
+LAW 14 -- THE SLIPPERY SLIDE.
+Every element makes the reader read the next. The first sentence makes them read the second. The diagnosis section makes them read the prescription. The prescription makes them read the CTA. Use at most two or three seeds of curiosity per document ("and this is where it gets interesting", "but the data tells a different story"). More than that and they become visible as a technique.
+
+LAW 15 -- SENTENCE LENGTH VARIANCE.
+After drafting any paragraph, verify that no two consecutive sentences are within three words of each other in length. A good paragraph might contain sentences of 6, 22, 4, 18, and 11 words. That kind of variance is the heartbeat of human prose.
+
+LAW 16 -- DIAGNOSIS BEFORE PRESCRIPTION.
+This document is 80% diagnosis, 20% prescription. The founder does not yet trust you. What they will recognise, instantly, is whether you understand their problem. Never lead with solution. The prescription is only the doorway to a conversation.
+
+LAW 17 -- HONESTY AS PERSUASION.
+If the data shows something working well, say so. "Your product-led motion is actually working. Your activation rates suggest the product sells itself once people try it. The problem is upstream." The moments of honesty make the moments of diagnosis land harder, not softer.
+
+LAW 18 -- NO TRICOLON.
+Never use three-part rhythm lists. "We analyse, we strategise, and we execute." "It's fast, it's reliable, and it's affordable." These patterns are deeply embedded in AI training data. Break the pattern. Use two items. Or four. Or just make a statement.
+
+LAW 19 -- VARY PARAGRAPH STRUCTURE.
+Never use the topic-sentence + three-supporting-points paragraph structure. This is textbook essay format. Vary paragraph architecture. Some paragraphs are one sentence. Some are five. Some open with evidence and end with interpretation. Some do the reverse.
+
+LAW 20 -- PHYSICAL OBJECT RULE.
+This document will be printed and held in someone's hands. No filler. No padding. No warming-up paragraphs. Paper is more intimate than a screen. Every word must justify its presence.
+
+WRITING ANTI-PATTERNS -- signatures of AI-generated text. Never use them:
+- Transition openers: "Furthermore", "Moreover", "Additionally", "Notably", "Importantly", "Indeed", "Crucially".
+- Throat-clearing: "It's worth noting that", "It bears mentioning", "It is important to recognize", "It goes without saying".
+- Demonstrative fillers: "This represents", "This demonstrates", "This underscores", "This highlights", "This speaks to".
+- Dead words: "delve", "tapestry", "utilize", "harness", "bolster", "garner", "synergy", "myriad", "plethora", "holistic", "nuanced", "robust", "comprehensive", "seamless", "leverage", "foster", "landscape", "paradigm", "groundbreaking", "cutting-edge", "streamline", "elevate", "empower", "encompass", "multifaceted", "endeavour", "beacon", "realm", "illuminate", "resonate", "interplay", "commendable", "cornerstone", "spearhead", "bustling", "aforementioned", "henceforth".
+- Phrase patterns: "In today's...", "At its core...", "In the realm of...", "When it comes to...", "Navigating the complexities of...", "A testament to...", "In an era of...", "Moving forward", "In conclusion", "To summarize", "Without further ado".
+- Performative balance: "That said", "On the other hand", "It could also be the case that".
+- Do not open three or more consecutive sentences with the same word.
+- Do not use colons to introduce inline lists more than once per section.
+
+EVIDENCE TEXTURE:
+Weave specific language from evidence into the analytical narrative. Use review excerpts, developer comments, pricing page phrasing, and job post language as texture within sentences, not as standalone quotes. Example: instead of 'Customers value speed', write 'Multiple reviews describe the product as "the fastest way to get a PO signed", language that never appears on the company's pricing page.' This is the difference between a memo that feels researched and one that feels generated.
 
 SECTION-BY-SECTION GUIDANCE:
 
 executive_thesis (80-130w):
-Goal: Define the core contradiction. Create immediate tension. Make the reader continue.
-Must contain: surface reality (what it looks like), underlying reality (what is actually happening), commercial implication.
-Writing rules: Specific not generic. One idea only. No hedging overload. No buzzwords.
-Output standard: Reader should think: "That's uncomfortably accurate."
+Open with customer language or a specific verifiable fact. Define the core contradiction. Create immediate tension. Surface reality vs underlying reality vs what it costs the founder. Reader should think: "That's uncomfortably accurate."
 
 what_we_observed (180-260w):
-Goal: Provide evidence. Prove the thesis is grounded. This is where evidence texture lives.
-Must contain: 5-7 concrete signals using only externally visible evidence.
-Acceptable evidence: messaging language, offer structure, pricing logic, proof/case studies, reviews, positioning.
-Writing rules: Every observation must support thesis. No filler observations. No vague statements. Weave specific language fragments from evidence (review excerpts, pricing page phrasing, job posts) into the analytical narrative — not as block quotes but as texture. Use phrases like "Multiple reviews describe the product as..." or "The pricing page positions..." to embed real evidence.
-Output standard: Reader should think: "They've actually looked at this properly."
+5-7 concrete signals. Weave specific language from evidence (review excerpts, developer comments, pricing page phrasing) into the narrative as texture, not block quotes. Every observation must support the thesis. Reader should think: "They've actually looked at this properly."
 
 the_pattern (130-200w):
-Goal: Identify the underlying system. Turn observations into insight. This section absorbs the causal reasoning — name what connects the signals and the structural forces at work.
-Must contain: One unifying idea. Clear articulation of what connects the signals. The structural forces (2 causal mechanisms) woven into the narrative — not labeled ("First force... Second force...") but felt.
-Writing rules: One pattern only. No lists. No multiple interpretations. Must be non-obvious but clearly true.
-Output standard: Reader should think: "I hadn't seen it like that."
+The underlying system. One unifying idea. Show the mechanism before naming it. The structural forces woven into the narrative, not labelled. Reader should think: "I hadn't seen it like that."
 
 what_this_means (140-200w):
-Goal: Translate insight into business impact.
-Must address: trust, conversion, positioning, revenue implication. Name a specific commercial consequence with enough detail that the founder can estimate the cost.
-Writing rules: No exaggeration. No precise numbers unless proven. No generic outcomes.
-Output standard: Reader should think: "This is likely costing us."
+Business impact. Name specific commercial consequences the founder can estimate. No exaggeration. No precise numbers unless proven. Reader should think: "This is likely costing us."
 
 what_this_changes (140-200w):
-Goal: Define the strategic shift. Create curiosity.
-Must contain: direction of change, reframing of approach.
-Must NOT contain: tactics, step-by-step actions, full solution.
-Writing rules: Strategic not operational. Clear but incomplete. Controlled specificity. The founder should think "There's a clear way forward" — not "I understand the whole playbook."
-Output standard: Reader should think: "There's a clear way forward — I want to hear it."
+Strategic direction, not tactics. Clear but incomplete. The founder should think "there's a clear way forward" but not "I understand the whole playbook."
 
 cta (40-70w):
-Goal: Convert interest into conversation.
-Must contain: conditional framing ("If this is accurate..."), low-friction next step.
-Writing rules: No pressure. No sales language. No "book a call" phrasing. Only section allowed to use first person.
-Output standard: Reader should think: "Worth a conversation."
-
-ANALYTICAL DEPTH:
-Each section must go one level deeper than the obvious. Executive Thesis names a contradiction AND its commercial implication. What We Observed names signals AND what makes each one unusual. The Pattern names the system AND why it's structurally stable. What This Means names the consequence AND helps the founder estimate the cost. What This Changes names the lever AND implies enough about the resolution to create curiosity.
-
-EVIDENCE TEXTURE:
-Weave specific language from evidence into the analytical narrative. Use review excerpts, developer comments, pricing page phrasing, and job post language as texture within sentences — not as standalone quotes. Example: instead of 'Customers value speed', write 'Multiple reviews describe the product as "the fastest way to get a PO signed" — language that never appears on the company's pricing page.' This is the difference between a memo that feels researched and one that feels generated.
-
-READABILITY RHYTHM:
-Alternate between analytical sentences and plain-language anchors. After every dense observation, include one short sentence that a non-expert would understand. Dense paragraphs without plain statements lose authority. Short paragraphs (2-3 sentences) between longer ones create pacing.
+Convert interest into conversation. Conditional framing. Low friction. No pressure. No sales language. Only section allowed to use first person.
 
 HARD RULES:
 1. Do not invent any facts.
@@ -217,16 +246,22 @@ WORD BUDGET: Target ${brief.word_budget.target_min}-${brief.word_budget.target_m
 Section targets: executive_thesis (80-130w), what_we_observed (180-260w), the_pattern (130-200w), what_this_means (140-200w), what_this_changes (140-200w), cta (40-70w).
 
 OUTPUT FORMAT: Return valid JSON only. No markdown code fences. No text outside the JSON object.
-The JSON must have exactly these 6 keys (all required, none empty):
+The JSON must have exactly these 12 keys. The 6 content keys are required and must not be empty. The 6 header keys are optional -- write a company-specific header that adds information, or return an empty string if you cannot:
 {
+  "executive_thesis_header": "company-specific header or empty string",
   "executive_thesis": "...",
+  "what_we_observed_header": "company-specific header or empty string",
   "what_we_observed": "...",
+  "the_pattern_header": "company-specific header or empty string",
   "the_pattern": "...",
+  "what_this_means_header": "company-specific header or empty string",
   "what_this_means": "...",
+  "what_this_changes_header": "company-specific header or empty string",
   "what_this_changes": "...",
+  "cta_header": "company-specific header or empty string",
   "cta": "..."
 }
-Each value is the full prose for that section (plain text, use \\n\\n for paragraph breaks within a section).`;
+Each content value is the full prose for that section (plain text, use \\n\\n for paragraph breaks within a section).`;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,7 +373,27 @@ function getClient(injected?: Anthropic): Anthropic {
 // Response parsing (exported for testing)
 // ---------------------------------------------------------------------------
 
-type RawSections = Record<LLMSectionName, string>;
+type RawSections = Record<LLMSectionName, string> & {
+  executive_thesis_header?: string;
+  what_we_observed_header?: string;
+  the_pattern_header?: string;
+  what_this_means_header?: string;
+  what_this_changes_header?: string;
+  cta_header?: string;
+};
+
+/**
+ * Sanitize an LLM-generated section header value.
+ * - Non-string or absent → undefined (suppress ## line)
+ * - Empty or whitespace-only → undefined
+ * - Strips leading # characters (LLM may prefix with ##)
+ * - Replaces embedded newlines with a space
+ */
+function sanitizeHeader(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().replace(/^#+\s*/, "").replace(/\n/g, " ").trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 export function parseResponse(text: string): RawSections {
   const cleaned = text
@@ -376,6 +431,12 @@ export function parseResponse(text: string): RawSections {
     what_this_means: (obj["what_this_means"] as string).trim(),
     what_this_changes: (obj["what_this_changes"] as string).trim(),
     cta: (obj["cta"] as string).trim(),
+    executive_thesis_header: sanitizeHeader(obj["executive_thesis_header"]),
+    what_we_observed_header: sanitizeHeader(obj["what_we_observed_header"]),
+    the_pattern_header: sanitizeHeader(obj["the_pattern_header"]),
+    what_this_means_header: sanitizeHeader(obj["what_this_means_header"]),
+    what_this_changes_header: sanitizeHeader(obj["what_this_changes_header"]),
+    cta_header: sanitizeHeader(obj["cta_header"]),
   };
 }
 
@@ -397,6 +458,7 @@ function assembleSections(raw: RawSections, brief: MemoBrief): MemoSection[] {
   const titleBlock = buildTitleBlock(brief);
   const llmSections = LLM_SECTION_ORDER.map(name => ({
     name: name as MemoSectionName,
+    header: raw[`${name}_header` as keyof RawSections] as string | undefined,
     markdown: raw[name],
     word_count: countWords(raw[name]),
   }));
@@ -406,8 +468,10 @@ function assembleSections(raw: RawSections, brief: MemoBrief): MemoSection[] {
 function assembleMarkdown(sections: MemoSection[]): string {
   return sections
     .map(s => {
-      const heading = SECTION_HEADINGS[s.name];
-      return heading ? `${heading}\n\n${s.markdown}` : s.markdown;
+      if (s.name === "title_block") return s.markdown;
+      return s.header
+        ? `## ${s.header}\n\n${s.markdown}`
+        : s.markdown;
     })
     .join("\n\n");
 }
@@ -503,7 +567,19 @@ export async function writeMemo(
   // evidence_ids are populated from the brief's evidence_spine (deterministic — not from LLM)
   const evidenceIds = brief.evidence_spine.map(r => r.evidence_id);
 
-  validateMemo(wordCount, evidenceIds, markdown, brief.banned_phrases);
+  try {
+    validateMemo(wordCount, evidenceIds, markdown, brief.banned_phrases);
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("ERR_BANNED_PHRASE")) {
+      console.log(JSON.stringify({
+        event: "banned_phrase_rejected",
+        company_id: brief.company_id,
+        attempt_number: attemptNumber,
+        error: err.message,
+      }));
+    }
+    throw err;
+  }
 
   const sectionWordCounts = Object.fromEntries(sections.map(s => [s.name, s.word_count]));
   console.log(JSON.stringify({

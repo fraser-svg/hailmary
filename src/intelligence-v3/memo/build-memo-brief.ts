@@ -70,6 +70,7 @@ export interface BuildMemoBriefInput {
 // ---------------------------------------------------------------------------
 
 const V3_ADDITIONS = [
+  // ── Outreach / sales-pitch prevention ──────────────────────────────────────
   "I wanted to reach out",
   "just wanted to",
   "hope this finds you well",
@@ -85,21 +86,95 @@ const V3_ADDITIONS = [
   "circle back",
   "reach out",
   "at the end of the day",
-  // Template-bleed prevention (Dean & Wiseman doctrine)
+  "we would help you",
+  "we would help",
+  // ── Template-bleed prevention (Dean & Wiseman doctrine) ────────────────────
   "two structural forces",
   "two forces",
   "forces collide",
   "structural forces",
   "first force",
   "second force",
-  // Hedging that survives tone constraints
+  // ── Hedging prevention ─────────────────────────────────────────────────────
   "evidence leaves this open",
   "it is worth noting",
   "likely creates",
   "may indicate",
-  // Sales-pitch prevention
-  "we would help you",
-  "we would help",
+  // ── AI vocabulary fingerprints (20 Golden Rules — zero tolerance) ───────────
+  // Punctuation (single most reliable AI tell)
+  "\u2014", // em dash
+  // Vocabulary
+  "delve",
+  "tapestry",
+  "utilize",
+  "harness",
+  "underscore",
+  "pivotal",
+  "crucial",
+  "vibrant",
+  "meticulous",
+  "intricate",
+  "bolster",
+  "garner",
+  "testament",
+  "groundbreaking",
+  "seamless",
+  "streamline",
+  "elevate",
+  "empower",
+  "encompass",
+  "multifaceted",
+  "holistic",
+  "synergy",
+  "endeavour",
+  "beacon",
+  "realm",
+  "treasure trove",
+  "illuminate",
+  "resonate",
+  "interplay",
+  "commendable",
+  "showcasing",
+  "highlighting",
+  "emphasizing",
+  "align with",
+  "advent",
+  "bustling",
+  "cornerstone",
+  "spearhead",
+  "aforementioned",
+  "henceforth",
+  "myriad",
+  "plethora",
+  // ── AI phrase patterns (20 Golden Rules) ───────────────────────────────────
+  "in today's",
+  "it's important to note",
+  "it's worth noting",
+  "at its core",
+  "in the realm of",
+  "when it comes to",
+  "it goes without saying",
+  "navigating the complexities",
+  "a testament to",
+  "in an era of",
+  "let's dive in",
+  "without further ado",
+  "in conclusion",
+  "to summarize",
+  "moving forward",
+  // ── Structural AI patterns ──────────────────────────────────────────────────
+  "furthermore",
+  "moreover",
+  "additionally",
+  "it bears mentioning",
+  "this represents",
+  "this demonstrates",
+  "this underscores",
+  "this highlights",
+  // ── Performative balance (Law 6) ────────────────────────────────────────────
+  "that said",
+  "on the other hand",
+  "it could also be the case",
 ];
 
 /**
