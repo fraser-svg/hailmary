@@ -1,25 +1,21 @@
 # TODOS
 
-## P1 — Re-run eval harness after D&W restructure + CEO memo doctrine
+## P1 — Re-run eval harness after D&W restructure + 20 Golden Rules
 
 **What:** Run the compare-v3-v4 eval harness (mock + live modes) against Trigger.dev,
-Omnea, and Gendo after BOTH the D&W memo restructure AND the CEO memo doctrine (7
-principles) ship. Compare memo quality scores, word counts, and section density against
-pre-restructure baselines. Pay particular attention to: scenario-before-naming in
-the_pattern (principle #1), network effect costs in what_this_means (#3), deployable
-phrases in what_this_changes (#4), and CTA variation (#5).
+Omnea, and Gendo after the D&W memo restructure + 20 Golden Rules ship. Compare memo
+quality scores, word counts, and section density against pre-restructure baselines.
 
-**Why:** Two successive prompt changes (D&W restructure + 7 principles) affect every
-parameter surface. Without a fresh eval run, we have no data on whether these changes
-produce better memos or regressed quality. Post-fix live baselines exist: Retool (77),
-Calendly (83), Intercom (74).
+**Why:** The 20 Golden Rules rewrite changes every parameter surface: full system
+prompt rewrite, 90+ banned phrases, dynamic section headers, expanded critic rubric.
+Without a fresh eval run, we have no data on whether these changes produce better memos
+or regressed quality.
 
 **Where:** `src/intelligence-v3/eval/compare-v3-v4.ts` — run in mock mode first, then
 live mode with real LLM calls. Compare against the pre-restructure baselines captured
-in the Phase 3 eval run (V3 quality avg: 69, V4 quality avg: 53) and the post-fix
-baselines (Retool 77, Calendly 83, Intercom 74).
+in the Phase 3 eval run (V3 quality avg: 69, V4 quality avg: 53).
 
-**Effort:** M | **Depends on:** D&W memo restructure + CEO memo doctrine PR merged
+**Effort:** M | **Depends on:** D&W memo restructure + 20 Golden Rules PR merged (v0.1.7)
 
 ---
 

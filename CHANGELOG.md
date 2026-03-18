@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2026-03-18
+
+### Added
+- 20 Golden Rules of exceptional writing encoded in memo system prompt (20 Laws as named directives)
+- Dynamic company-specific section headers: LLM returns optional `_header` fields per section; rendered as `## {header}` or omitted when blank
+- 90+ hard-banned phrases enforced at generation time, organised by category (AI vocabulary fingerprints, AI phrase patterns, structural AI patterns, performative balance)
+- Structured `banned_phrase_hit` log event emitted on `ERR_BANNED_PHRASE` with `company_id`, `attempt_number`, and matched phrase
+- `header?: string` field on `MemoSection` type for downstream consumers
+
+### Changed
+- System prompt rewritten around 20 Laws: conviction (Law 4), rhythm variance (Law 3, 15), contractions required (Law 13), no tricolon (Law 18), slippery slide (Law 14), honesty as persuasion (Law 17), physical object rule (Law 20)
+- WRITING ANTI-PATTERNS section added to system prompt with dead vocabulary list and forbidden phrase patterns
+- `tone_compliance` critic rubric expanded: now explicitly tests tricolon detection, sentence length variance, contractions-as-AI-tell, honesty/acknowledgment
+- Full banned phrase list now appears in system prompt reinforcement (removed accidental `.slice(0, 25)` cap)
+- Rory Sutherland review stage removed (superseded by 20 Golden Rules approach)
+
+### Fixed
+- Banned phrase sample in system prompt was silently truncated to first 25 entries; all 90+ entries now included
+
 ## [0.1.6] - 2026-03-18
 
 ### Added
