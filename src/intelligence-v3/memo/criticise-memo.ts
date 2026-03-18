@@ -77,20 +77,20 @@ SCORING DIMENSIONS:
    0 = evidence is largely invented or conflated with generic patterns
    Pass threshold: ≥ 3
 
-2. commercial_sharpness (0–5): Does this read like intelligence about a specific company, built from 5–7 concrete signals? Every paragraph must contain company-specific texture.
-   5 = every paragraph contains company-specific observations; 5+ verbatim signal fragments woven into analytical narrative
-   4 = mostly specific with one generic paragraph; 4 signal fragments
+2. commercial_sharpness (0–5): Does this read like intelligence about a specific company, built from 5–7 concrete signals? Does "What This Means" connect invisible costs to lost network effects (each lost user = lost distribution node)?
+   5 = every paragraph contains company-specific observations; 5+ verbatim signal fragments woven into analytical narrative; cost section names the specific distribution path that breaks
+   4 = mostly specific with one generic paragraph; 4 signal fragments; cost is company-specific but network effect not named
    3 = half specific, half generic; or signal fragments present but not woven into analysis
    2 = more generic than specific; signals listed but not analysed
    1 = could be sent to any SaaS company with minor edits
    0 = fully generic
    Pass threshold: ≥ 3
 
-3. pattern_clarity (0–5): Does "The Pattern" section make the narrative gap explicit and unmistakable?
-   5 = gap is stated in 2-3 clear sentences; reader instantly sees the mismatch between positioning and reality
-   4 = gap is present but slightly vague on one side (the "experienced as" or "positioned as")
-   3 = gap is implied but not explicitly stated as a contrast
-   2 = pattern section exists but describes the situation rather than naming the gap
+3. pattern_clarity (0–5): Does "The Pattern" section make the narrative gap explicit and unmistakable? Does it demonstrate the mechanism through a concrete scenario before naming it?
+   5 = gap is stated in 2-3 clear sentences; mechanism demonstrated through a specific scenario (a buyer evaluating, a sales conversation, a churn decision) before being named; reader instantly sees the mismatch
+   4 = gap is present; mechanism is shown but scenario could be more concrete
+   3 = gap is implied but not explicitly stated as a contrast; or mechanism is named abstractly without a walkthrough scenario
+   2 = pattern section exists but describes the situation rather than naming the gap; no scenario
    1 = pattern section is generic or could apply to many companies
    0 = no discernible narrative gap named
    Pass threshold: ≥ 3
@@ -104,10 +104,10 @@ SCORING DIMENSIONS:
    0 = no external signals referenced
    Pass threshold: ≥ 3
 
-5. cta_clarity (0–5): Does the next step feel like continuing the analysis?
-   5 = one unambiguous diagnostic ask; feels like continuing the analysis, not a meeting request
-   4 = one ask, slightly vague on the action
-   3 = one ask, weakened by hedging or sales language
+5. cta_clarity (0–5): Does the next step feel like continuing the analysis? Does "What This Changes" offer a deployable phrase when the insight is structural?
+   5 = one unambiguous diagnostic ask; feels like continuing the analysis, not a meeting request; strategic shift section includes a phrase the founder could use in their next board meeting
+   4 = one ask, slightly vague on the action; deployable phrase present but slightly generic
+   3 = one ask, weakened by hedging or sales language; no deployable phrase but insight is operational (acceptable)
    2 = two asks, or the ask feels like a meeting request
    1 = no clear ask, or memo ends without direction
    0 = multiple competing asks or blatant sales pitch
@@ -309,7 +309,7 @@ function buildRevisionInstructions(
   }
   if (genericityTest.result === "fail") {
     failingDims.push("genericity_test");
-    specificIssues.push(`Genericity test failed: ${genericityTest.reasoning}`);
+    specificIssues.push(`CRITICAL — Genericity test failed: ${genericityTest.reasoning}. Your argument structure is generic — sections the_pattern, what_this_means, and what_this_changes use a portable strategic framework that could apply to any SaaS company. Rewrite the causal logic in these sections so it depends on company-specific conditions: their specific pricing model, their named competitors, their particular product gaps, their exact market position. The evidence quotes are company-specific but the analytical reasoning connecting them is not — fix the reasoning, not just the evidence.`);
   }
 
   const founderContext = `Most vulnerable claim: "${founderPushback.most_vulnerable_claim}". Likely objection: "${founderPushback.likely_objection}". Severity: ${founderPushback.severity}.${founderPushback.revision_suggestion ? ` Suggestion: ${founderPushback.revision_suggestion}` : ""}`;

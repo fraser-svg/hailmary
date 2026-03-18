@@ -119,7 +119,7 @@ function framingInstruction(mode: string): string {
 // ---------------------------------------------------------------------------
 
 export function buildSystemPrompt(brief: MemoBrief): string {
-  const bannedSample = brief.banned_phrases.slice(0, 25).join(", ");
+  const bannedSample = brief.banned_phrases.join(", ");
   const caveats =
     brief.confidence_caveats.length > 0
       ? `\nDo not assert the following as established fact: ${brief.confidence_caveats.join("; ")}.`
@@ -136,9 +136,11 @@ export function buildSystemPrompt(brief: MemoBrief): string {
     : "";
 
   const hedgingBan =
-    brief.adjudication_mode === "full_confidence" || brief.adjudication_mode === "conditional"
+    brief.adjudication_mode === "full_confidence"
       ? `\nHEDGING BAN: Do not use "likely", "may indicate", "could be", "might", "it is possible", "the evidence leaves this open". State findings with the confidence the evidence warrants.`
-      : "";
+      : brief.adjudication_mode === "conditional"
+        ? `\nHEDGING RULE: Hedge the diagnosis itself ("the evidence suggests", "if this pattern holds"), but state every implication with full conviction. Never hedge both the diagnosis and its consequence in the same sentence.`
+        : "";
 
   return `You are writing a Dean & Wiseman strategic diagnostic — a short document that reads like an internal strategy memo that somehow landed on a company founder's desk.
 
@@ -153,13 +155,14 @@ VOICE:
 - No first person ("we", "our", "us") anywhere except the final CTA section.
 - Every sentence must contain company-specific information.
 - Sentence style: short to medium, high clarity, no padding.
+- No length for its own sake. Every addition must displace something weaker. If a sentence does not earn its place, cut it.
 
 SECTION-BY-SECTION GUIDANCE:
 
 executive_thesis (80-130w):
 Goal: Define the core contradiction. Create immediate tension. Make the reader continue.
 Must contain: surface reality (what it looks like), underlying reality (what is actually happening), commercial implication.
-Writing rules: Specific not generic. One idea only. No hedging overload. No buzzwords.
+Writing rules: Specific not generic. One idea only. No hedging overload. No buzzwords. Must be a single paragraph — no line breaks.
 Output standard: Reader should think: "That's uncomfortably accurate."
 
 what_we_observed (180-260w):
@@ -173,12 +176,17 @@ the_pattern (130-200w):
 Goal: Identify the underlying system. Turn observations into insight. This section absorbs the causal reasoning — name what connects the signals and the structural forces at work.
 Must contain: One unifying idea. Clear articulation of what connects the signals. The structural forces (2 causal mechanisms) woven into the narrative — not labeled ("First force... Second force...") but felt.
 Writing rules: One pattern only. No lists. No multiple interpretations. Must be non-obvious but clearly true.
+SHOW BEFORE NAMING: Demonstrate the mechanism through a concrete scenario the founder can walk through mentally. Construct a specific situation from their business — a buyer evaluating their product, a sales conversation unfolding, a customer deciding to expand or churn — and show the mechanism operating. Only after the reader has seen it working, name the pattern. Do not label a psychological or strategic concept and then illustrate it; reverse the order.
+ARGUMENT SPECIFICITY: The causal logic must depend on facts unique to ${brief.target_company}. A reader should not be able to substitute another company name and have the argument still hold. Anchor the causal reasoning to specific evidence: their exact product features, their specific pricing structure, their named competitors, their particular market position. If the pattern could apply equally to any SaaS company, it is too generic — rewrite with company-specific conditions as load-bearing elements of the logic.
 Output standard: Reader should think: "I hadn't seen it like that."
 
 what_this_means (140-200w):
 Goal: Translate insight into business impact.
 Must address: trust, conversion, positioning, revenue implication. Name a specific commercial consequence with enough detail that the founder can estimate the cost.
 Writing rules: No exaggeration. No precise numbers unless proven. No generic outcomes.
+NETWORK EFFECT COST: When the cost is invisible (users leaving, buyers not returning, word-of-mouth not spreading), connect it to the lost network effect. Each lost individual is not just one lost customer — they are a lost distribution node. Name the specific distribution path that breaks when ${brief.target_company} loses that person.
+HEDGE THE DIAGNOSIS, NOT THE IMPLICATION: If evidence is inferential, hedge the diagnosis ("the evidence suggests X"). But state the implication with full conviction ("If accurate, this costs Y — and the cost compounds because Z"). Never hedge both.
+ARGUMENT SPECIFICITY: The commercial consequence must be specific to ${brief.target_company}'s situation — their market segment, their pricing model, their competitive dynamics. Do not describe outcomes that could apply to any company ("pipeline friction", "positioning confusion"). Instead describe outcomes tied to their specific business reality.
 Output standard: Reader should think: "This is likely costing us."
 
 what_this_changes (140-200w):
@@ -186,6 +194,8 @@ Goal: Define the strategic shift. Create curiosity.
 Must contain: direction of change, reframing of approach.
 Must NOT contain: tactics, step-by-step actions, full solution.
 Writing rules: Strategic not operational. Clear but incomplete. Controlled specificity. The founder should think "There's a clear way forward" — not "I understand the whole playbook."
+DEPLOYABLE PHRASES: When the insight is structural (a reframing, a new category, a repositioning), give the founder a phrase they could use in their next board meeting or sales call. This is not a tagline — it is a compressed articulation of the strategic shift that they can deploy immediately. Only do this when the insight type supports it; do not force a phrase where the insight is operational rather than structural.
+ARGUMENT SPECIFICITY: The strategic lever must be anchored in ${brief.target_company}'s specific conditions — not a generic framework. Reference their actual product capabilities, their specific buyer, their named competitive landscape. The reader should see why this lever works for them specifically, not for SaaS companies in general.
 Output standard: Reader should think: "There's a clear way forward — I want to hear it."
 
 cta (40-70w):
@@ -306,8 +316,8 @@ ${skeletonBlock}
 INTERVENTION FRAMING — for the "what_this_changes" section:
 ${brief.intervention_framing}
 
-CTA — use verbatim or paraphrase without changing the ask:
-${brief.cta}
+CTA — preserve the mechanism (reframe being wrong as informative, name what the meeting would test, keep to twenty minutes) but craft the specific language to feel individually written for ${brief.target_company}. Do not reuse phrasing from any template. The closing must feel like it was written once, for this company only.
+Base mechanism: ${brief.cta}
 
 ---
 Write the 6 sections. Return JSON only.`;
@@ -315,7 +325,7 @@ Write the 6 sections. Return JSON only.`;
   if (brief.revision_instructions) {
     const rev = brief.revision_instructions;
     const issues = rev.specific_issues.map(i => `- ${i}`).join("\n");
-    prompt += `\n\nREVISION REQUIRED — Attempt ${rev.attempt_number + 1}. Your previous memo failed quality review. Fix these specific issues:\n${issues}\n\nFounder pushback to address: ${rev.founder_pushback_context}`;
+    prompt += `\n\nREVISION REQUIRED — Attempt ${rev.attempt_number + 1}. Your previous memo failed quality review. Fix these specific issues:\n${issues}\n\nFounder pushback to address: ${rev.founder_pushback_context}\n\nOutput JSON only. No explanation or preamble.`;
   }
 
   return prompt;
@@ -350,9 +360,22 @@ export function parseResponse(text: string): RawSections {
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    throw new Error(
-      `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
-    );
+    // Fallback: extract JSON object from surrounding text (handles LLM thinking-text preamble)
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd > jsonStart) {
+      try {
+        parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+      } catch {
+        throw new Error(
+          `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
+      );
+    }
   }
 
   if (typeof parsed !== "object" || parsed === null) {
