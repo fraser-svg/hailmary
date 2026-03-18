@@ -5,13 +5,14 @@
  * Final binary gate. Fully deterministic — no LLM call.
  * Produces: result ("pass" | "fail") + memo_quality_score (0–100).
  *
- * Six criteria (all must pass):
+ * Seven criteria (all must pass):
  *   1. critic_overall_pass    — criticResult.overall_pass = true
  *   2. evidence_ref_count     — memo.evidence_ids.length >= 3
  *   3. adjudication_not_aborted — adjudication.adjudication_mode !== "abort"
  *   4. no_banned_phrases      — independent banned phrase scan on memo.markdown
  *   5. cta_present_singular   — cta section present, ≤50 words
  *   6. word_count_in_range    — 400 ≤ word_count ≤ 1400
+ *   7. rory_approval          — roryResult.verdict = "approve" (when present)
  *
  * Hard failures (never overridable):
  *   - Genericity test failed
@@ -19,19 +20,22 @@
  *   - adjudication mode = abort
  *   - Banned phrase detected
  *   - word_count > 1400 or < 300
+ *   - Rory verdict = "revise"
  *
- * Quality score derivation (0–100):
+ * Quality score derivation (0–100 base + 0–10 Rory bonus, capped at 100):
  *   critic_dimensions        40 pts (6 dims scaled: sum/30 × 40)
  *   evidence_ref_count       20 pts
  *   word_count_target_range  15 pts
  *   genericity_test          15 pts
  *   founder_pushback_severity 10 pts
+ *   rory_bonus               0–10 pts (additive when roryResult present)
  */
 
 import type { MarkdownMemo } from "../types/memo.js";
 import type { MemoCriticResult } from "../types/memo-critic.js";
 import type { AdjudicationResult } from "../types/adjudication.js";
 import type { EvidencePack } from "../types/evidence-pack.js";
+import type { RoryReviewResult } from "../types/rory-review.js";
 import type {
   SendGateResult,
   GateCriteriaResult,
@@ -47,6 +51,7 @@ export interface RunSendGateInput {
   criticResult: MemoCriticResult;
   adjudication: AdjudicationResult;
   evidencePack: EvidencePack;
+  roryResult?: RoryReviewResult;
 }
 
 function detectBannedPhrase(markdown: string): string | null {
@@ -233,6 +238,39 @@ function evalWordCountInRange(memo: MarkdownMemo): GateCriteriaResult {
   };
 }
 
+function evalRoryApproval(
+  roryResult?: RoryReviewResult
+): GateCriteriaResult {
+  // When no Rory review ran, criterion passes (backward compat)
+  if (!roryResult) {
+    return {
+      criterion_id: "rory_approval",
+      pass: true,
+      observed_value: "not_evaluated",
+      threshold: "roryResult.verdict = 'approve' (or not present)",
+    };
+  }
+
+  const pass = roryResult.verdict === "approve";
+  if (pass) {
+    return {
+      criterion_id: "rory_approval",
+      pass: true,
+      observed_value: "approve",
+      threshold: "roryResult.verdict = 'approve'",
+    };
+  }
+
+  return {
+    criterion_id: "rory_approval",
+    pass: false,
+    failure_type: "hard",
+    observed_value: "revise",
+    threshold: "roryResult.verdict = 'approve'",
+    notes: "Rory Sutherland review did not approve — memo lacks strategic interestingness",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Quality score computation
 // ---------------------------------------------------------------------------
@@ -275,6 +313,19 @@ function computeQualityScore(
   return Math.min(100, Math.max(0, dimScore + evScore + wcScore + genScore + pushScore));
 }
 
+/**
+ * Additive Rory bonus: 0–10 points from Rory's 4 dimensions.
+ * When roryResult is undefined, returns 0 (existing scores unchanged).
+ */
+function computeRoryBonus(roryResult?: RoryReviewResult): number {
+  if (!roryResult) return 0;
+  const { reframe_quality, behavioural_insight, asymmetric_opportunity, memorability } =
+    roryResult.dimensions;
+  const rawSum = reframe_quality.score + behavioural_insight.score +
+    asymmetric_opportunity.score + memorability.score;
+  return Math.round((rawSum / 20) * 10);
+}
+
 // ---------------------------------------------------------------------------
 // Gate summary builder
 // ---------------------------------------------------------------------------
@@ -292,7 +343,7 @@ function buildGateSummary(
 
   let recommendation: string;
   if (result === "pass") {
-    recommendation = `Memo passed all 6 criteria with quality score ${qualityScore}/100. Ready to send.`;
+    recommendation = `Memo passed all ${criteriaResults.length} criteria with quality score ${qualityScore}/100. Ready to send.`;
   } else if (hard > 0) {
     const firstHard = blockingReasons.find(r => r.failure_type === "hard");
     recommendation = `Memo failed hard criterion: ${firstHard?.criterion_id ?? "unknown"}. ${firstHard?.description ?? "Revision required."}`;
@@ -302,7 +353,7 @@ function buildGateSummary(
   }
 
   return {
-    total_criteria: 6,
+    total_criteria: criteriaResults.length as 6 | 7,
     criteria_passed: passed,
     criteria_failed: failed,
     hard_failures: hard,
@@ -317,16 +368,16 @@ function buildGateSummary(
 // ---------------------------------------------------------------------------
 
 /**
- * Evaluate the memo against all 6 gate criteria and compute quality score.
+ * Evaluate the memo against all 7 gate criteria and compute quality score.
  * Fully deterministic — no LLM call.
  *
  * @param input - RunSendGateInput with memo, criticResult, adjudication, evidencePack
  * @returns SendGateResult — pass/fail with quality score, blocking reasons, and summary
  */
 export function runSendGate(input: RunSendGateInput): SendGateResult {
-  const { memo, criticResult, adjudication } = input;
+  const { memo, criticResult, adjudication, roryResult } = input;
 
-  // Evaluate all 6 criteria
+  // Evaluate all 7 criteria
   const criteriaResults: GateCriteriaResult[] = [
     evalCriticOverallPass(criticResult),
     evalEvidenceRefCount(memo),
@@ -334,6 +385,7 @@ export function runSendGate(input: RunSendGateInput): SendGateResult {
     evalNoBannedPhrases(memo),
     evalCtaPresentSingular(memo),
     evalWordCountInRange(memo),
+    evalRoryApproval(roryResult),
   ];
 
   // Collect blocking reasons
@@ -349,7 +401,8 @@ export function runSendGate(input: RunSendGateInput): SendGateResult {
   const allPass = criteriaResults.every(c => c.pass);
   const result: "pass" | "fail" = allPass ? "pass" : "fail";
 
-  const qualityScore = computeQualityScore(criticResult, memo);
+  const baseScore = computeQualityScore(criticResult, memo);
+  const qualityScore = Math.min(100, baseScore + computeRoryBonus(roryResult));
 
   // Extract company_id from memo
   const company_id = memo.company_id;

@@ -75,6 +75,26 @@ vi.mock("../memo/criticise-memo.js", () => ({
   }),
 }));
 
+// Mock rory-review BEFORE importing run-v3-pipeline
+// V3-M5b makes LLM calls — mock it to keep pipeline tests deterministic
+vi.mock("../memo/rory-review.js", () => ({
+  roryReview: vi.fn().mockResolvedValue({
+    review_id: "rory_test-company_123456",
+    company_id: "test-company",
+    memo_id: "memo_test-company_123456",
+    reviewed_at: new Date().toISOString(),
+    attempt_number: 1,
+    dimensions: {
+      reframe_quality: { score: 4, pass: true, notes: "Genuine reframe." },
+      behavioural_insight: { score: 4, pass: true, notes: "Names anchoring effect." },
+      asymmetric_opportunity: { score: 3, pass: true, notes: "Lever is real." },
+      memorability: { score: 4, pass: true, notes: "Quotable." },
+    },
+    pub_test: { result: "pass", reasoning: "Would discuss at the pub." },
+    verdict: "approve",
+  }),
+}));
+
 // Mock run-send-gate BEFORE importing run-v3-pipeline
 // V3-M6 is deterministic but we mock it to control the result in pipeline tests
 vi.mock("../memo/run-send-gate.js", () => ({
@@ -105,6 +125,7 @@ import { runV3Pipeline } from "../pipeline/run-v3-pipeline.js";
 import { runV2Pipeline as mockRunV2Pipeline } from "../../intelligence-v2/pipeline.js";
 import { writeMemo as mockWriteMemoFn } from "../memo/write-memo.js";
 import { criticiseMemo as mockCriticiseMemoFn } from "../memo/criticise-memo.js";
+import { roryReview as mockRoryReviewFn } from "../memo/rory-review.js";
 import type { V2PipelineResult } from "../../intelligence-v2/pipeline.js";
 import type { CorpusPage, ExternalSource } from "../types/research-corpus.js";
 import { createEmptyDossier } from "../../utils/empty-dossier.js";
@@ -353,6 +374,7 @@ function makeExternalSource(type: ExternalSource["source_type"], suffix = ""): E
 const mockV2 = vi.mocked(mockRunV2Pipeline);
 const mockWriter = vi.mocked(mockWriteMemoFn);
 const mockCritic = vi.mocked(mockCriticiseMemoFn);
+const mockRory = vi.mocked(mockRoryReviewFn);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -651,21 +673,35 @@ describe("runV3Pipeline — corpus acquisition mode (fixture)", () => {
     expect(result.pipeline_version).toBe("v3");
   });
 
-  it("throws ERR_CORPUS_EMPTY if homepage is missing from fixture", async () => {
-    // No homepage in fixture — siteCorpusAcquisition will throw ERR_CORPUS_EMPTY
+  it("proceeds with degraded corpus when homepage is missing from fixture", async () => {
+    // No homepage in fixture — pipeline should proceed with degraded flag
     const fixture_site_pages: CorpusPage[] = [
       makeCorpusPage("pricing", "Pricing: $1,000/month"),
       makeCorpusPage("about", "About Acme."),
     ];
+    const fixture_external_sources: ExternalSource[] = [
+      makeExternalSource("review_trustpilot"),
+      makeExternalSource("press_mention"),
+      makeExternalSource("review_g2_snippet"),
+      makeExternalSource("competitor_search_snippet"),
+      makeExternalSource("funding_announcement"),
+    ];
 
-    await expect(
-      runV3Pipeline({
-        company: "Acme",
-        domain: "acme.com",
-        fixture_site_pages,
-        fixture_external_sources: [],
-      })
-    ).rejects.toThrow("ERR_CORPUS_EMPTY");
+    mockV2.mockImplementationOnce(async (_companyId: string, dossier: Dossier) => {
+      const ids = dossier.evidence.map(e => e.evidence_id);
+      return makeMockV2Result(ids);
+    });
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      fixture_site_pages,
+      fixture_external_sources,
+    });
+
+    // Pipeline should complete with degraded flag
+    expect(result.site_corpus_degraded).toBe(true);
+    expect(result.pipeline_version).toBe("v3");
   });
 });
 
@@ -1391,5 +1427,145 @@ describe("runV3Pipeline — memoIntelligenceVersion flag (Phase 1)", () => {
     // Both produce a memo and criticResult (same mock)
     expect(v3result.memo).toBeDefined();
     expect(v4result.memo).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: V3-M5b Rory Sutherland review loop
+// ---------------------------------------------------------------------------
+
+import type { RoryReviewResult } from "../types/rory-review.js";
+
+function makeApproveRory(attempt: 1 | 2 = 1): RoryReviewResult {
+  return {
+    review_id: `rory_test-company_approve_${attempt}`,
+    company_id: "test-company",
+    memo_id: "memo_test-company_123456",
+    reviewed_at: new Date().toISOString(),
+    attempt_number: attempt,
+    dimensions: {
+      reframe_quality: { score: 4, pass: true, notes: "Genuine reframe." },
+      behavioural_insight: { score: 4, pass: true, notes: "Names anchoring." },
+      asymmetric_opportunity: { score: 3, pass: true, notes: "Lever is real." },
+      memorability: { score: 4, pass: true, notes: "Quotable." },
+    },
+    pub_test: { result: "pass", reasoning: "Would discuss at the pub." },
+    verdict: "approve",
+  };
+}
+
+function makeReviseRory(attempt: 1 | 2 = 1): RoryReviewResult {
+  return {
+    review_id: `rory_test-company_revise_${attempt}`,
+    company_id: "test-company",
+    memo_id: "memo_test-company_123456",
+    reviewed_at: new Date().toISOString(),
+    attempt_number: attempt,
+    dimensions: {
+      reframe_quality: { score: 2, pass: false, notes: "Restatement." },
+      behavioural_insight: { score: 1, pass: false, notes: "No behavioural layer." },
+      asymmetric_opportunity: { score: 3, pass: true, notes: "Real lever." },
+      memorability: { score: 2, pass: false, notes: "Forgettable." },
+    },
+    pub_test: { result: "fail", reasoning: "Not interesting enough." },
+    verdict: "revise",
+    revision_notes: {
+      what_is_boring: "Restates the obvious.",
+      what_would_be_interesting: "Name the cognitive bias.",
+      missing_behavioural_layer: "No anchoring mechanism.",
+      specific_suggestions: ["Add sunk cost framing", "Name the loss aversion"],
+    },
+  };
+}
+
+describe("runV3Pipeline — V3-M5b Rory Sutherland review", () => {
+  it("approve path: roryReview called once, result.roryReview populated", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+    // Default mock: roryReview returns approve
+
+    const result = await runV3Pipeline({ company: "Acme", domain: "acme.com", dossier });
+
+    expect(mockRory).toHaveBeenCalledTimes(1);
+    expect(result.roryReview).toBeDefined();
+    expect(result.roryReview!.verdict).toBe("approve");
+    expect(result.firstRoryReview).toBeUndefined();
+  });
+
+  it("revise→approve path: Rory revises once, second review approves", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    // First Rory: revise
+    mockRory.mockResolvedValueOnce(makeReviseRory(1));
+    // Rory revision triggers attempt 3 write + re-critic (default mocks handle these)
+    // Second Rory: approve
+    mockRory.mockResolvedValueOnce(makeApproveRory(2));
+
+    const result = await runV3Pipeline({ company: "Acme", domain: "acme.com", dossier });
+
+    expect(mockRory).toHaveBeenCalledTimes(2);
+    expect(result.firstRoryReview).toBeDefined();
+    expect(result.firstRoryReview!.verdict).toBe("revise");
+    expect(result.roryReview!.verdict).toBe("approve");
+
+    // Writer called 2 times: attempt 1 (structural) + attempt 3 (Rory revision)
+    // (structural critic passed on attempt 1, no structural revision)
+    expect(mockWriter).toHaveBeenCalledTimes(2);
+    // The Rory revision write should be attempt 3
+    expect(mockWriter.mock.calls[1]![1]).toBe(3);
+  });
+
+  it("revise→revise path: second Rory also revises, send gate blocks", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    // Both Rory reviews: revise
+    mockRory.mockResolvedValueOnce(makeReviseRory(1));
+    mockRory.mockResolvedValueOnce(makeReviseRory(2));
+
+    const result = await runV3Pipeline({ company: "Acme", domain: "acme.com", dossier });
+
+    expect(mockRory).toHaveBeenCalledTimes(2);
+    expect(result.roryReview!.verdict).toBe("revise");
+    expect(result.firstRoryReview!.verdict).toBe("revise");
+  });
+
+  it("roryReviewEnabled=false: skips Rory review entirely", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      dossier,
+      roryReviewEnabled: false,
+    });
+
+    expect(mockRory).not.toHaveBeenCalled();
+    expect(result.roryReview).toBeUndefined();
+    expect(result.firstRoryReview).toBeUndefined();
+  });
+
+  it("Rory revision injects rory_revision_notes into brief and clears revision_instructions", async () => {
+    const dossier = buildTestDossier();
+    const evidenceIds = dossier.evidence.map(e => e.evidence_id);
+    mockV2.mockResolvedValueOnce(makeMockV2Result(evidenceIds));
+
+    mockRory.mockResolvedValueOnce(makeReviseRory(1));
+    mockRory.mockResolvedValueOnce(makeApproveRory(2));
+
+    await runV3Pipeline({ company: "Acme", domain: "acme.com", dossier });
+
+    // The Rory revision write (3rd call to writeMemo, but 2nd in this test since no structural revision)
+    // should receive a brief with rory_revision_notes and revision_instructions cleared
+    const roryRevisionBrief = mockWriter.mock.calls[1]![0];
+    expect(roryRevisionBrief.rory_revision_notes).toBeDefined();
+    expect(roryRevisionBrief.rory_revision_notes.what_is_boring).toBe("Restates the obvious.");
+    expect(roryRevisionBrief.revision_instructions).toBeUndefined();
   });
 });

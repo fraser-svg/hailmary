@@ -113,15 +113,17 @@ describe('siteCorpusAcquisition', () => {
       }
     });
 
-    it('throws ERR_CORPUS_EMPTY when homepage is missing', async () => {
+    it('returns degraded corpus when homepage is missing (non-fatal)', async () => {
       const pagesWithoutHomepage = MANDATORY_PAGES.filter(p => p.page_type !== 'homepage');
 
-      await expect(
-        siteCorpusAcquisition({
-          domain: 'example.com',
-          fixture_pages: pagesWithoutHomepage,
-        }),
-      ).rejects.toThrow('ERR_CORPUS_EMPTY');
+      const result = await siteCorpusAcquisition({
+        domain: 'example.com',
+        fixture_pages: pagesWithoutHomepage,
+      });
+
+      // Should succeed but with no homepage page
+      expect(result.pages.some(p => p.page_type === 'homepage')).toBe(false);
+      expect(result.pages.length).toBeGreaterThan(0);
     });
 
     it('continues when pricing page is missing (non-fatal)', async () => {

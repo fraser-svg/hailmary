@@ -37,7 +37,7 @@
 import { describe, it, expect } from "vitest";
 import { adjudicateDiagnosis } from "../memo/adjudicate-diagnosis.js";
 import type { AdjudicateDiagnosisInput } from "../memo/adjudicate-diagnosis.js";
-import { buildMemoBrief, BANNED_PHRASES, INTERVENTION_FRAMING, CTA_BY_INTERVENTION } from "../memo/build-memo-brief.js";
+import { buildMemoBrief, BANNED_PHRASES, INTERVENTION_FRAMING } from "../memo/build-memo-brief.js";
 import type { BuildMemoBriefInput } from "../memo/build-memo-brief.js";
 import type { Diagnosis } from "../../intelligence-v2/types/diagnosis.js";
 import type { Pattern } from "../../intelligence-v2/types/pattern.js";
@@ -1030,30 +1030,3 @@ describe("INTERVENTION_FRAMING — regression guard", () => {
   });
 });
 
-describe("CTA_BY_INTERVENTION — regression guard", () => {
-  it("sales_motion_redesign CTA does not use founder-removal language", () => {
-    const text = CTA_BY_INTERVENTION.sales_motion_redesign.toLowerCase();
-    expect(text.includes("without you in every deal")).toBe(false);
-    expect(text.includes("without you in the room")).toBe(false);
-  });
-
-  it("founder_gtm_transition CTA uses the universal CTA (deprecated alias)", () => {
-    const text = CTA_BY_INTERVENTION.founder_gtm_transition.toLowerCase();
-    expect(text.includes("diagnosis") || text.includes("twenty minutes")).toBe(true);
-  });
-
-  it("all 6 CTA entries are non-empty strings", () => {
-    const types: Array<keyof typeof CTA_BY_INTERVENTION> = [
-      "positioning_reset",
-      "icp_redefinition",
-      "sales_motion_redesign",
-      "founder_gtm_transition",
-      "distribution_strategy_reset",
-      "proof_architecture_design",
-    ];
-    for (const t of types) {
-      expect(typeof CTA_BY_INTERVENTION[t]).toBe("string");
-      expect(CTA_BY_INTERVENTION[t].length).toBeGreaterThan(20);
-    }
-  });
-});

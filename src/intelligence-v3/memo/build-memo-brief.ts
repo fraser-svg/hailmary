@@ -214,15 +214,6 @@ export const UNIVERSAL_CTA =
   "If it is right, there is a specific way companies resolve it. " +
   "Twenty minutes is enough to test which it is.";
 
-/** @deprecated Use UNIVERSAL_CTA. Kept for backward compatibility. */
-export const CTA_BY_INTERVENTION: Record<InterventionType, string> = {
-  positioning_reset: UNIVERSAL_CTA,
-  icp_redefinition: UNIVERSAL_CTA,
-  sales_motion_redesign: UNIVERSAL_CTA,
-  founder_gtm_transition: UNIVERSAL_CTA,
-  distribution_strategy_reset: UNIVERSAL_CTA,
-  proof_architecture_design: UNIVERSAL_CTA,
-};
 
 // ---------------------------------------------------------------------------
 // Hook type derivation from evidence type

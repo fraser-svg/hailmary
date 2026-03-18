@@ -194,7 +194,7 @@ function loadFromFixture(
   const attemptedPages = [...MANDATORY_PAGES, ...optionalTypes];
 
   if (!hasHomepage) {
-    throw new Error('ERR_CORPUS_EMPTY: homepage page not present in fixture');
+    console.warn('WARN_HOMEPAGE_MISSING_FIXTURE: homepage page not present in fixture — proceeding with degraded corpus');
   }
   if (!hasPricing) {
     console.warn('WARN_PRICING_UNAVAILABLE: pricing page not present in fixture');
@@ -265,7 +265,7 @@ async function fetchFromProvider(
     if (!result.success || !result.text) {
       failedPages.push(url);
       if (pageType === 'homepage') {
-        throw new Error('ERR_CORPUS_EMPTY: homepage fetch failed');
+        console.warn('WARN_HOMEPAGE_FETCH_FAILED: homepage fetch failed — pipeline will proceed with external sources only');
       }
       if (pageType === 'pricing') {
         console.warn('WARN_PRICING_UNAVAILABLE: pricing page fetch failed');
@@ -290,7 +290,7 @@ async function fetchFromProvider(
   }
 
   if (!checkRequiredPages(pages).hasHomepage) {
-    throw new Error('ERR_CORPUS_EMPTY: homepage was not successfully fetched');
+    console.warn('WARN_SITE_CORPUS_DEGRADED: no homepage content — dossier will rely on external sources');
   }
 
   return {

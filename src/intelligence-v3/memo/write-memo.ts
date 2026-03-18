@@ -126,9 +126,11 @@ export function buildSystemPrompt(brief: MemoBrief): string {
     : "";
 
   const hedgingBan =
-    brief.adjudication_mode === "full_confidence" || brief.adjudication_mode === "conditional"
+    brief.adjudication_mode === "full_confidence"
       ? `\nHEDGING BAN: Do not use "likely", "may indicate", "could be", "might", "it is possible", "the evidence leaves this open". State findings with the confidence the evidence warrants.`
-      : "";
+      : brief.adjudication_mode === "conditional"
+        ? `\nHEDGING RULE: Hedge the diagnosis itself ("the evidence suggests", "if this pattern holds"), but state every implication with full conviction. Never hedge both the diagnosis and its consequence in the same sentence.`
+        : "";
 
   return `You are writing a Dean & Wiseman strategic diagnostic. A letter to a specific person who did not ask for it, who is busy, who has seen a hundred pitches this month, and who will give you four sentences to prove you are worth the next four. It will be printed and mailed as a physical object. Every word must earn its place on paper.
 
@@ -341,8 +343,8 @@ ${skeletonBlock}
 INTERVENTION FRAMING — for the "what_this_changes" section:
 ${brief.intervention_framing}
 
-CTA — use verbatim or paraphrase without changing the ask:
-${brief.cta}
+CTA — preserve the mechanism (reframe being wrong as informative, name what the meeting would test, keep to twenty minutes) but craft the specific language to feel individually written for ${brief.target_company}. Do not reuse phrasing from any template. The closing must feel like it was written once, for this company only.
+Base mechanism: ${brief.cta}
 
 ---
 Write the 6 sections. Return JSON only.`;
@@ -350,7 +352,13 @@ Write the 6 sections. Return JSON only.`;
   if (brief.revision_instructions) {
     const rev = brief.revision_instructions;
     const issues = rev.specific_issues.map(i => `- ${i}`).join("\n");
-    prompt += `\n\nREVISION REQUIRED — Attempt ${rev.attempt_number + 1}. Your previous memo failed quality review. Fix these specific issues:\n${issues}\n\nFounder pushback to address: ${rev.founder_pushback_context}`;
+    prompt += `\n\nREVISION REQUIRED — Attempt ${rev.attempt_number + 1}. Your previous memo failed quality review. Fix these specific issues:\n${issues}\n\nFounder pushback to address: ${rev.founder_pushback_context}\n\nOutput JSON only. No explanation or preamble.`;
+  }
+
+  if (brief.rory_revision_notes) {
+    const rory = brief.rory_revision_notes;
+    const suggestions = rory.specific_suggestions.map(s => `- ${s}`).join("\n");
+    prompt += `\n\nRORY SUTHERLAND REVISION NOTES — Your previous memo was not strategically interesting enough. Rory's feedback:\n\nWhat is boring: ${rory.what_is_boring}\nWhat would be interesting: ${rory.what_would_be_interesting}\nMissing behavioural layer: ${rory.missing_behavioural_layer}\n\nSpecific suggestions:\n${suggestions}`;
   }
 
   return prompt;
@@ -405,9 +413,22 @@ export function parseResponse(text: string): RawSections {
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    throw new Error(
-      `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
-    );
+    // Fallback: extract JSON object from surrounding text (handles LLM thinking-text preamble)
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd > jsonStart) {
+      try {
+        parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+      } catch {
+        throw new Error(
+          `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `ERR_MEMO_PARSE: LLM response was not valid JSON.\n\nResponse received:\n${text.slice(0, 500)}`
+      );
+    }
   }
 
   if (typeof parsed !== "object" || parsed === null) {
@@ -529,7 +550,7 @@ function validateMemo(
  */
 export async function writeMemo(
   brief: MemoBrief,
-  attemptNumber: 1 | 2 = 1,
+  attemptNumber: 1 | 2 | 3 = 1,
   config: WriteMemoConfig = {}
 ): Promise<MarkdownMemo> {
   if (brief.adjudication_mode === "abort") {

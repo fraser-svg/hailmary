@@ -1,21 +1,25 @@
 # TODOS
 
-## P1 — Re-run eval harness after D&W memo restructure
+## P1 — Re-run eval harness after D&W restructure + CEO memo doctrine
 
 **What:** Run the compare-v3-v4 eval harness (mock + live modes) against Trigger.dev,
-Omnea, and Gendo after the D&W memo restructure ships. Compare memo quality scores,
-word counts, and section density against pre-restructure baselines.
+Omnea, and Gendo after BOTH the D&W memo restructure AND the CEO memo doctrine (7
+principles) ship. Compare memo quality scores, word counts, and section density against
+pre-restructure baselines. Pay particular attention to: scenario-before-naming in
+the_pattern (principle #1), network effect costs in what_this_means (#3), deployable
+phrases in what_this_changes (#4), and CTA variation (#5).
 
-**Why:** The D&W restructure changes every parameter surface: word budget (900-1100),
-evidence spine density (5-8), section structure (7 sections), prompt (full rewrite),
-temperature (0.5), and critic rubric. Without a fresh eval run, we have no data on
-whether these changes actually produce better memos or regressed quality.
+**Why:** Two successive prompt changes (D&W restructure + 7 principles) affect every
+parameter surface. Without a fresh eval run, we have no data on whether these changes
+produce better memos or regressed quality. Post-fix live baselines exist: Retool (77),
+Calendly (83), Intercom (74).
 
 **Where:** `src/intelligence-v3/eval/compare-v3-v4.ts` — run in mock mode first, then
 live mode with real LLM calls. Compare against the pre-restructure baselines captured
-in the Phase 3 eval run (V3 quality avg: 69, V4 quality avg: 53).
+in the Phase 3 eval run (V3 quality avg: 69, V4 quality avg: 53) and the post-fix
+baselines (Retool 77, Calendly 83, Intercom 74).
 
-**Effort:** M | **Depends on:** D&W memo restructure PR merged
+**Effort:** M | **Depends on:** D&W memo restructure + CEO memo doctrine PR merged
 
 ---
 

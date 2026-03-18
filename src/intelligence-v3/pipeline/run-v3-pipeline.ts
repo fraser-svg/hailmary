@@ -74,6 +74,11 @@ import type { WriteMemoConfig } from "../memo/write-memo.js";
 import { criticiseMemo } from "../memo/criticise-memo.js";
 import type { CriticConfig } from "../memo/criticise-memo.js";
 
+// V3-M5b
+import { roryReview } from "../memo/rory-review.js";
+import type { RoryReviewConfig } from "../memo/rory-review.js";
+import type { RoryReviewResult } from "../types/rory-review.js";
+
 // V3-M6
 import { runSendGate } from "../memo/run-send-gate.js";
 
@@ -123,6 +128,19 @@ export interface V3PipelineInput {
    * Set to false to skip enrichment entirely.
    */
   enrichConfig?: EnrichCorpusConfig | false;
+
+  /**
+   * Optional Rory review config — inject a mock Anthropic client in tests,
+   * or override model/token settings for the Rory review (V3-M5b).
+   * When omitted and ANTHROPIC_API_KEY is not set, roryReview will throw.
+   */
+  roryConfig?: RoryReviewConfig;
+
+  /**
+   * Enable/disable Rory Sutherland review (V3-M5b).
+   * Defaults to true. Set to false to skip Rory review (for tests/cost).
+   */
+  roryReviewEnabled?: boolean;
 
   /**
    * Skip upstream acquisition and use a pre-built Dossier.
@@ -184,6 +202,10 @@ export interface V3PipelineResult {
   firstAttemptMemo?: MarkdownMemo;         // Attempt 1 memo before revision
   firstCriticResult?: MemoCriticResult;    // Attempt 1 critic result that triggered revision
 
+  // V3-M5b: Rory Sutherland review
+  roryReview?: RoryReviewResult;           // Final Rory result (attempt 1 or 2)
+  firstRoryReview?: RoryReviewResult;      // First Rory result if Rory revision ran
+
   // V4 memo intelligence
   /** Which memo intelligence version was used (matches input flag, or "v4" when not specified). */
   memo_intelligence_version: "v3" | "v4";
@@ -197,6 +219,9 @@ export interface V3PipelineResult {
   // V3-U3.5 enrichment
   /** EnrichmentResult from enrichCorpus(). Undefined when enrichment is skipped or dossier is pre-built. */
   enrichment?: EnrichmentResult;
+
+  /** True when site corpus acquisition failed and pipeline proceeded with external sources only. */
+  site_corpus_degraded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,13 +251,14 @@ export async function runV3Pipeline(
   let corpus: ResearchCorpus | undefined;
   let dossier: Dossier;
   let enrichment: EnrichmentResult | undefined;
+  let siteCorpusDegraded = false;
 
   if (input.dossier) {
     // Skip acquisition — use pre-built dossier
     dossier = input.dossier;
   } else {
     // V3-U1 + V3-U2: Parallel acquisition via Promise.allSettled
-    // U1 failure is fatal (ERR_CORPUS_EMPTY). U2 failure is non-fatal (empty corpus fallback).
+    // Both failures are non-fatal — fall back to empty corpus and proceed with available sources.
     const t0 = Date.now();
     const [siteResult, externalResult] = await Promise.allSettled([
       siteCorpusAcquisition({
@@ -247,9 +273,27 @@ export async function runV3Pipeline(
       }),
     ]);
 
-    // U1 failure is fatal — re-throw
-    if (siteResult.status === 'rejected') throw siteResult.reason;
-    const siteCorpus = siteResult.value;
+    // U1 failure is non-fatal — fall back to empty site corpus (pipeline proceeds with external sources only)
+    const siteCorpus: import("../types/research-corpus.js").SiteCorpus = siteResult.status === 'fulfilled'
+      ? siteResult.value
+      : {
+          domain: input.domain,
+          fetched_at: now(),
+          pages: [],
+          fetch_metadata: {
+            attempted_pages: [],
+            failed_pages: [],
+            total_tokens: 0,
+          },
+        };
+
+    if (siteResult.status === 'rejected') {
+      console.warn('WARN_SITE_CORPUS_FAILED:', String(siteResult.reason));
+      siteCorpusDegraded = true;
+    } else if (!siteCorpus.pages.some(p => p.page_type === 'homepage')) {
+      // Corpus returned but homepage was missing (fixture or provider degradation)
+      siteCorpusDegraded = true;
+    }
 
     // U2 failure is non-fatal — fall back to empty external corpus
     const externalCorpus = externalResult.status === 'fulfilled'
@@ -369,8 +413,38 @@ export async function runV3Pipeline(
     });
   }
 
+  // Helper: attempt writeMemo with one retry on recoverable LLM errors
+  // (banned phrases, parse failures, etc. — the LLM is non-deterministic)
+  // Hoisted above the memoBrief block so both structural and Rory loops can use it.
+  const attemptWrite = async (
+    brief: MemoBrief,
+    attemptNumber: 1 | 2 | 3,
+  ): Promise<MarkdownMemo> => {
+    try {
+      return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/ERR_BANNED_PHRASE|ERR_MEMO_PARSE|ERR_MEMO_TOO_SHORT|ERR_MEMO_TOO_LONG/.test(msg)) {
+        console.warn(`[V3 pipeline] Recoverable memo error: ${msg} — retrying`);
+        // On banned phrase error, inject targeted reinforcement so retry has new signal
+        const bannedMatch = msg.match(/banned phrase detected in memo: "([^"]+)"/);
+        const retryBrief = bannedMatch
+          ? {
+              ...brief,
+              confidence_caveats: [
+                ...brief.confidence_caveats,
+                `CRITICAL: Do not use the word "${bannedMatch[1]}" in any form`,
+              ],
+            }
+          : brief;
+        return await writeMemo(retryBrief, attemptNumber, input.writerConfig ?? {});
+      }
+      throw err;
+    }
+  };
+
   // V3-M4 → V3-M5: write → critic → optional single revision → critic again
-  // Maximum 2 write attempts total. Revision runs only when:
+  // Maximum 2 structural write attempts. Revision runs only when:
   //   (a) criticResult.overall_pass === false, AND
   //   (b) memoBrief is present (i.e. adjudication is not "abort")
   let memo: MarkdownMemo | undefined;
@@ -379,24 +453,6 @@ export async function runV3Pipeline(
   let firstCriticResult: MemoCriticResult | undefined;
 
   if (memoBrief) {
-    // Helper: attempt writeMemo with one retry on recoverable LLM errors
-    // (banned phrases, parse failures, etc. — the LLM is non-deterministic)
-    const attemptWrite = async (
-      brief: MemoBrief,
-      attemptNumber: 1 | 2,
-    ): Promise<MarkdownMemo> => {
-      try {
-        return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (/ERR_BANNED_PHRASE|ERR_MEMO_PARSE|ERR_MEMO_TOO_SHORT|ERR_MEMO_TOO_LONG/.test(msg)) {
-          console.warn(`[V3 pipeline] Recoverable memo error: ${msg} — retrying`);
-          return await writeMemo(brief, attemptNumber, input.writerConfig ?? {});
-        }
-        throw err;
-      }
-    };
-
     // Attempt 1: write + critic
     memo = await attemptWrite(memoBrief, 1);
     criticResult = await criticiseMemo(memo, memoBrief, 1, input.criticConfig ?? {});
@@ -413,9 +469,58 @@ export async function runV3Pipeline(
           : {}),
       };
 
-      // Attempt 2 (final — no further loops)
+      // Attempt 2 (final structural attempt)
       memo = await attemptWrite(revisedBrief, 2);
       criticResult = await criticiseMemo(memo, revisedBrief, 2, input.criticConfig ?? {});
+    }
+  }
+
+  // V3-M5b: Rory Sutherland review → optional single revision → re-Rory
+  let roryResult: RoryReviewResult | undefined;
+  let firstRoryReview: RoryReviewResult | undefined;
+  const roryEnabled = input.roryReviewEnabled !== false; // default true
+
+  if (memo && memoBrief && roryEnabled) {
+    roryResult = await roryReview(memo, memoBrief, 1, input.roryConfig ?? {});
+    console.log(JSON.stringify({
+      event: "rory_review",
+      company_id: memo.company_id,
+      attempt: 1,
+      verdict: roryResult.verdict,
+      scores: {
+        reframe_quality: roryResult.dimensions.reframe_quality.score,
+        behavioural_insight: roryResult.dimensions.behavioural_insight.score,
+        asymmetric_opportunity: roryResult.dimensions.asymmetric_opportunity.score,
+        memorability: roryResult.dimensions.memorability.score,
+      },
+      pub_test: roryResult.pub_test.result,
+    }));
+
+    if (roryResult.verdict === "revise") {
+      firstRoryReview = roryResult;
+      console.log(JSON.stringify({ event: "rory_revision_start", company_id: memo.company_id }));
+
+      // Inject Rory's revision notes into the brief, clear stale structural revision
+      const roryRevisedBrief: MemoBrief = {
+        ...memoBrief,
+        revision_instructions: undefined,
+        rory_revision_notes: roryResult.revision_notes,
+      };
+
+      // Attempt 3 (Rory revision — final write attempt)
+      memo = await attemptWrite(roryRevisedBrief, 3);
+
+      // Re-run structural critic on the new memo (needed for send gate)
+      criticResult = await criticiseMemo(memo, roryRevisedBrief, 2, input.criticConfig ?? {});
+
+      // Re-Rory
+      roryResult = await roryReview(memo, roryRevisedBrief, 2, input.roryConfig ?? {});
+      console.log(JSON.stringify({
+        event: "rory_review",
+        company_id: memo.company_id,
+        attempt: 2,
+        verdict: roryResult.verdict,
+      }));
     }
   }
 
@@ -427,6 +532,7 @@ export async function runV3Pipeline(
       criticResult,
       adjudication,
       evidencePack,
+      roryResult,
     });
   }
 
@@ -446,8 +552,11 @@ export async function runV3Pipeline(
     sendGate,
     firstAttemptMemo,
     firstCriticResult,
+    roryReview: roryResult,
+    firstRoryReview,
     memo_intelligence_version: memoIntelligenceVersion,
     argumentSynthesis,
     enrichment,
+    ...(siteCorpusDegraded ? { site_corpus_degraded: true } : {}),
   };
 }

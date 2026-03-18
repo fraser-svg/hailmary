@@ -11,16 +11,16 @@ You are identifying companies that match the Columbus ICP (Ideal Customer Profil
 
 ## Input
 
-- Investor names: `$ARGUMENTS` (comma-separated, e.g. "GTMfund, Frontline Ventures, Bessemer")
+- Investor names: `$ARGUMENTS` (comma-separated, e.g. "Seedcamp, Notion Capital, Frontline Ventures")
 
 Parse the arguments: split on commas, trim whitespace. Each entry is a VC firm name.
 
 If no arguments provided, use the default investor list:
-1. GTMfund (gtmfund.com)
-2. Forum Ventures (forumvc.com)
-3. Frontline Ventures (frontline.vc)
-4. Bessemer Venture Partners (bvp.com)
-5. Entourage (entourage.vc)
+1. Seedcamp (seedcamp.com)
+2. Notion Capital (notion.vc)
+3. LocalGlobe (localglobe.vc)
+4. Frontline Ventures (frontline.vc)
+5. Stride.VC (stride.vc)
 
 ## Output
 
@@ -36,19 +36,19 @@ Score each dimension 0-2: miss / partial / match.
 
 | Dimension | Match (2) | Partial (1) | Miss (0) |
 |-----------|-----------|-------------|----------|
-| Geography | UK, Ireland | Nordics, Netherlands, Germany | Outside Europe |
+| Geography | UK-headquartered | — | Outside UK |
 | ARR range | £500k–£10M (or $600k–$12M) | £100k–£500k or £10M–£20M | Outside range or unknown |
 | Stage | Seed, Series A, early Series B | Late Series B | Series C+ or pre-seed |
 | Category | B2B SaaS, devtools | Software infra, vertical SaaS | Consumer, hardware, marketplace |
 | Messy growth | 2+ signals: narrative evolving, founder-led sales, hiring sales/marketing, enterprise-vs-SMB tension, product-vs-services | 1 signal | No signals visible |
-| Evidence depth | Trustpilot/G2 presence + case studies + press coverage | 2 of 3 | None visible |
+| Evidence depth | Active blog/content + customer logos or testimonials on site + press/funding coverage | 2 of 3 | Dark/stealth site, no external mentions |
 
 **Qualification threshold:** total >= 7 out of 12
 
 **Scoring guidance:**
 - ARR is rarely public. Use funding round size as proxy: Seed ($1-5M) → likely £500k-£2M ARR. Series A ($5-20M) → likely £2M-£8M ARR. Score "unknown" as 0 with a note.
 - "Messy growth" signals come from: homepage messaging changes (check web archive if available), job postings (sales/marketing hiring), case study mix (SMB vs enterprise), product page language (platform vs tool).
-- Evidence depth: a quick WebSearch for `"<company>" trustpilot OR g2 OR review` reveals presence.
+- Evidence depth: a quick WebSearch for `"<company>" blog OR customers OR press` reveals presence. Look for active content marketing, customer logos/testimonials on homepage, and any press or funding announcements.
 
 ## Research Steps
 
@@ -70,7 +70,7 @@ Merge candidates across all investors. If the same company appears in multiple p
 Cap at 30 candidates. If more than 30 found, prioritize:
 1. Companies appearing in multiple portfolios
 2. Companies with clearer B2B SaaS signals from snippets
-3. Companies with European presence signals
+3. Companies with UK presence signals
 
 ### Step 3: Candidate Qualification
 
