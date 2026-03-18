@@ -651,21 +651,35 @@ describe("runV3Pipeline — corpus acquisition mode (fixture)", () => {
     expect(result.pipeline_version).toBe("v3");
   });
 
-  it("throws ERR_CORPUS_EMPTY if homepage is missing from fixture", async () => {
-    // No homepage in fixture — siteCorpusAcquisition will throw ERR_CORPUS_EMPTY
+  it("proceeds with degraded corpus when homepage is missing from fixture", async () => {
+    // No homepage in fixture — pipeline should proceed with degraded flag
     const fixture_site_pages: CorpusPage[] = [
       makeCorpusPage("pricing", "Pricing: $1,000/month"),
       makeCorpusPage("about", "About Acme."),
     ];
+    const fixture_external_sources: ExternalSource[] = [
+      makeExternalSource("review_trustpilot"),
+      makeExternalSource("press_mention"),
+      makeExternalSource("review_g2_snippet"),
+      makeExternalSource("competitor_search_snippet"),
+      makeExternalSource("funding_announcement"),
+    ];
 
-    await expect(
-      runV3Pipeline({
-        company: "Acme",
-        domain: "acme.com",
-        fixture_site_pages,
-        fixture_external_sources: [],
-      })
-    ).rejects.toThrow("ERR_CORPUS_EMPTY");
+    mockV2.mockImplementationOnce(async (_companyId: string, dossier: Dossier) => {
+      const ids = dossier.evidence.map(e => e.evidence_id);
+      return makeMockV2Result(ids);
+    });
+
+    const result = await runV3Pipeline({
+      company: "Acme",
+      domain: "acme.com",
+      fixture_site_pages,
+      fixture_external_sources,
+    });
+
+    // Pipeline should complete with degraded flag
+    expect(result.site_corpus_degraded).toBe(true);
+    expect(result.pipeline_version).toBe("v3");
   });
 });
 
